@@ -168,6 +168,146 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/02/08/Linux%E5%86%85%E6%A0%B8%E8%B0%83%E8%AF%95%E7%8E%AF%E5%A2%83%E7%9A%84%E6%90%AD%E5%BB%BA/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="stay hungry, stay foolish">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/02/08/Linux%E5%86%85%E6%A0%B8%E8%B0%83%E8%AF%95%E7%8E%AF%E5%A2%83%E7%9A%84%E6%90%AD%E5%BB%BA/" class="post-title-link" itemprop="url">Linux内核调试环境的搭建</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-02-08 04:43:25" itemprop="dateCreated datePublished" datetime="2023-02-08T04:43:25+08:00">2023-02-08</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-02-13 15:55:41" itemprop="dateModified" datetime="2023-02-13T15:55:41+08:00">2023-02-13</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="编译系统内核"><a href="#编译系统内核" class="headerlink" title="编译系统内核"></a>编译系统内核</h2><p>首先需要下载Linux的内核源码，几个常用的内核源码下载途径如下：</p>
+<ol>
+<li><a target="_blank" rel="noopener" href="https://github.com/torvalds/linux.git">GitHub - torvalds&#x2F;linux: Linux kernel source tree</a>：适合git commit找补丁和漏洞</li>
+<li><a target="_blank" rel="noopener" href="https://cdn.kernel.org/pub/linux/kernel/">Index of &#x2F;pub&#x2F;linux&#x2F;kernel&#x2F;</a>：下载源码的压缩包</li>
+<li><code>sudo apt-get source linux-image-$(uname -r)</code>：下载当前发行版的内核，但是版本往往不全</li>
+<li><a target="_blank" rel="noopener" href="https://wiki.ubuntu.com/Kernel/Dev/KernelGitGuide">Ubuntu KernelGitGuide</a>：对于Ubuntu可以获取到发行版的源码，自行进行编译</li>
+</ol>
+<p>此次就以编译Linux 5.15.1为例，首先下载并解压源码：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">wget https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.15.1.tar.gz</span><br><span class="line">tar -xvf linux-5.15.1.tar.gz</span><br><span class="line">cd linux-5.15.1/</span><br></pre></td></tr></table></figure>
+
+<p>然后是对内核的编译选项进行设置，常用的基本流程如下：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">make **_deconfig</span><br><span class="line">make munuconfig</span><br><span class="line">make</span><br></pre></td></tr></table></figure>
+<ol>
+<li><code>make **_deconfig</code><br><code>**_deconfig</code>是用来指定此次编译使用的默认配置文件，该配置文件会从指定的<code>**_dedonfig</code>文件中加载配置，并保存到源码目录的<code>.config</code>文件中。</li>
+</ol>
+<p>在嵌入式领域，例如需要为ARM架构指定适配特定芯片的Linux内核，配置命令如下：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">make ARCH=ARM imx_v6_v7_defconfig</span><br></pre></td></tr></table></figure>
+
+<p>在此处，我们的目的是需要编译一个x86_64架构的内核，因此执行命令如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">make x86_64_defconfig</span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li><code>make menuconfig</code><br><img src="/images/Pastedimage20230213131615.png" alt="undifined"><br>一般来说，调试内核需要关闭系统的地址随机化、开启调试信息等，除此之外，还需要根据调试的目的来选择需要编译的模块，例如在调试netfilter的时候，就需要开启一些NF_TABLES等相关的配置。<br>如下是关闭地址随机化和开启调试信息的步骤：<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">Processor type and features  ---&gt;</span><br><span class="line">    -*- Build a relocatable kernel</span><br><span class="line">    [ ]   Randomize the address of the kernel image (KASLR)</span><br><span class="line"></span><br><span class="line">Kernel hacking  ---&gt;</span><br><span class="line">	Compile-time checks and compiler options  ---&gt;</span><br><span class="line">		[*] Compile the kernel with debug info</span><br><span class="line">		[*]   Generate BTF typeinfo</span><br><span class="line">		[*]   Provide GDB scripts for kernel debugging</span><br></pre></td></tr></table></figure></li>
+</ol>
+<p>在menu界面，可以通过输入<code>/</code>来搜索需要开启的内核特性，这比一个个去手动找方便。<br><img src="/images/Pastedimage20230213132214.png" alt="undifined"></p>
+<p>设置完毕后，可以主动保存或者退出提示保存</p>
+<ol start="3">
+<li><code>make</code><br>开始进行编译，可以根据CPU的核数开启多线程编译，提高速度，例如<code>make -j8</code>。<br>编译完成后，和调试相关的两个重要文件的路径和作用如下：</li>
+</ol>
+<ul>
+<li>vmlinux：当前目录，原始的内核文件，未压缩，可以用于gdb调试时加载</li>
+<li>bzImage：<code>./arch/x86_64/boot/bzImage</code>，压缩后的内核，真正运行的内核</li>
+</ul>
+<h2 id="制作文件系统"><a href="#制作文件系统" class="headerlink" title="制作文件系统"></a>制作文件系统</h2><p>要启动一个能正常运行的Linux，除了内核之外，还需要一个根文件系统。文件系统的制作可以采用手动的方式，也可以采用自动化的脚本部署。</p>
+<p>手动制作一个文件系统，基本的步骤就是：</p>
+<ol>
+<li>下载某些发行版的基本根文件系统，例如Ubuntu的<a target="_blank" rel="noopener" href="http://cdimage.ubuntu.com/ubuntu-base/releases/">根文件系统</a></li>
+<li>制作磁盘镜像，可以先使用<code>dd</code>创建一个磁盘镜像，然后使用<code>mkfs</code>来为磁盘镜像进行分区和格式化</li>
+<li>挂载磁盘镜像，并将根文件系统装载到磁盘镜像中。<br>手动创建根文件系统磁盘镜像就不再更多展开说，后续会单独出一篇文章来进行介绍。</li>
+</ol>
+<p>自动化的脚本部署则是推荐一个内核模糊测试工具<code>syzkaller</code>中的脚本<code>create-image.sh</code>，其工作的基本原理是通过工具<code>debootstrap</code>根据参数创建一个Debian的根文件系统磁盘镜像，大概的工作流程如下：</p>
+<ol>
+<li>设置参数，例如Debian的发行版本、系统架构、需要安装的组件</li>
+<li>下载Debian的基本根文件系统，并使用qemu-user-static和chroot到根文件系统目录</li>
+<li>apt-get安装相关的组件，然后打包到磁盘镜像中</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get install debootstrap</span><br><span class="line">wget https://raw.githubusercontent.com/google/syzkaller/master/tools/create-image.sh -O create-image.sh</span><br><span class="line">chmod +x create-image.sh</span><br><span class="line">./create-image.sh</span><br></pre></td></tr></table></figure>
+<p><img src="/images/Pastedimage20230213135609.png" alt="undifined"></p>
+<p>例如，<code>./create-image.sh -d bullseye</code>制作一个Debian的bullseye发行版根文件系统镜像。<br><img src="/images/Pastedimage20230213135930.png" alt="undifined"><br><img src="/images/Pastedimage20230213153642.png" alt="undifined"></p>
+<h2 id="qemu-gdb连调"><a href="#qemu-gdb连调" class="headerlink" title="qemu+gdb连调"></a>qemu+gdb连调</h2><p>运行所需要的内核和文件系统镜像都制作好了，基本如下：<br><img src="/images/Pastedimage20230213154421.png" alt="undifined"><br>就可以使用如下的QEMU命令来运行并调试内核：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">sudo qemu-system-x86_64 \</span><br><span class="line">-m 1G \</span><br><span class="line">-kernel ./bzImage \</span><br><span class="line">-append &quot;console=ttyS0 root=/dev/sda earlyprintk=seria net.ifnames=0&quot; \</span><br><span class="line">-drive file=./bullseye.img,format=raw \</span><br><span class="line">-nographic \</span><br><span class="line">-net nic,model=e1000 \</span><br><span class="line">-S \</span><br><span class="line">-s</span><br></pre></td></tr></table></figure>
+<ul>
+<li>m：指定运行内存</li>
+<li>kernel：指定内核</li>
+<li>append：指定console口、磁盘、串口等</li>
+<li>drive：磁盘</li>
+<li>nographic：非图形界面，也就是命令行界面</li>
+<li>net：e1000网卡</li>
+<li>S：等待gdb的命令后再运行</li>
+<li>s：开启本地调试端口1234</li>
+</ul>
+<p>随后，使用gdb去连接和调试：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">file ./vmlinux</span><br><span class="line">target remote :1234</span><br><span class="line">b start_kernel</span><br><span class="line">c</span><br></pre></td></tr></table></figure>
+<p>可以看到，gdb成功断在了函数<code>start_kernel</code>处<br><img src="/images/Pastedimage20230213155247.png" alt="undifined"></p>
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://cloud.tencent.com/developer/article/2121069">QEMU调试Linux内核环境搭建 - 腾讯云开发者社区-腾讯云</a></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/01/12/mirai%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%EF%BC%9A%E5%AE%9E%E6%88%98%E7%9C%9F%E5%AE%9Emirai%E6%A0%B7%E6%9C%AC2-%E6%97%A0%E7%AC%A6%E5%8F%B7/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1164,7 +1304,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">8</span>
+          <span class="site-state-item-count">9</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
