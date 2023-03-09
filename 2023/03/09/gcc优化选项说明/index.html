@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"oneshell.top","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":true,"nav":{"gitalk":{"order":-2}},"activeClass":"gitalk"},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="在使用编译程序的时候，如果不启动优化选项，gcc会产生有利于调试的编译结果，例如使用gdb可以方便查看、修改源代码中的变量的值；如果启用优化选项，gcc会使用更多的编译时间和牺牲程序的可调试性为代价来提高程序的性能或者减少代码大小。 在不同的gcc版本和目标平台下，同一个优化选项所启动的优化标识集合也不一样，可以使用-Q --help&#x3D;optimizers来获取相应的优化选项采用的优化标识集。在下">
+<meta property="og:type" content="article">
+<meta property="og:title" content="gcc优化选项说明">
+<meta property="og:url" content="https://oneshell.top/2023/03/09/gcc%E4%BC%98%E5%8C%96%E9%80%89%E9%A1%B9%E8%AF%B4%E6%98%8E/index.html">
+<meta property="og:site_name" content="OneShell">
+<meta property="og:description" content="在使用编译程序的时候，如果不启动优化选项，gcc会产生有利于调试的编译结果，例如使用gdb可以方便查看、修改源代码中的变量的值；如果启用优化选项，gcc会使用更多的编译时间和牺牲程序的可调试性为代价来提高程序的性能或者减少代码大小。 在不同的gcc版本和目标平台下，同一个优化选项所启动的优化标识集合也不一样，可以使用-Q --help&#x3D;optimizers来获取相应的优化选项采用的优化标识集。在下">
+<meta property="og:locale">
+<meta property="article:published_time" content="2023-03-09T01:59:17.000Z">
+<meta property="article:modified_time" content="2023-03-09T02:50:47.829Z">
+<meta property="article:author" content="OneShell">
+<meta property="article:tag" content="gcc">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://oneshell.top/2023/03/09/gcc%E4%BC%98%E5%8C%96%E9%80%89%E9%A1%B9%E8%AF%B4%E6%98%8E/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>gcc优化选项说明 | OneShell</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">OneShell</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">blog of oneshell</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+        <li class="menu-item menu-item-schedule">
+
+    <a href="/schedule/" rel="section"><i class="fa fa-calendar fa-fw"></i>Schedule</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/03/09/gcc%E4%BC%98%E5%8C%96%E9%80%89%E9%A1%B9%E8%AF%B4%E6%98%8E/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="stay hungry, stay foolish">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          gcc优化选项说明
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-03-09 09:59:17 / Modified: 10:50:47" itemprop="dateCreated datePublished" datetime="2023-03-09T09:59:17+08:00">2023-03-09</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>在使用编译程序的时候，如果不启动优化选项，gcc会产生有利于调试的编译结果，例如使用gdb可以方便查看、修改源代码中的变量的值；如果启用优化选项，gcc会使用更多的编译时间和牺牲程序的可调试性为代价来提高程序的性能或者减少代码大小。</p>
+<p>在不同的gcc版本和目标平台下，同一个优化选项所启动的优化标识集合也不一样，可以使用<code>-Q --help=optimizers</code>来获取相应的优化选项采用的优化标识集。在下文中的每个<code>-f**</code>优化标识都可以在参考链接中查询到具体的含义。</p>
+<p>在编译源码+调试的过程中，使用到比较多的是<code>-O0</code>和<code>-Og</code>两个优化选项。<code>-O0</code>不会启动任何优化标识，能产生有利于调试的可执行程序，但是有些时候在编译大型程序（例如我在编译libc）的时候，使用该选项会报错；<code>-Og</code>则是进行合理优化的程度上保证了程序的可调试性。</p>
+<h2 id="O0"><a href="#O0" class="headerlink" title="-O0"></a>-O0</h2><p>减少编译时间，产生方便调试的程序，是gcc的默认设置</p>
+<h2 id="Og"><a href="#Og" class="headerlink" title="-Og"></a>-Og</h2><p>优化调试体验。提供合理的优化级别，同时保证快速编译和良好的调试体验。有时候修改Makefile到-O0会失败，这是因为编译器在收集调试信息的时候会禁用-O0，这个时候就可以使用-Og。</p>
+<h2 id="O、-O1"><a href="#O、-O1" class="headerlink" title="-O、-O1"></a>-O、-O1</h2><p>-O、- O1：二者是一样的，都是在不影响编译速度的前提下，采用一些优化算法来减少代码的大小和提高代码的运行速度，开启的优化选项如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line">-fauto-inc-dec </span><br><span class="line">-fbranch-count-reg </span><br><span class="line">-fcombine-stack-adjustments </span><br><span class="line">-fcompare-elim </span><br><span class="line">-fcprop-registers </span><br><span class="line">-fdce </span><br><span class="line">-fdefer-pop </span><br><span class="line">-fdelayed-branch </span><br><span class="line">-fdse </span><br><span class="line">-fforward-propagate </span><br><span class="line">-fguess-branch-probability </span><br><span class="line">-fif-conversion </span><br><span class="line">-fif-conversion2 </span><br><span class="line">-finline-functions-called-once </span><br><span class="line">-fipa-modref </span><br><span class="line">-fipa-profile </span><br><span class="line">-fipa-pure-const </span><br><span class="line">-fipa-reference </span><br><span class="line">-fipa-reference-addressable </span><br><span class="line">-fmerge-constants </span><br><span class="line">-fmove-loop-invariants </span><br><span class="line">-fmove-loop-stores</span><br><span class="line">-fomit-frame-pointer </span><br><span class="line">-freorder-blocks </span><br><span class="line">-fshrink-wrap </span><br><span class="line">-fshrink-wrap-separate </span><br><span class="line">-fsplit-wide-types </span><br><span class="line">-fssa-backprop </span><br><span class="line">-fssa-phiopt </span><br><span class="line">-ftree-bit-ccp </span><br><span class="line">-ftree-ccp </span><br><span class="line">-ftree-ch </span><br><span class="line">-ftree-coalesce-vars </span><br><span class="line">-ftree-copy-prop </span><br><span class="line">-ftree-dce </span><br><span class="line">-ftree-dominator-opts </span><br><span class="line">-ftree-dse </span><br><span class="line">-ftree-forwprop </span><br><span class="line">-ftree-fre </span><br><span class="line">-ftree-phiprop </span><br><span class="line">-ftree-pta </span><br><span class="line">-ftree-scev-cprop </span><br><span class="line">-ftree-sink </span><br><span class="line">-ftree-slsr </span><br><span class="line">-ftree-sra </span><br><span class="line">-ftree-ter </span><br><span class="line">-funit-at-a-time</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="O2"><a href="#O2" class="headerlink" title="-O2"></a>-O2</h2><p>在-O的基础上优化更多的选项，会增加编译时间、提高代码的性能。新增加的优化选项如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line">-falign-functions  -falign-jumps </span><br><span class="line">-falign-labels  -falign-loops </span><br><span class="line">-fcaller-saves </span><br><span class="line">-fcode-hoisting </span><br><span class="line">-fcrossjumping </span><br><span class="line">-fcse-follow-jumps  -fcse-skip-blocks </span><br><span class="line">-fdelete-null-pointer-checks </span><br><span class="line">-fdevirtualize  -fdevirtualize-speculatively </span><br><span class="line">-fexpensive-optimizations </span><br><span class="line">-ffinite-loops </span><br><span class="line">-fgcse  -fgcse-lm  </span><br><span class="line">-fhoist-adjacent-loads </span><br><span class="line">-finline-functions </span><br><span class="line">-finline-small-functions </span><br><span class="line">-findirect-inlining </span><br><span class="line">-fipa-bit-cp  -fipa-cp  -fipa-icf </span><br><span class="line">-fipa-ra  -fipa-sra  -fipa-vrp </span><br><span class="line">-fisolate-erroneous-paths-dereference </span><br><span class="line">-flra-remat </span><br><span class="line">-foptimize-sibling-calls </span><br><span class="line">-foptimize-strlen </span><br><span class="line">-fpartial-inlining </span><br><span class="line">-fpeephole2 </span><br><span class="line">-freorder-blocks-algorithm=stc </span><br><span class="line">-freorder-blocks-and-partition  -freorder-functions </span><br><span class="line">-frerun-cse-after-loop  </span><br><span class="line">-fschedule-insns  -fschedule-insns2 </span><br><span class="line">-fsched-interblock  -fsched-spec </span><br><span class="line">-fstore-merging </span><br><span class="line">-fstrict-aliasing </span><br><span class="line">-fthread-jumps </span><br><span class="line">-ftree-builtin-call-dce </span><br><span class="line">-ftree-loop-vectorize </span><br><span class="line">-ftree-pre </span><br><span class="line">-ftree-slp-vectorize </span><br><span class="line">-ftree-switch-conversion  -ftree-tail-merge </span><br><span class="line">-ftree-vrp </span><br><span class="line">-fvect-cost-model=very-cheap</span><br></pre></td></tr></table></figure>
+
+<h2 id="O3"><a href="#O3" class="headerlink" title="-O3"></a>-O3</h2><p>在-O2的优化选项基础上，采用了更多的向量化算法，利用现代CPU中的流水线、cache等特性提高代码的并行执行速度。该选项会增加代码大小。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">-fgcse-after-reload </span><br><span class="line">-fipa-cp-clone</span><br><span class="line">-floop-interchange </span><br><span class="line">-floop-unroll-and-jam </span><br><span class="line">-fpeel-loops </span><br><span class="line">-fpredictive-commoning </span><br><span class="line">-fsplit-loops </span><br><span class="line">-fsplit-paths </span><br><span class="line">-ftree-loop-distribution </span><br><span class="line">-ftree-partial-pre </span><br><span class="line">-funswitch-loops </span><br><span class="line">-fvect-cost-model=dynamic </span><br><span class="line">-fversion-loops-for-strides</span><br></pre></td></tr></table></figure>
+
+<h2 id="Os"><a href="#Os" class="headerlink" title="-Os"></a>-Os</h2><p>这个编译选项和-O3相反，-O3是牺牲代码的空间换取执行时间，-O4则是牺牲代码的执行时间降低代码大小，这在一些存储容量较少的设备中非常重要，例如嵌入式设备。<br>-Os也是在-O2的基础上，使用了如下的优化选项，通过优化选项可以看出是对代码的空白对齐进行了压缩之类的操作。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">-falign-functions  </span><br><span class="line">-falign-jumps </span><br><span class="line">-falign-labels  </span><br><span class="line">-falign-loops </span><br><span class="line">-fprefetch-loop-arrays  </span><br><span class="line">-freorder-blocks-algorithm=stc</span><br></pre></td></tr></table></figure>
+
+<h2 id="Ofast"><a href="#Ofast" class="headerlink" title="-Ofast"></a>-Ofast</h2><p>在-O3的优化选项基础上，无视严格的标准合规性（不是很懂什么意思）</p>
+<h2 id=""><a href="#" class="headerlink" title=""></a></h2><h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html">Optimize Options (Using the GNU Compiler Collection (GCC))</a></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/gcc/" rel="tag"># gcc</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/02/22/pwndbg+pwntools+tmux%E7%9C%9F%E4%B9%83%E5%A4%A9%E4%BD%9C%E4%B9%8B%E5%90%88/" rel="prev" title="pwndbg+pwntools+tmux真乃天作之合">
+      <i class="fa fa-chevron-left"></i> pwndbg+pwntools+tmux真乃天作之合
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#O0"><span class="nav-number">1.</span> <span class="nav-text">-O0</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Og"><span class="nav-number">2.</span> <span class="nav-text">-Og</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#O%E3%80%81-O1"><span class="nav-number">3.</span> <span class="nav-text">-O、-O1</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#O2"><span class="nav-number">4.</span> <span class="nav-text">-O2</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#O3"><span class="nav-number">5.</span> <span class="nav-text">-O3</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Os"><span class="nav-number">6.</span> <span class="nav-text">-Os</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Ofast"><span class="nav-number">7.</span> <span class="nav-text">-Ofast</span></a></li><li class="nav-item nav-level-2"><a class="nav-link"><span class="nav-number">8.</span> <span class="nav-text"></span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E9%93%BE%E6%8E%A5"><span class="nav-number">9.</span> <span class="nav-text">参考链接</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">OneShell</p>
+  <div class="site-description" itemprop="description">stay hungry, stay foolish</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">11</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">9</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">OneShell</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : 'd364449d44c374dab007',
+      clientSecret: 'bb821aa84a81e3bd904d059c6e9ec7eb0e1cab4f',
+      repo        : 'BlogComments',
+      owner       : 'NoneShell',
+      admin       : ['NoneShell'],
+      id          : 'da6bc79c84393f7b580363b932e7ed74',
+        language: 'zh-CN',
+      distractionFreeMode: true
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>
