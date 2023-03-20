@@ -168,6 +168,99 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/03/13/gdb%E6%B7%BB%E5%8A%A0%E8%B0%83%E8%AF%95%E7%AC%A6%E5%8F%B7/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="stay hungry, stay foolish">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/03/13/gdb%E6%B7%BB%E5%8A%A0%E8%B0%83%E8%AF%95%E7%AC%A6%E5%8F%B7/" class="post-title-link" itemprop="url">gdb添加调试符号</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-03-13 10:04:10" itemprop="dateCreated datePublished" datetime="2023-03-13T10:04:10+08:00">2023-03-13</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-03-20 14:08:58" itemprop="dateModified" datetime="2023-03-20T14:08:58+08:00">2023-03-20</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>在调试无符号的程序时，有时候在IDA中已经对某一个数据结构进行了符号恢复，此时想要将符号导入到gdb中。解决的办法就是：</p>
+<ol>
+<li>写一个定义和使用了该数据结构的C程序</li>
+<li>编译，且带符号</li>
+<li>在gdb中使用<code>add-symbol-file</code>命令导入该程序的的符号</li>
+</ol>
+<p>例如，假设有如下的一个程序，编译出来之后去掉了调试符号，则在gdb中无法打印出来<code>list</code>数据结构。而我们在IDA中根据上下文恢复出来了<code>list</code>结构体，并且在调试的过程中，还想打印出来<code>Stulist</code>这个链表。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdlib.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">list</span> &#123;</span></span><br><span class="line">    <span class="type">int</span> num;</span><br><span class="line">    <span class="type">char</span> *name;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list</span> *<span class="title">next</span>;</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">list</span> *<span class="title">Stulist</span>;</span></span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list</span> *<span class="title">studentA</span> =</span> (<span class="keyword">struct</span> <span class="built_in">list</span>*)<span class="built_in">malloc</span>(<span class="keyword">sizeof</span>(<span class="keyword">struct</span> <span class="built_in">list</span>));</span><br><span class="line">    studentA-&gt;num = <span class="number">0</span>;</span><br><span class="line">    studentA-&gt;name = <span class="string">&quot;studentA&quot;</span>;</span><br><span class="line">    studentA-&gt;next = <span class="literal">NULL</span>;</span><br><span class="line">    Stulist = studentA;</span><br><span class="line"></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list</span> *<span class="title">studentB</span> =</span> (<span class="keyword">struct</span> <span class="built_in">list</span>*)<span class="built_in">malloc</span>(<span class="keyword">sizeof</span>(<span class="keyword">struct</span> <span class="built_in">list</span>));</span><br><span class="line">    studentB-&gt;num = <span class="number">1</span>;</span><br><span class="line">    studentB-&gt;name = <span class="string">&quot;studentB&quot;</span>;</span><br><span class="line">    studentB-&gt;next = studentA;</span><br><span class="line">    Stulist = studentB;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>那么我们首先需要做的是，根据恢复出来的数据结构重新写一个如下的定义和使用了数据结构的C程序，然后编译时带上符号：<code>gcc -g data.c -o data</code></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdlib.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">list</span> &#123;</span></span><br><span class="line">    <span class="type">int</span> num;</span><br><span class="line">    <span class="type">char</span> *name;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list</span> *<span class="title">next</span>;</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">()</span> &#123;</span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">list</span>* <span class="title">test</span>;</span></span><br><span class="line">	<span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在gdb中调试，执行命令如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">add-symbol-file data # 从data中导入符号</span><br><span class="line">p *(struct list*) 0x4052a0 # 在指定位置查看数据结构</span><br></pre></td></tr></table></figure>
+<p><img src="/images/image-2023-0313-104158584.png" alt="undifined"></p>
+<p>如果我们还需要进一步打印链表<code>Stulist</code>的信息，可以写一个如下的gdb定义，用来遍历链表：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">define plist</span><br><span class="line">	set $iter = *(struct list*)$arg0</span><br><span class="line">	while $iter</span><br><span class="line">		print $iter</span><br><span class="line">		set $iter = *$iter.next</span><br><span class="line">	end</span><br><span class="line">end</span><br></pre></td></tr></table></figure>
+<p><img src="/images/image-2023-0313-110902132.png" alt="undifined"></p>
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://nobb.site/2022/08/02/0x78/">CTF PWN TOOLS开发 - Hc1m1</a></li>
+<li><a target="_blank" rel="noopener" href="https://gsgx.me/posts/9447-ctf-2015-search-engine-writeup/">9447 CTF 2015: Search Engine Writeup | gsgx</a></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/03/10/%E8%B0%83%E8%AF%95httpd%E8%B0%83%E7%94%A8%E7%9A%84cgibin%E7%A8%8B%E5%BA%8F/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1273,86 +1366,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2022/11/01/idapython-%E5%9F%BA%E7%A1%80/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="stay hungry, stay foolish">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2022/11/01/idapython-%E5%9F%BA%E7%A1%80/" class="post-title-link" itemprop="url">idapython-基础</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2022-11-01 06:15:31" itemprop="dateCreated datePublished" datetime="2022-11-01T06:15:31+08:00">2022-11-01</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-02-07 13:04:12" itemprop="dateModified" datetime="2023-02-07T13:04:12+08:00">2023-02-07</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>在学习IDAPython之初，需要了解一下IDA反汇编窗口输出的内容和结构。<br>以IDA反汇编窗口中的一条指令为例，如下的<code>sw</code>存储指令（最近在看MIPS），如下指令功能是将寄存器<code>ra</code>中的值保存到栈上</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">.text:00429000 sw      $ra, 0x418+var_s10($sp)</span><br></pre></td></tr></table></figure>
-<p>其中，<code>.text</code>是section名；00429000是地址，IDA中会省略掉前缀0x；<code>sw</code>是指令助记符，随后是第一个操作数<code>ra</code>和第二个操作数<code>0x418+var_s10($sp)</code>。<br>在IDAPython中，指令地址是经常被传入到API中进行处理的参数，API描述中使用<code>ea</code>表示。</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">idc.get_segm_name(ea)        <span class="comment"># 获取当前光标所在指令的地址</span></span><br><span class="line">idc.GetDisasm(ea)            <span class="comment"># 获取反汇编指令</span></span><br><span class="line">idc.print_insn_mnem(ea)      <span class="comment"># 打印指令助记符</span></span><br><span class="line">idc.print_operand(ea, <span class="number">0</span>)     <span class="comment"># 打印第一个操作数</span></span><br><span class="line">idc.print_operand(ea, <span class="number">1</span>)     <span class="comment"># 打印第二个操作数</span></span><br></pre></td></tr></table></figure>
-<p>对于初学者使用IDAPython最简单的方式就是在IDA最下方的命令行中直接进行操作：<br><img src="/images/Pastedimage20221206141221.png" alt="undifined"></p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">Python&gt;</span><span class="language-bash">ea = idc.here()</span></span><br><span class="line"><span class="meta prompt_">Python&gt;</span><span class="language-bash"><span class="built_in">print</span>(<span class="string">&quot;0x%x, %s&quot;</span> % (ea, ea))</span></span><br><span class="line">0x40012c, 4194604</span><br><span class="line"><span class="meta prompt_">Python&gt;</span><span class="language-bash">idc.get_segm_name(ea)</span></span><br><span class="line">&#x27;.text&#x27;</span><br><span class="line"><span class="meta prompt_">Python&gt;</span><span class="language-bash">idc.GetDisasm(ea)</span></span><br><span class="line">&#x27;li      $gp, 0x492900&#x27;</span><br><span class="line"><span class="meta prompt_">Python&gt;</span><span class="language-bash">idc.print_insn_mnem(ea)</span></span><br><span class="line">&#x27;li&#x27;</span><br><span class="line"><span class="meta prompt_">Python&gt;</span><span class="language-bash">idc.print_operand(ea, 0)</span></span><br><span class="line">&#x27;$gp&#x27;</span><br><span class="line"><span class="meta prompt_">Python&gt;</span><span class="language-bash">idc.print_operand(ea, 1)</span></span><br><span class="line">&#x27;0x492900&#x27;</span><br></pre></td></tr></table></figure>
-<p>对于指令的操作数的类型和值，具体还可以使用<code>idc.get_operand_type()</code>和<code>idc.get_operand_value()</code>来获得，这将在后续的笔记中进行简单说明。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1422,7 +1435,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">12</span>
+          <span class="site-state-item-count">13</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
