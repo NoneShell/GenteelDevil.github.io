@@ -168,6 +168,613 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/03/09/gcc%E4%BC%98%E5%8C%96%E9%80%89%E9%A1%B9%E8%AF%B4%E6%98%8E/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="stay hungry, stay foolish">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/03/09/gcc%E4%BC%98%E5%8C%96%E9%80%89%E9%A1%B9%E8%AF%B4%E6%98%8E/" class="post-title-link" itemprop="url">gcc优化选项说明</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-03-09 09:59:17 / Modified: 10:50:47" itemprop="dateCreated datePublished" datetime="2023-03-09T09:59:17+08:00">2023-03-09</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>在使用编译程序的时候，如果不启动优化选项，gcc会产生有利于调试的编译结果，例如使用gdb可以方便查看、修改源代码中的变量的值；如果启用优化选项，gcc会使用更多的编译时间和牺牲程序的可调试性为代价来提高程序的性能或者减少代码大小。</p>
+<p>在不同的gcc版本和目标平台下，同一个优化选项所启动的优化标识集合也不一样，可以使用<code>-Q --help=optimizers</code>来获取相应的优化选项采用的优化标识集。在下文中的每个<code>-f**</code>优化标识都可以在参考链接中查询到具体的含义。</p>
+<p>在编译源码+调试的过程中，使用到比较多的是<code>-O0</code>和<code>-Og</code>两个优化选项。<code>-O0</code>不会启动任何优化标识，能产生有利于调试的可执行程序，但是有些时候在编译大型程序（例如我在编译libc）的时候，使用该选项会报错；<code>-Og</code>则是进行合理优化的程度上保证了程序的可调试性。</p>
+<h2 id="O0"><a href="#O0" class="headerlink" title="-O0"></a>-O0</h2><p>减少编译时间，产生方便调试的程序，是gcc的默认设置</p>
+<h2 id="Og"><a href="#Og" class="headerlink" title="-Og"></a>-Og</h2><p>优化调试体验。提供合理的优化级别，同时保证快速编译和良好的调试体验。有时候修改Makefile到-O0会失败，这是因为编译器在收集调试信息的时候会禁用-O0，这个时候就可以使用-Og。</p>
+<h2 id="O、-O1"><a href="#O、-O1" class="headerlink" title="-O、-O1"></a>-O、-O1</h2><p>-O、- O1：二者是一样的，都是在不影响编译速度的前提下，采用一些优化算法来减少代码的大小和提高代码的运行速度，开启的优化选项如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line">-fauto-inc-dec </span><br><span class="line">-fbranch-count-reg </span><br><span class="line">-fcombine-stack-adjustments </span><br><span class="line">-fcompare-elim </span><br><span class="line">-fcprop-registers </span><br><span class="line">-fdce </span><br><span class="line">-fdefer-pop </span><br><span class="line">-fdelayed-branch </span><br><span class="line">-fdse </span><br><span class="line">-fforward-propagate </span><br><span class="line">-fguess-branch-probability </span><br><span class="line">-fif-conversion </span><br><span class="line">-fif-conversion2 </span><br><span class="line">-finline-functions-called-once </span><br><span class="line">-fipa-modref </span><br><span class="line">-fipa-profile </span><br><span class="line">-fipa-pure-const </span><br><span class="line">-fipa-reference </span><br><span class="line">-fipa-reference-addressable </span><br><span class="line">-fmerge-constants </span><br><span class="line">-fmove-loop-invariants </span><br><span class="line">-fmove-loop-stores</span><br><span class="line">-fomit-frame-pointer </span><br><span class="line">-freorder-blocks </span><br><span class="line">-fshrink-wrap </span><br><span class="line">-fshrink-wrap-separate </span><br><span class="line">-fsplit-wide-types </span><br><span class="line">-fssa-backprop </span><br><span class="line">-fssa-phiopt </span><br><span class="line">-ftree-bit-ccp </span><br><span class="line">-ftree-ccp </span><br><span class="line">-ftree-ch </span><br><span class="line">-ftree-coalesce-vars </span><br><span class="line">-ftree-copy-prop </span><br><span class="line">-ftree-dce </span><br><span class="line">-ftree-dominator-opts </span><br><span class="line">-ftree-dse </span><br><span class="line">-ftree-forwprop </span><br><span class="line">-ftree-fre </span><br><span class="line">-ftree-phiprop </span><br><span class="line">-ftree-pta </span><br><span class="line">-ftree-scev-cprop </span><br><span class="line">-ftree-sink </span><br><span class="line">-ftree-slsr </span><br><span class="line">-ftree-sra </span><br><span class="line">-ftree-ter </span><br><span class="line">-funit-at-a-time</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="O2"><a href="#O2" class="headerlink" title="-O2"></a>-O2</h2><p>在-O的基础上优化更多的选项，会增加编译时间、提高代码的性能。新增加的优化选项如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line">-falign-functions  -falign-jumps </span><br><span class="line">-falign-labels  -falign-loops </span><br><span class="line">-fcaller-saves </span><br><span class="line">-fcode-hoisting </span><br><span class="line">-fcrossjumping </span><br><span class="line">-fcse-follow-jumps  -fcse-skip-blocks </span><br><span class="line">-fdelete-null-pointer-checks </span><br><span class="line">-fdevirtualize  -fdevirtualize-speculatively </span><br><span class="line">-fexpensive-optimizations </span><br><span class="line">-ffinite-loops </span><br><span class="line">-fgcse  -fgcse-lm  </span><br><span class="line">-fhoist-adjacent-loads </span><br><span class="line">-finline-functions </span><br><span class="line">-finline-small-functions </span><br><span class="line">-findirect-inlining </span><br><span class="line">-fipa-bit-cp  -fipa-cp  -fipa-icf </span><br><span class="line">-fipa-ra  -fipa-sra  -fipa-vrp </span><br><span class="line">-fisolate-erroneous-paths-dereference </span><br><span class="line">-flra-remat </span><br><span class="line">-foptimize-sibling-calls </span><br><span class="line">-foptimize-strlen </span><br><span class="line">-fpartial-inlining </span><br><span class="line">-fpeephole2 </span><br><span class="line">-freorder-blocks-algorithm=stc </span><br><span class="line">-freorder-blocks-and-partition  -freorder-functions </span><br><span class="line">-frerun-cse-after-loop  </span><br><span class="line">-fschedule-insns  -fschedule-insns2 </span><br><span class="line">-fsched-interblock  -fsched-spec </span><br><span class="line">-fstore-merging </span><br><span class="line">-fstrict-aliasing </span><br><span class="line">-fthread-jumps </span><br><span class="line">-ftree-builtin-call-dce </span><br><span class="line">-ftree-loop-vectorize </span><br><span class="line">-ftree-pre </span><br><span class="line">-ftree-slp-vectorize </span><br><span class="line">-ftree-switch-conversion  -ftree-tail-merge </span><br><span class="line">-ftree-vrp </span><br><span class="line">-fvect-cost-model=very-cheap</span><br></pre></td></tr></table></figure>
+
+<h2 id="O3"><a href="#O3" class="headerlink" title="-O3"></a>-O3</h2><p>在-O2的优化选项基础上，采用了更多的向量化算法，利用现代CPU中的流水线、cache等特性提高代码的并行执行速度。该选项会增加代码大小。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">-fgcse-after-reload </span><br><span class="line">-fipa-cp-clone</span><br><span class="line">-floop-interchange </span><br><span class="line">-floop-unroll-and-jam </span><br><span class="line">-fpeel-loops </span><br><span class="line">-fpredictive-commoning </span><br><span class="line">-fsplit-loops </span><br><span class="line">-fsplit-paths </span><br><span class="line">-ftree-loop-distribution </span><br><span class="line">-ftree-partial-pre </span><br><span class="line">-funswitch-loops </span><br><span class="line">-fvect-cost-model=dynamic </span><br><span class="line">-fversion-loops-for-strides</span><br></pre></td></tr></table></figure>
+
+<h2 id="Os"><a href="#Os" class="headerlink" title="-Os"></a>-Os</h2><p>这个编译选项和-O3相反，-O3是牺牲代码的空间换取执行时间，-O4则是牺牲代码的执行时间降低代码大小，这在一些存储容量较少的设备中非常重要，例如嵌入式设备。<br>-Os也是在-O2的基础上，使用了如下的优化选项，通过优化选项可以看出是对代码的空白对齐进行了压缩之类的操作。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">-falign-functions  </span><br><span class="line">-falign-jumps </span><br><span class="line">-falign-labels  </span><br><span class="line">-falign-loops </span><br><span class="line">-fprefetch-loop-arrays  </span><br><span class="line">-freorder-blocks-algorithm=stc</span><br></pre></td></tr></table></figure>
+
+<h2 id="Ofast"><a href="#Ofast" class="headerlink" title="-Ofast"></a>-Ofast</h2><p>在-O3的优化选项基础上，无视严格的标准合规性（不是很懂什么意思）</p>
+<h2 id=""><a href="#" class="headerlink" title=""></a></h2><h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html">Optimize Options (Using the GNU Compiler Collection (GCC))</a></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/02/22/pwndbg+pwntools+tmux%E7%9C%9F%E4%B9%83%E5%A4%A9%E4%BD%9C%E4%B9%8B%E5%90%88/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="stay hungry, stay foolish">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/02/22/pwndbg+pwntools+tmux%E7%9C%9F%E4%B9%83%E5%A4%A9%E4%BD%9C%E4%B9%8B%E5%90%88/" class="post-title-link" itemprop="url">pwndbg+pwntools+tmux真乃天作之合</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-02-22 01:26:37 / Modified: 15:35:09" itemprop="dateCreated datePublished" datetime="2023-02-22T01:26:37+08:00">2023-02-22</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>一直以来都在使用tmux作为终端复用的工具，非常喜欢它可以自由切换、分割当前终端的功能。现在自己每次都是通过ssh登录到调试机，然后使用tmux创建一个session在后台，这样就算因为网络原因ssh断掉，当前终端正在进行的工作也不会断掉。<br>最基础的流程就是：</p>
+<ul>
+<li><code>tmux new -s test</code>：创建一个名为test的session</li>
+<li>Ctrl + B，然后<code>&quot;</code>：水平切割当前的pane</li>
+<li>Ctrl + B，然后<code>%</code>：垂直切割当前pane<br>更多操作可以参考这个教程：<a target="_blank" rel="noopener" href="https://www.ruanyifeng.com/blog/2019/10/tmux.html">Tmux 使用教程 - 阮一峰的网络日志</a></li>
+</ul>
+<p>最近在看pwndbg的FEATURES.md时，发现其支持一个特性：<a target="_blank" rel="noopener" href="https://github.com/pwndbg/pwndbg/blob/dev/FEATURES.md#splitting--layouting-context">将其section重定向到任意的tty</a>。那么通过这个功能就可以实现将pwndbg的各个section重定向到终端由tmux切割出来的不同pane上，从而最大化利用当前的屏幕（也更好看）。</p>
+<p>也有人在pwndbg的基础上开发出了另外一个插件<a target="_blank" rel="noopener" href="https://github.com/jerdna-regeiz/splitmind">splitmind</a>，其官方库中给出的一个实现效果如下，在一个由tmux分割的终端上，让pwndbg调试信息区域按照使用人员最喜欢的方式排列、输出。<br><img src="/images/image-2023-0222-134915202.png" alt="undifined"></p>
+<p>如上的实现配置文件gdb.init如下，其大概原理就是：在tmux的一个window中，会默认打开一个名为main的gdb调试pane，然后基于该main的上、下、左、右可以自由进行窗口的切割和划分，并将pwndbg相应的section重定向到切割出来的pane中。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">source /home/user/pwndbg/gdbinit.py</span><br><span class="line">set context-clear-screen on</span><br><span class="line">set follow-fork-mode parent</span><br><span class="line"></span><br><span class="line">source /home/user/splitmind/gdbinit.py</span><br><span class="line">python</span><br><span class="line">import splitmind</span><br><span class="line">(splitmind.Mind()</span><br><span class="line">  .tell_splitter(show_titles=True)</span><br><span class="line">  .tell_splitter(set_title=&quot;Main&quot;)</span><br><span class="line">  .right(display=&quot;backtrace&quot;, size=&quot;25%&quot;)</span><br><span class="line">  .above(of=&quot;main&quot;, display=&quot;disasm&quot;, size=&quot;80%&quot;, banner=&quot;top&quot;)</span><br><span class="line">  .show(&quot;code&quot;, on=&quot;disasm&quot;, banner=&quot;none&quot;)</span><br><span class="line">  .right(cmd=&#x27;tty; tail -f /dev/null&#x27;, size=&quot;65%&quot;, clearing=False)</span><br><span class="line">  .tell_splitter(set_title=&#x27;Input / Output&#x27;)</span><br><span class="line">  .above(display=&quot;stack&quot;, size=&quot;75%&quot;)</span><br><span class="line">  .above(display=&quot;legend&quot;, size=&quot;25&quot;)</span><br><span class="line">  .show(&quot;regs&quot;, on=&quot;legend&quot;)</span><br><span class="line">  .below(of=&quot;backtrace&quot;, cmd=&quot;ipython&quot;, size=&quot;30%&quot;)</span><br><span class="line">).build(nobanner=True)</span><br><span class="line">end</span><br><span class="line">set context-code-lines 30</span><br><span class="line">set context-source-code-lines 30</span><br><span class="line">set context-sections  &quot;regs args code disasm stack backtrace&quot;</span><br></pre></td></tr></table></figure>
+<p>例如：<code>.above(of=&quot;main&quot;, display=&quot;disasm&quot;, size=&quot;80%&quot;, banner=&quot;top&quot;)</code>，就是对main进行切割，展示pwndbg的disasm区域，并且控制所占据的大小为80%。</p>
+<p>pwndbg所支持的section如下，在gdb中由<code>context-sections</code>变量控制：</p>
+<ul>
+<li>regs：寄存器</li>
+<li>disasm：反汇编</li>
+<li>code：源代码</li>
+<li>ghidra：Ghidra相关（未使用过）</li>
+<li>stack：栈</li>
+<li>backtrace：调用栈</li>
+<li>expressions：表达式跟踪，非常强大，可用于动态根据某个变量、内存、或者是自定义的值类型<br>与之配合的还有一些其他的gdb调试环境变量，例如</li>
+<li><code>context-code-lines</code>：在disasm中展示的反汇编行数</li>
+<li><code>context-source-code-lines</code>：在code中展示的源代码行数</li>
+<li><code>context-stack-lines</code>：在stack中展示的栈行数<br>等等，这些都可以在<code>pwndbg/pwndbg/commands/context.py</code>去查询含义以及默认值。了解section和控制section大小的环境变量可以让我们更好自定义属于自己的gdb界面。</li>
+</ul>
+<p>在如上的基础上，我定制了自己的一个gdb配置，能达到的效果就是，在gdb启动的时候选择模式，并按照自己的习惯展示gdb调试信息：</p>
+<ul>
+<li>s：源代码模式，可用于直接调试源码</li>
+<li>d：汇编模式，用于调试反汇编</li>
+<li>m：同时显示源码和汇编语句</li>
+</ul>
+<p>s：源码模式，如下<br><img src="/images/image-2023-0222-143209518.png" alt="undifined"></p>
+<p>d：汇编模式，如下<br><img src="/images/image-2023-0222-144220301.png" alt="undifined"></p>
+<p>m：混合模式，如下<br><img src="/images/image-2023-0222-144252588.png" alt="undifined"></p>
+<p>那么直接给出我的gdb配置文件，也给出了相应的注释，更多的配置还可以参考我个人的GitHub配置文件库：</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/NoneShell/OwnConfigs">GitHub - NoneShell&#x2F;OwnConfigs: some useful configs</a></li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line"># 加载pwndbg和gdbinit插件</span><br><span class="line">source /home/utest/app/pwndbg/gdbinit.py</span><br><span class="line">source /home/utest/app/splitmind/gdbinit.py</span><br><span class="line"># 调试过程是否每次输入一条指令都清屏，我选择否这样可以在main区域看到程序输出</span><br><span class="line">set context-clear-screen off</span><br><span class="line">set debug-events off</span><br><span class="line"></span><br><span class="line"># python执行区域</span><br><span class="line">python</span><br><span class="line">sections = &quot;regs&quot; # sections控制所要展示的所有区域，先初始化只有寄存器regs</span><br><span class="line">mode = input(&quot;source/disasm/mixed mode:?(s/d/m)&quot;) or &quot;d&quot; # 读取调试模式</span><br><span class="line"></span><br><span class="line">import splitmind  # 导入splitmind库</span><br><span class="line">spliter = splitmind.Mind() # 创建一个spliter</span><br><span class="line">spliter.select(&quot;main&quot;).right(display=&quot;regs&quot;, size=&quot;50%&quot;) </span><br><span class="line"></span><br><span class="line">legend_on = &quot;code&quot;</span><br><span class="line">if mode == &quot;d&quot;:</span><br><span class="line">    legend_on = &quot;disasm&quot;</span><br><span class="line">    sections += &quot; disasm&quot;</span><br><span class="line">    spliter.select(&quot;main&quot;).above(display=&quot;disasm&quot;, size=&quot;70%&quot;, banner=&quot;none&quot;)</span><br><span class="line">    gdb.execute(&quot;set context-code-lines 30&quot;)</span><br><span class="line"></span><br><span class="line">elif mode == &quot;s&quot;:</span><br><span class="line">    sections += &quot; code&quot;</span><br><span class="line">    spliter.select(&quot;main&quot;).above(display=&quot;code&quot;, size=&quot;70%&quot;, banner=&quot;none&quot;)</span><br><span class="line">    gdb.execute(&quot;set context-source-code-lines 30&quot;)</span><br><span class="line"></span><br><span class="line">else:</span><br><span class="line">    sections += &quot; disasm code&quot;</span><br><span class="line">    spliter.select(&quot;main&quot;).above(display=&quot;code&quot;, size=&quot;70%&quot;)</span><br><span class="line">    spliter.select(&quot;code&quot;).below(display=&quot;disasm&quot;, size=&quot;40%&quot;)</span><br><span class="line">    gdb.execute(&quot;set context-code-lines 8&quot;)</span><br><span class="line">    gdb.execute(&quot;set context-source-code-lines 20&quot;)</span><br><span class="line"></span><br><span class="line">sections += &quot; args stack backtrace expressions&quot;</span><br><span class="line"></span><br><span class="line">spliter.show(&quot;legend&quot;, on=legend_on)</span><br><span class="line">spliter.show(&quot;stack&quot;, on=&quot;regs&quot;)</span><br><span class="line">spliter.show(&quot;backtrace&quot;, on=&quot;regs&quot;)</span><br><span class="line">spliter.show(&quot;args&quot;, on=&quot;regs&quot;)</span><br><span class="line">spliter.show(&quot;expressions&quot;, on=&quot;args&quot;)</span><br><span class="line"></span><br><span class="line"># 自定义的一些gdb环境变量</span><br><span class="line">gdb.execute(&quot;set context-stack-lines 10&quot;)</span><br><span class="line">gdb.execute(&quot;set context-sections \&quot;%s\&quot;&quot; % sections)</span><br><span class="line"></span><br><span class="line">spliter.build()</span><br><span class="line"></span><br><span class="line">end</span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/02/08/Linux%E5%86%85%E6%A0%B8%E8%B0%83%E8%AF%95%E7%8E%AF%E5%A2%83%E7%9A%84%E6%90%AD%E5%BB%BA/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="stay hungry, stay foolish">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/02/08/Linux%E5%86%85%E6%A0%B8%E8%B0%83%E8%AF%95%E7%8E%AF%E5%A2%83%E7%9A%84%E6%90%AD%E5%BB%BA/" class="post-title-link" itemprop="url">Linux内核调试环境的搭建</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-02-08 04:43:25" itemprop="dateCreated datePublished" datetime="2023-02-08T04:43:25+08:00">2023-02-08</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-02-13 15:55:41" itemprop="dateModified" datetime="2023-02-13T15:55:41+08:00">2023-02-13</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="编译系统内核"><a href="#编译系统内核" class="headerlink" title="编译系统内核"></a>编译系统内核</h2><p>首先需要下载Linux的内核源码，几个常用的内核源码下载途径如下：</p>
+<ol>
+<li><a target="_blank" rel="noopener" href="https://github.com/torvalds/linux.git">GitHub - torvalds&#x2F;linux: Linux kernel source tree</a>：适合git commit找补丁和漏洞</li>
+<li><a target="_blank" rel="noopener" href="https://cdn.kernel.org/pub/linux/kernel/">Index of &#x2F;pub&#x2F;linux&#x2F;kernel&#x2F;</a>：下载源码的压缩包</li>
+<li><code>sudo apt-get source linux-image-$(uname -r)</code>：下载当前发行版的内核，但是版本往往不全</li>
+<li><a target="_blank" rel="noopener" href="https://wiki.ubuntu.com/Kernel/Dev/KernelGitGuide">Ubuntu KernelGitGuide</a>：对于Ubuntu可以获取到发行版的源码，自行进行编译</li>
+</ol>
+<p>此次就以编译Linux 5.15.1为例，首先下载并解压源码：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">wget https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.15.1.tar.gz</span><br><span class="line">tar -xvf linux-5.15.1.tar.gz</span><br><span class="line">cd linux-5.15.1/</span><br></pre></td></tr></table></figure>
+
+<p>然后是对内核的编译选项进行设置，常用的基本流程如下：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">make **_deconfig</span><br><span class="line">make munuconfig</span><br><span class="line">make</span><br></pre></td></tr></table></figure>
+<ol>
+<li><code>make **_deconfig</code><br><code>**_deconfig</code>是用来指定此次编译使用的默认配置文件，该配置文件会从指定的<code>**_dedonfig</code>文件中加载配置，并保存到源码目录的<code>.config</code>文件中。</li>
+</ol>
+<p>在嵌入式领域，例如需要为ARM架构指定适配特定芯片的Linux内核，配置命令如下：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">make ARCH=ARM imx_v6_v7_defconfig</span><br></pre></td></tr></table></figure>
+
+<p>在此处，我们的目的是需要编译一个x86_64架构的内核，因此执行命令如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">make x86_64_defconfig</span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li><code>make menuconfig</code><br><img src="/images/Pastedimage20230213131615.png" alt="undifined"><br>一般来说，调试内核需要关闭系统的地址随机化、开启调试信息等，除此之外，还需要根据调试的目的来选择需要编译的模块，例如在调试netfilter的时候，就需要开启一些NF_TABLES等相关的配置。<br>如下是关闭地址随机化和开启调试信息的步骤：<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">Processor type and features  ---&gt;</span><br><span class="line">    -*- Build a relocatable kernel</span><br><span class="line">    [ ]   Randomize the address of the kernel image (KASLR)</span><br><span class="line"></span><br><span class="line">Kernel hacking  ---&gt;</span><br><span class="line">	Compile-time checks and compiler options  ---&gt;</span><br><span class="line">		[*] Compile the kernel with debug info</span><br><span class="line">		[*]   Generate BTF typeinfo</span><br><span class="line">		[*]   Provide GDB scripts for kernel debugging</span><br></pre></td></tr></table></figure></li>
+</ol>
+<p>在menu界面，可以通过输入<code>/</code>来搜索需要开启的内核特性，这比一个个去手动找方便。<br><img src="/images/Pastedimage20230213132214.png" alt="undifined"></p>
+<p>设置完毕后，可以主动保存或者退出提示保存</p>
+<ol start="3">
+<li><code>make</code><br>开始进行编译，可以根据CPU的核数开启多线程编译，提高速度，例如<code>make -j8</code>。<br>编译完成后，和调试相关的两个重要文件的路径和作用如下：</li>
+</ol>
+<ul>
+<li>vmlinux：当前目录，原始的内核文件，未压缩，可以用于gdb调试时加载</li>
+<li>bzImage：<code>./arch/x86_64/boot/bzImage</code>，压缩后的内核，真正运行的内核</li>
+</ul>
+<h2 id="制作文件系统"><a href="#制作文件系统" class="headerlink" title="制作文件系统"></a>制作文件系统</h2><p>要启动一个能正常运行的Linux，除了内核之外，还需要一个根文件系统。文件系统的制作可以采用手动的方式，也可以采用自动化的脚本部署。</p>
+<p>手动制作一个文件系统，基本的步骤就是：</p>
+<ol>
+<li>下载某些发行版的基本根文件系统，例如Ubuntu的<a target="_blank" rel="noopener" href="http://cdimage.ubuntu.com/ubuntu-base/releases/">根文件系统</a></li>
+<li>制作磁盘镜像，可以先使用<code>dd</code>创建一个磁盘镜像，然后使用<code>mkfs</code>来为磁盘镜像进行分区和格式化</li>
+<li>挂载磁盘镜像，并将根文件系统装载到磁盘镜像中。<br>手动创建根文件系统磁盘镜像就不再更多展开说，后续会单独出一篇文章来进行介绍。</li>
+</ol>
+<p>自动化的脚本部署则是推荐一个内核模糊测试工具<code>syzkaller</code>中的脚本<code>create-image.sh</code>，其工作的基本原理是通过工具<code>debootstrap</code>根据参数创建一个Debian的根文件系统磁盘镜像，大概的工作流程如下：</p>
+<ol>
+<li>设置参数，例如Debian的发行版本、系统架构、需要安装的组件</li>
+<li>下载Debian的基本根文件系统，并使用qemu-user-static和chroot到根文件系统目录</li>
+<li>apt-get安装相关的组件，然后打包到磁盘镜像中</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get install debootstrap</span><br><span class="line">wget https://raw.githubusercontent.com/google/syzkaller/master/tools/create-image.sh -O create-image.sh</span><br><span class="line">chmod +x create-image.sh</span><br><span class="line">./create-image.sh</span><br></pre></td></tr></table></figure>
+<p><img src="/images/Pastedimage20230213135609.png" alt="undifined"></p>
+<p>例如，<code>./create-image.sh -d bullseye</code>制作一个Debian的bullseye发行版根文件系统镜像。<br><img src="/images/Pastedimage20230213135930.png" alt="undifined"><br><img src="/images/Pastedimage20230213153642.png" alt="undifined"></p>
+<h2 id="qemu-gdb连调"><a href="#qemu-gdb连调" class="headerlink" title="qemu+gdb连调"></a>qemu+gdb连调</h2><p>运行所需要的内核和文件系统镜像都制作好了，基本如下：<br><img src="/images/Pastedimage20230213154421.png" alt="undifined"><br>就可以使用如下的QEMU命令来运行并调试内核：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">sudo qemu-system-x86_64 \</span><br><span class="line">-m 1G \</span><br><span class="line">-kernel ./bzImage \</span><br><span class="line">-append &quot;console=ttyS0 root=/dev/sda earlyprintk=seria net.ifnames=0&quot; \</span><br><span class="line">-drive file=./bullseye.img,format=raw \</span><br><span class="line">-nographic \</span><br><span class="line">-net nic,model=e1000 \</span><br><span class="line">-S \</span><br><span class="line">-s</span><br></pre></td></tr></table></figure>
+<ul>
+<li>m：指定运行内存</li>
+<li>kernel：指定内核</li>
+<li>append：指定console口、磁盘、串口等</li>
+<li>drive：磁盘</li>
+<li>nographic：非图形界面，也就是命令行界面</li>
+<li>net：e1000网卡</li>
+<li>S：等待gdb的命令后再运行</li>
+<li>s：开启本地调试端口1234</li>
+</ul>
+<p>随后，使用gdb去连接和调试：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">file ./vmlinux</span><br><span class="line">target remote :1234</span><br><span class="line">b start_kernel</span><br><span class="line">c</span><br></pre></td></tr></table></figure>
+<p>可以看到，gdb成功断在了函数<code>start_kernel</code>处<br><img src="/images/Pastedimage20230213155247.png" alt="undifined"></p>
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://cloud.tencent.com/developer/article/2121069">QEMU调试Linux内核环境搭建 - 腾讯云开发者社区-腾讯云</a></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/01/12/mirai%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%EF%BC%9A%E5%AE%9E%E6%88%98%E7%9C%9F%E5%AE%9Emirai%E6%A0%B7%E6%9C%AC2-%E6%97%A0%E7%AC%A6%E5%8F%B7/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="stay hungry, stay foolish">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/01/12/mirai%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%EF%BC%9A%E5%AE%9E%E6%88%98%E7%9C%9F%E5%AE%9Emirai%E6%A0%B7%E6%9C%AC2-%E6%97%A0%E7%AC%A6%E5%8F%B7/" class="post-title-link" itemprop="url">mirai源码分析：实战真实mirai样本2-无符号</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-01-12 03:12:16" itemprop="dateCreated datePublished" datetime="2023-01-12T03:12:16+08:00">2023-01-12</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-02-07 12:50:20" itemprop="dateModified" datetime="2023-02-07T12:50:20+08:00">2023-02-07</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>此次分析的样本同样是一个发生在真实应急场景中的mirai样本，与上一个分析的样本不同，该样本去掉了符号，如果直接硬看还是很费力的。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ file ninja.mip.virus</span><br><span class="line">ninja.mip.virus: ELF 32-bit MSB executable, MIPS, MIPS-I version 1 (SYSV), statically linked, stripped</span><br></pre></td></tr></table></figure>
+<p>在分析前，同样需要明确分析的目的：提取样本中的配置信息，弱口令字典等。配置信息中通常需要重点关注CNC地址，如果有设备或者仿真执行，也可以通过抓包的方式获取，弱口令字典需要看样本中是否包含了爆破模块。在此次的样本中，并没有弱口令扫描的模块，因此把重心放在了配置信息提取上。</p>
+<h2 id="样本分析思路"><a href="#样本分析思路" class="headerlink" title="样本分析思路"></a>样本分析思路</h2><p>一般情况下，mirai都是使用了xor的方式来对配置信息进行加解密。在mirai源码中，配置信息在函数<code>table_init</code>中通过调用函数<code>add_entry</code>将硬编码且加密的数据逐条添加到<code>table</code>结构体中。在bot需要使用到相应的数据时，通过函数<code>table_unlock_val</code>将对应条目的<code>table</code>解密，等到使用完毕后，再调用<code>table_lock_val</code>重新将<code>table</code>中的条目进行加密。具体的代码实现逻辑可以参考上一个分析带符号的mirai文章，以及之前的mirai bot源码分析。</p>
+<p>那么可以总结出如下的信息：</p>
+<ol>
+<li>样本中可得配置信息：加密后的配置信息是以硬编码的形式在样本中。</li>
+<li>加解密函数可定位：样本通常使用xor的方式进行加密，在样本中搜索对应架构的xor指令可以定位加解密函数（理论上还可以采用其他的加解密方式）。</li>
+<li>加解密函数使用特征：样本在使用配置信息前后，会依次调用解密函数<code>table_unlock_val</code>和加密函数<code>table_lock_val</code>。</li>
+</ol>
+<p>因此，对该样本进行分析的思路就是：</p>
+<ol>
+<li>寻找样本中所有使用到xor的函数，判断是否涉及到加解密操作。</li>
+<li>寻找到加解密函数后，根据在样本中的交叉引用，确定加解密函数。</li>
+<li>定位样本配置信息初始化的函数<code>table_init</code>。</li>
+<li>定位样本中的 <code>add_entry</code>函数获取到加密后的配置信息，并根据解密函数逻辑进行解密。</li>
+</ol>
+<h2 id="定位和确认加解密函数"><a href="#定位和确认加解密函数" class="headerlink" title="定位和确认加解密函数"></a>定位和确认加解密函数</h2><p>在IDA中搜索所有的MIPS xor指令，通过简单分析，得到如下的三个函数可能是加解密相关函数：</p>
+<ul>
+<li>sub_409DCB</li>
+<li>sub_40A6F8</li>
+<li>sub_40A7DC<br>其中sub_40A6F8和sub_40A7DC的逻辑基本相同，且xor操作都使用到了敏感数据：0xDEADBEEF，因此可以判断这两个函数极大可能是加解密函数。<br>三个函数的反编译结果如下：<br>sub_409DCB<br><img src="/images/Pastedimage20230112162201.png" alt="undifined"><br>sub_40A6F8<br><img src="/images/Pastedimage20230112162316.png" alt="undifined"><br>sub_40A7DC<br><img src="/images/Pastedimage20230112162430.png" alt="undifined"></li>
+</ul>
+<p>在文章开头也提到过，mirai使用<code>table</code>中的结构体有一个特征：那就是先使用函数<code>table_unlock_val</code>将对应<code>table_id</code>的条目解密，使用完毕后再使用函数<code>table_lock_val</code>加密。因此，可以通过查看如上三个函数的交叉引用，查看是否有相似的匹配特征。最终确定了：</p>
+<ul>
+<li>sub_40A7DC &#x3D; <code>table_unlock_val</code></li>
+<li>sub_40A6F8 &#x3D; <code>table_lock_val</code><br>如下是一个典型的mirai bot使用数据的特征：<br><img src="/images/Pastedimage20230116151913.png" alt="undifined"></li>
+</ul>
+<h2 id="定位配置信息初始化函数table-init"><a href="#定位配置信息初始化函数table-init" class="headerlink" title="定位配置信息初始化函数table_init"></a>定位配置信息初始化函数table_init</h2><p>mirai bot的配置信息例如C2等在函数<code>table_init</code>中进行初始化，攻击配置例如弱口令字典是在函数<code>attack_init</code>中进行初始化。在此处关注的是对配置信息的提取。</p>
+<p>在无符号样本中寻找<code>table_init</code>的思路是：</p>
+<ol>
+<li>根据函数<code>table_lock_val</code>或者其他函数寻找到全局变量<code>table</code></li>
+<li>根据全局变量<code>table</code>的交叉引用，来寻找函数<code>table_init</code></li>
+</ol>
+<p>在函数<code>table_lock_val</code>中，传入配置<code>table_id</code>，来对<code>table</code>进行数据的操作：<br><img src="/images/Pastedimage20230116152853.png" alt="undifined"></p>
+<p>继续查看<code>table</code>的交叉引用，最后定位到<code>table_init</code>。在<code>table_init</code>中会多次将硬编码的配置信息存入到<code>table</code>中，因此特征很明显。如下是交叉引用（已经恢复部分符号）以及<code>table_init</code>中进行初始化配置：<br><img src="/images/Pastedimage20230116153046.png" alt="undifined"><br><img src="/images/Pastedimage20230116153221.png" alt="undifined"></p>
+<h2 id="解密脚本编写"><a href="#解密脚本编写" class="headerlink" title="解密脚本编写"></a>解密脚本编写</h2><p>那么编写解密函数的思路也很简单了：</p>
+<ol>
+<li>在函数<code>table_init</code>中分析<code>util_memcpy</code>（手动恢复的符号）使用到的硬编码加密数据和数据长度。</li>
+<li>根据函数<code>table_unlock_val</code>的解密逻辑对数据进行解密</li>
+</ol>
+<p><code>table_unlock_val</code>的反编译逻辑如下，实则非常简单，就是使用了mirai的默认加密算法：数据的每个字节逐个和0xdeadbeef进行异或。<br><img src="/images/Pastedimage20230116173128.png" alt="undifined"><br>解密脚本如下：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> idc</span><br><span class="line"><span class="keyword">import</span> idautils</span><br><span class="line"></span><br><span class="line">ea = idc.get_name_ea_simple(<span class="string">&quot;util_memcpy&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># table_init范围内</span></span><br><span class="line">start = <span class="number">0x0040A8C0</span></span><br><span class="line">end = <span class="number">0x0040BD0C</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 根据MIPS传参规则，分析util_memcpy中的待解密数据地址</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">find_args</span>(<span class="params">addr</span>):</span><br><span class="line">    each_op = addr + <span class="number">4</span></span><br><span class="line">    tmp_args = &#123;</span><br><span class="line">        <span class="string">&quot;A1&quot;</span> : <span class="number">0</span>,</span><br><span class="line">        <span class="string">&quot;A2&quot;</span> : <span class="number">0</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">while</span> each_op &gt;= start:</span><br><span class="line">        op_disasm = idc.GetDisasm(each_op).upper()</span><br><span class="line">        <span class="keyword">if</span> <span class="string">&quot;ADDIU&quot;</span> <span class="keyword">in</span> op_disasm <span class="keyword">and</span> <span class="string">&quot;A1&quot;</span> <span class="keyword">in</span> op_disasm:</span><br><span class="line">            tmp_args[<span class="string">&quot;A1&quot;</span>] = each_op</span><br><span class="line">        <span class="keyword">if</span> <span class="string">&quot;LI&quot;</span> <span class="keyword">in</span> op_disasm <span class="keyword">and</span> <span class="string">&quot;A2&quot;</span> <span class="keyword">in</span> op_disasm:</span><br><span class="line">            tmp_args[<span class="string">&quot;A2&quot;</span>] = each_op</span><br><span class="line">        <span class="keyword">if</span> tmp_args[<span class="string">&quot;A1&quot;</span>] != <span class="number">0</span> <span class="keyword">and</span> tmp_args[<span class="string">&quot;A2&quot;</span>] != <span class="number">0</span>:</span><br><span class="line">            <span class="comment"># print(hex(tmp_args[&quot;A1&quot;]), hex(tmp_args[&quot;A2&quot;]))</span></span><br><span class="line">            <span class="keyword">return</span> tmp_args</span><br><span class="line">        each_op = idc.prev_head(each_op)</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">None</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 根据地址获取待解密数据</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">get_op_string</span>(<span class="params">addr</span>):</span><br><span class="line">    str_addr_list = <span class="built_in">list</span>(idautils.DataRefsFrom(addr))</span><br><span class="line">    <span class="comment"># print(str_addr_list)</span></span><br><span class="line">    data = []</span><br><span class="line">    start = str_addr_list[<span class="number">0</span>]</span><br><span class="line">    i = <span class="number">0</span></span><br><span class="line">    <span class="keyword">while</span> <span class="literal">True</span>:</span><br><span class="line">        byte = idc.get_wide_byte(start + i)</span><br><span class="line">        <span class="keyword">if</span> byte == <span class="number">0</span>:</span><br><span class="line">            <span class="keyword">break</span></span><br><span class="line">        data.append(byte)</span><br><span class="line">        i += <span class="number">1</span></span><br><span class="line">    <span class="comment"># print(&quot;0x%x&quot; % start, data)</span></span><br><span class="line">    <span class="keyword">return</span> data, i</span><br><span class="line"></span><br><span class="line"><span class="comment"># 读取硬编码的table_keys</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">init_key</span>():</span><br><span class="line">    addr = <span class="number">0x00451034</span></span><br><span class="line">    key = []</span><br><span class="line">    i = <span class="number">0</span></span><br><span class="line">    <span class="keyword">while</span> <span class="literal">True</span>:</span><br><span class="line">        byte = idc.get_wide_byte(addr + i)</span><br><span class="line">        <span class="keyword">if</span> byte == <span class="number">0</span>:</span><br><span class="line">            <span class="keyword">break</span></span><br><span class="line">        key.append(byte)</span><br><span class="line">        i += <span class="number">1</span></span><br><span class="line">    <span class="keyword">return</span> key, i</span><br><span class="line"></span><br><span class="line"><span class="comment"># 真正的解密函数</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">encrypt</span>(<span class="params">data, key</span>):</span><br><span class="line">    key1 = key[<span class="number">0</span>]</span><br><span class="line">    key2 = key[<span class="number">1</span>]</span><br><span class="line">    key3 = key[<span class="number">2</span>]</span><br><span class="line">    key4 = key[<span class="number">3</span>]</span><br><span class="line">    <span class="keyword">for</span> j <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">0</span>, <span class="built_in">len</span>(data)):</span><br><span class="line">        data[j] ^= key1</span><br><span class="line">        data[j] ^= key2</span><br><span class="line">        data[j] ^= key3</span><br><span class="line">        data[j] ^= key4</span><br><span class="line">    result = <span class="string">&quot;&quot;</span></span><br><span class="line">    <span class="keyword">for</span> each <span class="keyword">in</span> data:</span><br><span class="line">        result += <span class="built_in">chr</span>(each)</span><br><span class="line">    <span class="built_in">print</span>(result)</span><br><span class="line">   </span><br><span class="line"><span class="keyword">def</span> <span class="title function_">main</span>():</span><br><span class="line">    key, key_len = init_key()</span><br><span class="line">    <span class="comment"># 获取util_memcpy的交叉引用</span></span><br><span class="line">    <span class="keyword">for</span> addr <span class="keyword">in</span> idautils.CodeRefsTo(ea, <span class="number">0</span>):</span><br><span class="line">        <span class="keyword">if</span> start &lt;= addr &lt; end:</span><br><span class="line">            <span class="keyword">if</span> <span class="string">&quot;JA&quot;</span> <span class="keyword">in</span> idc.GetDisasm(addr).upper():</span><br><span class="line">                args = find_args(addr)</span><br><span class="line">                arg1, arg_len = get_op_string(args[<span class="string">&quot;A1&quot;</span>])</span><br><span class="line">                <span class="comment"># print(arg1, arg_len)</span></span><br><span class="line">                encrypt(arg1, key)</span><br><span class="line"></span><br><span class="line">main()</span><br></pre></td></tr></table></figure>
+<p>解密结果如下（不打码），可以看到其中的C2：<code>king.badplayer.net</code>和<code>sc.badplayer.net</code></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br></pre></td><td class="code"><pre><span class="line">king.badplayer.net</span><br><span class="line">ï2</span><br><span class="line">sc.badplayer.net</span><br><span class="line">ï3</span><br><span class="line">lzrd cock fest</span><br><span class="line">/proc/</span><br><span class="line">/exe</span><br><span class="line"> (deleted)</span><br><span class="line">/fd</span><br><span class="line">.anime</span><br><span class="line">/status</span><br><span class="line">dvrHelper</span><br><span class="line">NiGGeR69xd</span><br><span class="line">1337SoraLOADER</span><br><span class="line">NiGGeRd0nks1337</span><br><span class="line">X19I239124UIU</span><br><span class="line">IuYgujeIqn</span><br><span class="line">14Fa</span><br><span class="line">ccAD</span><br><span class="line">/proc/net/route</span><br><span class="line">/proc/cpuinfo</span><br><span class="line">BOGOMIPS</span><br><span class="line">/etc/rc.d/rc.local</span><br><span class="line">g1abc4dmo35hnp2lie0kjf</span><br><span class="line">/dev/watchdog</span><br><span class="line">/dev/misc/watchdog</span><br><span class="line">/dev/FTWDT101_watchdog</span><br><span class="line">/dev/netslink/</span><br><span class="line">PRIVMSG</span><br><span class="line">GETLOCALIP</span><br><span class="line">KILLATTK</span><br><span class="line">Eats8</span><br><span class="line">v[0v</span><br><span class="line">93OfjHZ2z</span><br><span class="line">GhostWuzHere666</span><br><span class="line">WsGA4@F6F</span><br><span class="line">ACDB</span><br><span class="line">AbAd</span><br><span class="line">iaGv</span><br><span class="line">shell</span><br><span class="line">enable</span><br><span class="line">system</span><br><span class="line">sh</span><br><span class="line">/bin/busybox LZRD</span><br><span class="line">LZRD: applet not found</span><br><span class="line">ncorrect</span><br><span class="line">/bin/busybox ps</span><br><span class="line">/bin/busybox kill -9 </span><br><span class="line">TSource Engine Query</span><br><span class="line">/etc/resolv.conf</span><br><span class="line">nameserver </span><br><span class="line">Connection: keep-alive</span><br><span class="line">Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8</span><br><span class="line">Accept-Language: en-US,en;q=0.8</span><br><span class="line">Content-Type: application/x-www-form-urlencoded</span><br><span class="line">setCookie(&#x27;</span><br><span class="line">refresh:</span><br><span class="line">location:</span><br><span class="line">set-cookie:</span><br><span class="line">content-length:</span><br><span class="line">transfer-encoding:</span><br><span class="line">chunked</span><br><span class="line">keep-alive</span><br><span class="line">connection:</span><br><span class="line">server: dosarrest</span><br><span class="line">server: cloudflare-nginx</span><br><span class="line">Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36</span><br><span class="line">Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36</span><br><span class="line">Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36</span><br><span class="line">Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36</span><br><span class="line">Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/601.7.7 (KHTML, like Gecko) Version/9.1.2 Safari/601.7.7</span><br><span class="line">Mozilla/4.0 (compatible; MSIE 9.0; Windows NT 5.1; Trident/5.0)</span><br><span class="line">Mozilla/4.0 (compatible; MSIE 9.0; Windows NT 6.0; Trident/4.0; GTB7.4; InfoPath.3; SV1; .NET CLR 3.4.53360; WOW64; en-US)</span><br><span class="line">Mozilla/4.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/4.0; FDM; MSIECrawler; Media Center PC 5.0)</span><br><span class="line">Mozilla/4.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/4.0; GTB7.4; InfoPath.2; SV1; .NET CLR 4.4.58799; WOW64; en-US)</span><br><span class="line">Mozilla/4.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0; FunWebProducts)</span><br><span class="line">Mozilla/5.0 (Macintosh; Intel Mac OS X 10.6; rv:25.0) Gecko/20100101 Firefox/25.0</span><br><span class="line">Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:21.0) Gecko/20100101 Firefox/21.0</span><br><span class="line">Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:24.0) Gecko/20100101 Firefox/24.0</span><br><span class="line">Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10; rv:33.0) Gecko/20100101 Firefox/33.0</span><br><span class="line">Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.94</span><br><span class="line">/dev/watchdog</span><br><span class="line">/dev/misc/watchdog</span><br><span class="line">assword</span><br><span class="line">ogin</span><br><span class="line">enter</span><br><span class="line">dkaowjfirhiad1j3edjkai</span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2022/12/29/FirmAE%E5%88%9B%E5%BB%BAqemu%E9%95%9C%E5%83%8F%E5%B9%B6%E6%89%A7%E8%A1%8C%E7%9A%84%E8%BF%87%E7%A8%8B/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="stay hungry, stay foolish">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/12/29/FirmAE%E5%88%9B%E5%BB%BAqemu%E9%95%9C%E5%83%8F%E5%B9%B6%E6%89%A7%E8%A1%8C%E7%9A%84%E8%BF%87%E7%A8%8B/" class="post-title-link" itemprop="url">FirmAE创建qemu镜像并执行的过程</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2022-12-29 04:14:30" itemprop="dateCreated datePublished" datetime="2022-12-29T04:14:30+08:00">2022-12-29</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-02-22 15:36:24" itemprop="dateModified" datetime="2023-02-22T15:36:24+08:00">2023-02-22</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>最近有一个需求，如何对FirmAE仿真成功的设备中的固件进行修改，本质就是在仿真前修改固件的文件系统。背景是这样的，我在调试一个httpd的时候，它会创建大量的进程，这些进程手动进行kill的话太繁琐，使用gdbserver对其进行attach主进程，其他的进程也会影响主进程的调试，因此就想，能不能将httpd的自动启动关停，通过gdbserver手动启动程序并调试，这样进程状态比较可控。</p>
+<p>这就需要从源码上分析一下FirmAE是如何从设备固件中提取固件、进行patch、使用qemu仿真的。<br>分析过程主要是从<code>run.sh</code>入手，主要涉及到的源码文件有：</p>
+<ul>
+<li><code>scripts/extractor.py</code>：提取固件中的文件系统和操作系统内核。</li>
+<li><code>scripts/makeImage.sh</code>：创建qemu磁盘镜像，将固件文件系统进行修改，添加相关的工具、文件目录、设备等并写入到镜像中。</li>
+<li><code>scripts/inferFile.sh</code>：分析固件文件系统的启动项，分析文件系统中的http server。</li>
+<li><code>scripts/fixImage.sh</code>：修改文件系统，添加必要的目录，添加相关工具，根据文件系统中的应用程序创建相应的目录。</li>
+</ul>
+<p>FirmAE创建qemu磁盘镜像的大概思路就是：</p>
+<ol>
+<li>先从固件中提取文件系统和操作系统内核。</li>
+<li>创建一个磁盘镜像，将其挂载，并将提取出来的文件系统复制到磁盘镜像中。</li>
+<li>对挂载镜像的目录进行修改，分析文件系统启动项、http server等，并根据目标架构添加响应的工具和脚本到文件系统中。</li>
+<li>写入磁盘镜像并取消挂载。</li>
+</ol>
+<h2 id="固件文件系统提取"><a href="#固件文件系统提取" class="headerlink" title="固件文件系统提取"></a>固件文件系统提取</h2><p>分析<code>run.sh</code>，FirmAE会使用<code>scripts/extractor.py</code>解压出来固件中的文件系统和操作系统内核，将文件系统打包成tar.gz压缩包形式。<code>extractor.py</code>的主要原理是调用binwalk的API，根据UNIX目录规范对binwalk解压的目录进行搜索，找到其中的文件系统并压缩保存到<code>images</code>文件夹。</p>
+<p>进一步分析qemu的镜像制作过程，主要逻辑在<code>scripts/makeImage.sh</code>中，因此随后的分析都是以<code>makeImages.sh</code>为主要代码进行分析，如果被这些代码调用绕糊涂了也可以不管具体的代码文件，看关键命令和关键流程的实现。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./scripts/makeImage.sh $IID $ARCH $FILENAME \</span><br></pre></td></tr></table></figure>
+
+<h2 id="创建磁盘镜像"><a href="#创建磁盘镜像" class="headerlink" title="创建磁盘镜像"></a>创建磁盘镜像</h2><p>首先将压缩的文件系统从原来的<code>&quot;$&#123;TARBALL_DIR&#125;/$&#123;IID&#125;.tar.gz&quot;</code>复制到<code>&quot;$&#123;WORK_DIR&#125;/$&#123;IID&#125;.tar.gz&quot;</code>，也就是从<code>images</code>目录复制到<code>scratch</code>目录中。复制后的文件系统压缩包使用完毕后，会被删除。原始的固件文件系统压缩包有且仅有一份在<code>images</code>目录中，如果要对FirmAE进行二次开发，则可以直接在该目录中去获取文件系统，就不用单独再用binwalk对固件进行解压。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">cp &quot;$&#123;TARBALL_DIR&#125;/$&#123;IID&#125;.tar.gz&quot; &quot;$&#123;WORK_DIR&#125;/$&#123;IID&#125;.tar.gz&quot;</span><br></pre></td></tr></table></figure>
+
+<p>使用qemu-img创建磁盘镜像，磁盘镜像是存放在<code>scratch</code>目录下对应的固件文件夹（数字序号）中的<code>image.raw</code>。FirmAE管理固件的方式就是在<code>images</code>目录下存放固件中提取出来的文件系统和操作系统内核，在<code>scratch</code>目录下以数字递增的序号表示可被仿真的设备相关文件。<br>如下是从固件中提取的操作系统内核和固件文件系统压缩包：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">$ tree -L 1 images</span><br><span class="line">images</span><br><span class="line">├── 1.kernel</span><br><span class="line">├── 1.tar.gz</span><br><span class="line">├── 2.kernel</span><br><span class="line">├── 2.tar.gz</span><br><span class="line">├── 3.kernel</span><br><span class="line">└── 3.tar.gz</span><br><span class="line"></span><br><span class="line">0 directories, 6 files</span><br></pre></td></tr></table></figure>
+<p>如下是<code>scratch</code>目录，包含了仿真过程中的一些标志文件，仿真状态例如web服务是否可达、是否可ping等。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">$ tree -L 2 scratch</span><br><span class="line">scratch</span><br><span class="line">├── 1</span><br><span class="line">│   ├── architecture</span><br><span class="line">│   ├── brand</span><br><span class="line">│   ├── current_init</span><br><span class="line">│   ├── emulation.log</span><br><span class="line">│   ├── fileList</span><br><span class="line">│   ├── fileType</span><br><span class="line">│   ├── image</span><br><span class="line">│   ├── image.raw</span><br><span class="line">│   ├── init</span><br><span class="line">......</span><br></pre></td></tr></table></figure>
+<p>回归到镜像创建的过程中：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">qemu-img create -f raw &quot;$&#123;IMAGE&#125;&quot; 1G</span><br><span class="line">chmod a+rw &quot;$&#123;IMAGE&#125;&quot;</span><br></pre></td></tr></table></figure>
+<p>给磁盘镜像创建分区，完整示例命令如<code>/sbin/fdisk /home/utest/app/FirmAE/scratch/3/image.raw</code>，根据<code>echo</code>设置的输入，该命令大致的流程是：</p>
+<ul>
+<li><code>o</code>：创建一个空白的DOS分区表</li>
+<li><code>n\np\n1</code>：添加一个主分区primary，分区的数量设置为1</li>
+<li><code>\n\n</code>：创建第一个大小为2MB的扇区sector，剩下的作为第二个扇区。</li>
+<li><code>w</code>：将分区表写入到磁盘中<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">echo -e &quot;o\nn\np\n1\n\n\nw&quot; | /sbin/fdisk &quot;$&#123;IMAGE&#125;&quot;</span><br></pre></td></tr></table></figure>
+使用<code>fdisk</code>查看磁盘镜像的属性如下：<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">Device     Boot Start     End Sectors  Size Id Type</span><br><span class="line">image.raw1       2048 2097151 2095104 1023M 83 Linux</span><br><span class="line"></span><br><span class="line">Command (m for help): Disk image.raw: 1 GiB, 1073741824 bytes, 2097152 sectors</span><br><span class="line">Units: sectors of 1 * 512 = 512 bytes</span><br><span class="line">Sector size (logical/physical): 512 bytes / 512 bytes</span><br><span class="line">I/O size (minimum/optimal): 512 bytes / 512 bytes</span><br><span class="line">Disklabel type: dos</span><br><span class="line">Disk identifier: 0x88272c5c</span><br><span class="line"></span><br><span class="line">Device     Boot Start     End Sectors  Size Id Type</span><br><span class="line">image.raw       2048 2097151 2095104 1023M 83 Linux</span><br></pre></td></tr></table></figure></li>
+</ul>
+<h2 id="挂载磁盘镜像"><a href="#挂载磁盘镜像" class="headerlink" title="挂载磁盘镜像"></a>挂载磁盘镜像</h2><p>然后就是调用<code>firmae.config</code>中的<code>add_partition</code>函数，将该磁盘镜像进行挂载，并返回挂载后的设备目录。如下，函数的主要功能就是将之前创建的镜像文件，使用<code>losetup</code>命令进行挂载，然后通过遍历、比较<code>losetup</code>命令的结果，来获取磁盘镜像挂载的目录：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">add_partition () &#123;</span><br><span class="line">    local IFS=$&#x27;\n&#x27;</span><br><span class="line">    local IMAGE_PATH</span><br><span class="line">    local DEV_PATH=&quot;&quot;</span><br><span class="line">    local FOUND=false</span><br><span class="line"></span><br><span class="line">    losetup -Pf $&#123;1&#125;</span><br><span class="line">    while (! $&#123;FOUND&#125;)</span><br><span class="line">    do</span><br><span class="line">        sleep 1</span><br><span class="line">        for LINE in `losetup`</span><br><span class="line">        do</span><br><span class="line">            IMAGE_PATH=`echo $&#123;LINE&#125; | awk &#x27;&#123;print $6&#125;&#x27;`</span><br><span class="line">            if [ &quot;$&#123;IMAGE_PATH&#125;&quot; = &quot;$&#123;1&#125;&quot; ]; then</span><br><span class="line">                DEV_PATH=`echo $&#123;LINE&#125; | awk &#x27;&#123;print $1&#125;&#x27;`p1</span><br><span class="line">                if [ -e $&#123;DEV_PATH&#125; ]; then</span><br><span class="line">                    FOUND=true</span><br><span class="line">                fi</span><br><span class="line">            fi</span><br><span class="line">        done</span><br><span class="line">    done</span><br><span class="line"></span><br><span class="line">    while (! ls -al $&#123;DEV_PATH&#125; | grep -q &quot;disk&quot;)</span><br><span class="line">    do</span><br><span class="line">        sleep 1</span><br><span class="line">    done</span><br><span class="line">    echo $&#123;DEV_PATH&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>如下是使用<code>losetup</code>命令显示的结果，此时是仿真结束后的结果，所以不包含磁盘镜像的挂载目录，仅供参考：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">$ losetup</span><br><span class="line">NAME       SIZELIMIT OFFSET AUTOCLEAR RO BACK-FILE                                        DIO LOG-SEC</span><br><span class="line">/dev/loop1         0      0         1  1 /var/lib/snapd/snaps/bare_5.snap                   0     512</span><br><span class="line">/dev/loop8         0      0         1  1 /var/lib/snapd/snaps/gnome-3-38-2004_115.snap      0     512</span><br><span class="line">/dev/loop6         0      0         1  1 /var/lib/snapd/snaps/gtk-common-themes_1535.snap   0     512</span><br><span class="line">/dev/loop4         0      0         1  1 /var/lib/snapd/snaps/gnome-3-38-2004_119.snap      0     512</span><br><span class="line">/dev/loop2         0      0         1  1 /var/lib/snapd/snaps/core20_1778.snap              0     512</span><br><span class="line">/dev/loop0         0      0         1  1 /var/lib/snapd/snaps/core20_1738.snap              0     512</span><br><span class="line">/dev/loop7         0      0         1  1 /var/lib/snapd/snaps/snap-store_638.snap           0     512</span><br><span class="line">/dev/loop5         0      0         1  1 /var/lib/snapd/snaps/snap-store_599.snap           0     512</span><br><span class="line">/dev/loop3         0      0         1  1 /var/lib/snapd/snaps/snapd_17883.snap              0     512</span><br></pre></td></tr></table></figure>
+<p>如下是真实仿真过程中，命令的执行结果。可以看到最终返回了磁盘镜像的挂载目录<code>/dev/loop9p1</code></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">++ IMAGE_PATH=/home/utest/app/FirmAE/scratch/3/image.raw</span><br><span class="line">++ &#x27;[&#x27; /home/utest/app/FirmAE/scratch/3/image.raw = /home/utest/app/FirmAE/scratch/3/image.raw &#x27;]&#x27;</span><br><span class="line">+++ echo &#x27;/dev/loop9         0      0         0  0 /home/utest/app/FirmAE/scratch/3/image.raw         0     512&#x27;</span><br><span class="line">+++ awk &#x27;&#123;print $1&#125;&#x27;</span><br><span class="line">++ DEV_PATH=/dev/loop9p1</span><br><span class="line">++ &#x27;[&#x27; -e /dev/loop9p1 &#x27;]&#x27;</span><br><span class="line">++ FOUND=true</span><br><span class="line">......</span><br><span class="line">++ echo /dev/loop9p1</span><br><span class="line">+ DEVICE=/dev/loop9p1</span><br></pre></td></tr></table></figure>
+<h2 id="创建文件系统"><a href="#创建文件系统" class="headerlink" title="创建文件系统"></a>创建文件系统</h2><p>使用<code>mkfs.ext2</code>在镜像挂载目录创建<code>ext2</code>文件系统（实际上就是在磁盘镜像上创建文件系统）</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mkfs.ext2 &quot;$&#123;DEVICE&#125;&quot;</span><br></pre></td></tr></table></figure>
+<p>在<code>scratch</code>的固件编号目录中创建一个<code>image</code>文件夹，例如<code>mkdir /home/utest/app/FirmAE/scratch/3/image/</code>，然后将该文件夹也挂载到之前镜像的挂载目录上，例如<code>mount /dev/loop9p1 /home/utest/app/FirmAE/scratch/3/image/</code>。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">echo &quot;----Making QEMU Image Mountpoint----&quot;</span><br><span class="line">if [ ! -e &quot;$&#123;IMAGE_DIR&#125;&quot; ]; then</span><br><span class="line">    mkdir &quot;$&#123;IMAGE_DIR&#125;&quot;</span><br><span class="line">    chown &quot;$&#123;USER&#125;&quot; &quot;$&#123;IMAGE_DIR&#125;&quot;</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">echo &quot;----Mounting QEMU Image Partition----&quot;</span><br><span class="line">sync</span><br><span class="line">mount &quot;$&#123;DEVICE&#125;&quot; &quot;$&#123;IMAGE_DIR&#125;&quot;</span><br></pre></td></tr></table></figure>
+<p>解压从固件中提取的文件系统。原本提取出来的被压缩的文件系统在FirmAE的根目录<code>images</code>中，先前是将压缩文件系统复制到了固件目录<code>scratch/固件编号/</code>中，因此解压完毕之后，需要将固件工作目录中的压缩文件系统删除。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">echo &quot;----Extracting Filesystem Tarball----&quot;</span><br><span class="line">tar -xf &quot;$&#123;WORK_DIR&#125;/$IID.tar.gz&quot; -C &quot;$&#123;IMAGE_DIR&#125;&quot;</span><br><span class="line">rm &quot;$&#123;WORK_DIR&#125;/$&#123;IID&#125;.tar.gz&quot;</span><br></pre></td></tr></table></figure>
+<p>关键的执行命令如下：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">mount /dev/loop9p1 /home/utest/app/FirmAE/scratch/3/image/</span><br><span class="line">tar -xf /home/utest/app/FirmAE/scratch/3/3.tar.gz -C /home/utest/app/FirmAE/scratch/3/image/</span><br></pre></td></tr></table></figure>
+<p>至此，将相当于将固件中提取出来的文件系统给复制到了磁盘镜像中。</p>
+<h2 id="修改文件系统"><a href="#修改文件系统" class="headerlink" title="修改文件系统"></a>修改文件系统</h2><p>在磁盘镜像中创建<code>firmadyne</code>相关的目录。FirmAE是在FirmAdyne的基础上进行二次开发的，因此沿用了后者的一些设计逻辑。如果是使用debug模式启动的FirmAE，可以进行模拟器的shell中，查看<code>firmadyne</code>中实际上包含了许多有用的工具和脚本，例如<code>gdbserver</code>、<code>gdb</code>、<code>strace</code>和完整版的<code>busybox</code>等。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">mkdir &quot;$&#123;IMAGE_DIR&#125;/firmadyne/&quot;</span><br><span class="line">mkdir &quot;$&#123;IMAGE_DIR&#125;/firmadyne/libnvram/&quot;</span><br><span class="line">mkdir &quot;$&#123;IMAGE_DIR&#125;/firmadyne/libnvram.override/&quot;</span><br></pre></td></tr></table></figure>
+<p><img src="/images/Pastedimage20221229181245.png" alt="undifined"></p>
+<h3 id="inferFile-sh"><a href="#inferFile-sh" class="headerlink" title="inferFile.sh"></a>inferFile.sh</h3><p>随后，将一个静态编译的<code>bash-static</code>复制到<code>image</code>目录中，例如<code>cp /usr/bin/bash-static /home/utest/app/FirmAE/scratch/3/image/</code>，然后在宿主机上使用<code>chroot</code>执行<code>inferFile.sh</code>，例如<code>chroot /home/utest/app/FirmAE/scratch/3/image/ /bash-static /inferFile.sh</code>。<br><code>inferFile.sh</code>的主要功能就是分析固件的文件系统中所包含的启动程序和http server。例如寻找启动程序<code>preinitMT</code>、<code>preinit</code>、<code>rcS</code>等等，并将得到的结果写入到<code>/firmadyne/init</code>中，寻找http server<code>uhttpd</code>、<code>httpd</code>、<code>goahead</code>、<code>alphapd</code>、<code>boa</code>、<code>lighttpd</code>。这些都是IoT设备中常见的http server，如果在仿真模拟一个设备失败的时候不妨检查一下设备固件中的http server是否包含在其中。如下是<code>inferFile.sh</code>的代码，逻辑还是比较简单。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br></pre></td><td class="code"><pre><span class="line">BUSYBOX=&quot;/busybox&quot;</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">$</span><span class="language-bash">&#123;BUSYBOX&#125; <span class="built_in">touch</span> /firmadyne/init</span></span><br><span class="line"></span><br><span class="line">if ($&#123;FIRMAE_BOOT&#125;); then</span><br><span class="line">  arr=()</span><br><span class="line">  if [ -e /kernelInit ]; then</span><br><span class="line">    for FILE in `$&#123;BUSYBOX&#125; strings ./kernelInit`</span><br><span class="line">    do</span><br><span class="line">      FULL_PATH=`$&#123;BUSYBOX&#125; echo $&#123;FILE&#125; | $&#123;BUSYBOX&#125; awk &#x27;&#123;split($0,a,&quot;=&quot;); print a[2]&#125;&#x27;`</span><br><span class="line">      arr+=(&quot;$&#123;FULL_PATH&#125;&quot;)</span><br><span class="line">    done</span><br><span class="line">  fi</span><br><span class="line"><span class="meta prompt_">  # </span><span class="language-bash">kernel not handle this program</span></span><br><span class="line">  if [ -e /init ]; then</span><br><span class="line">    if [ ! -d /init ]; then</span><br><span class="line">      arr+=(/init)</span><br><span class="line">    fi</span><br><span class="line">  fi</span><br><span class="line">  for FILE in `$&#123;BUSYBOX&#125; find / -name &quot;preinitMT&quot; -o -name &quot;preinit&quot; -o -name &quot;rcS&quot;`</span><br><span class="line">  do</span><br><span class="line">    arr+=($&#123;FILE&#125;)</span><br><span class="line">  done</span><br><span class="line"></span><br><span class="line">  if (( $&#123;#arr[@]&#125; )); then</span><br><span class="line">    # convert to the unique array following the original order</span><br><span class="line">    uniq_arr=($($&#123;BUSYBOX&#125; tr &#x27; &#x27; &#x27;\n&#x27; &lt;&lt;&lt; &quot;$&#123;arr[@]&#125;&quot; | $&#123;BUSYBOX&#125; awk &#x27;!u[$0]++&#x27; | $&#123;BUSYBOX&#125; tr &#x27;\n&#x27; &#x27; &#x27;))</span><br><span class="line">    for FILE in &quot;$&#123;uniq_arr[@]&#125;&quot;</span><br><span class="line">    do</span><br><span class="line">      if [ -d $&#123;FILE&#125; ]; then</span><br><span class="line">        continue</span><br><span class="line">      fi</span><br><span class="line">      if [ ! -e $&#123;FILE&#125; ]; then # can&#x27;t found original file (symbolic link or just file)</span><br><span class="line">        if [ -h $&#123;FILE&#125; ]; then # remove old symbolic link</span><br><span class="line">          $&#123;BUSYBOX&#125; rm $&#123;FILE&#125;</span><br><span class="line">        fi</span><br><span class="line">        # find original program from binary directories</span><br><span class="line">        FILE_NAME=`$&#123;BUSYBOX&#125; basename $&#123;FILE&#125;`</span><br><span class="line">        if ($&#123;BUSYBOX&#125; find /bin /sbin /usr/sbin /usr/sbin -type f -exec $&#123;BUSYBOX&#125; grep -qr $&#123;FILE_NAME&#125; &#123;&#125; \;); then</span><br><span class="line">          TARGET_FILE=`$&#123;BUSYBOX&#125; find /bin /sbin /usr/sbin /usr/sbin -type f -exec $&#123;BUSYBOX&#125; egrep -rl $&#123;FILE_NAME&#125; &#123;&#125; \; | $&#123;BUSYBOX&#125; head -1`</span><br><span class="line">          $&#123;BUSYBOX&#125; ln -s $&#123;TARGET_FILE&#125; $&#123;FILE&#125;</span><br><span class="line">        else</span><br><span class="line">          continue</span><br><span class="line">        fi</span><br><span class="line">      fi</span><br><span class="line">      if [ -e $&#123;FILE&#125; ]; then</span><br><span class="line">        $&#123;BUSYBOX&#125; echo $&#123;FILE&#125; &gt;&gt; /firmadyne/init</span><br><span class="line">      fi</span><br><span class="line">    done</span><br><span class="line">  fi</span><br><span class="line">fi</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">$</span><span class="language-bash">&#123;BUSYBOX&#125; <span class="built_in">echo</span> <span class="string">&#x27;/firmadyne/preInit.sh&#x27;</span> &gt;&gt; /firmadyne/init</span></span><br><span class="line"></span><br><span class="line">if ($&#123;FIRMAE_ETC&#125;); then</span><br><span class="line">    if [ -e /etc/init.d/uhttpd ]; then</span><br><span class="line">        echo -n &quot;/etc/init.d/uhttpd start&quot; &gt; /firmadyne/service</span><br><span class="line">        echo -n &quot;uhttpd&quot; &gt; /firmadyne/service_name</span><br><span class="line">    elif [ -e /usr/bin/httpd ]; then</span><br><span class="line">        echo -n &quot;/usr/bin/httpd&quot; &gt; /firmadyne/service</span><br><span class="line">        echo -n &quot;httpd&quot; &gt; /firmadyne/service_name</span><br><span class="line">    elif [ -e /usr/sbin/httpd ]; then</span><br><span class="line">        echo -n &quot;/usr/sbin/httpd&quot; &gt; /firmadyne/service</span><br><span class="line">        echo -n &quot;httpd&quot; &gt; /firmadyne/service_name</span><br><span class="line">    elif [ -e /bin/goahead ]; then</span><br><span class="line">        echo -n &quot;/bin/goahead&quot; &gt; /firmadyne/service</span><br><span class="line">        echo -n &quot;goahead&quot; &gt; /firmadyne/service_name</span><br><span class="line">    elif [ -e /bin/alphapd ]; then</span><br><span class="line">        echo -n &quot;/bin/alphapd&quot; &gt; /firmadyne/service</span><br><span class="line">        echo -n &quot;alphapd&quot; &gt; /firmadyne/service_name</span><br><span class="line">    elif [ -e /bin/boa ]; then</span><br><span class="line">        echo -n &quot;/bin/boa&quot; &gt; /firmadyne/service</span><br><span class="line">        echo -n &quot;boa&quot; &gt; /firmadyne/service_name</span><br><span class="line">    elif [ -e /usr/sbin/lighttpd ]; then # for Ubiquiti firmwares</span><br><span class="line">        echo -n &quot;/usr/sbin/lighttpd -f /etc/lighttpd/lighttpd.conf&quot; &gt; /firmadyne/service</span><br><span class="line">        echo -n &quot;lighttpd&quot; &gt; /firmadyne/service_name</span><br><span class="line">    fi</span><br><span class="line">fi</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<h3 id="fixImage-sh"><a href="#fixImage-sh" class="headerlink" title="fixImage.sh"></a>fixImage.sh</h3><p>随后继续按照类似的逻辑<code>chroot</code>执行<code>fixImage.sh</code>，例如<code>chroot /home/utest/app/FirmAE/scratch/3/image/ /busybox ash /fixImage.sh</code>。<br><code>fixImage.sh</code>的主要功能是对镜像中的文件系统进行修补。<br>将静态编译的<code>busybox</code>复制到镜像的文件系统中：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">if ($&#123;FIRMAE_BOOT&#125;); then</span><br><span class="line">  if [ ! -e /bin/sh ]; then</span><br><span class="line">      $&#123;BUSYBOX&#125; ln -s /firmadyne/busybox /bin/sh</span><br><span class="line">  fi</span><br><span class="line"><span class="meta prompt_">  $</span><span class="language-bash">&#123;BUSYBOX&#125; <span class="built_in">ln</span> -s /firmadyne/busybox /firmadyne/sh</span></span><br></pre></td></tr></table></figure>
+<p>在FirmAE论文中提到，使用FirmAdyne仿真模拟失败很大一部分原因是没有创建相应的文件夹例如<code>/proc</code>、<code>/tmp</code>、<code>/var</code>等等，此处就手动创建常见的文件夹。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">mkdir -p &quot;$(resolve_link /proc)&quot;</span><br><span class="line">mkdir -p &quot;$(resolve_link /dev/pts)&quot;</span><br><span class="line">mkdir -p &quot;$(resolve_link /etc_ro)&quot;</span><br><span class="line">mkdir -p &quot;$(resolve_link /tmp)&quot;</span><br><span class="line">mkdir -p &quot;$(resolve_link /var)&quot;</span><br><span class="line">mkdir -p &quot;$(resolve_link /run)&quot;</span><br><span class="line">mkdir -p &quot;$(resolve_link /sys)&quot;</span><br><span class="line">mkdir -p &quot;$(resolve_link /root)&quot;</span><br><span class="line">mkdir -p &quot;$(resolve_link /tmp/var)&quot;</span><br><span class="line">mkdir -p &quot;$(resolve_link /tmp/media)&quot;</span><br><span class="line">mkdir -p &quot;$(resolve_link /tmp/etc)&quot;</span><br><span class="line">mkdir -p &quot;$(resolve_link /tmp/var/run)&quot;</span><br><span class="line">mkdir -p &quot;$(resolve_link /tmp/home/root)&quot;</span><br><span class="line">mkdir -p &quot;$(resolve_link /tmp/mnt)&quot;</span><br><span class="line">mkdir -p &quot;$(resolve_link /tmp/opt)&quot;</span><br><span class="line">mkdir -p &quot;$(resolve_link /tmp/www)&quot;</span><br><span class="line">mkdir -p &quot;$(resolve_link /var/run)&quot;</span><br><span class="line">mkdir -p &quot;$(resolve_link /var/lock)&quot;</span><br><span class="line">mkdir -p &quot;$(resolve_link /usr/bin)&quot;</span><br><span class="line">mkdir -p &quot;$(resolve_link /usr/sbin)&quot;</span><br></pre></td></tr></table></figure>
+<p>初次之外，还会分析应用程序中所依赖的目录，并进行创建：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">  for FILE in `$&#123;BUSYBOX&#125; find /bin /sbin /usr/bin /usr/sbin -type f -perm -u+x -exec $&#123;BUSYBOX&#125; strings &#123;&#125; \; | $&#123;BUSYBOX&#125; egrep &quot;^(/var|/etc|/tmp)(.+)\/([^\/]+)$&quot;`</span><br><span class="line">  do</span><br><span class="line">    DIR=`$&#123;BUSYBOX&#125; dirname &quot;$&#123;FILE&#125;&quot;`</span><br><span class="line">    if (! $&#123;BUSYBOX&#125; echo &quot;$&#123;DIR&#125;&quot; | $&#123;BUSYBOX&#125; egrep -q &quot;(%s|%c|%d|/tmp/services)&quot;);then</span><br><span class="line">      $&#123;BUSYBOX&#125; echo &quot;$&#123;DIR&#125;&quot; &gt;&gt; /firmadyne/dir_log</span><br><span class="line">      mkdir -p &quot;$(resolve_link $&#123;DIR&#125;)&quot;</span><br><span class="line">    fi</span><br><span class="line">  done</span><br><span class="line">fi</span><br></pre></td></tr></table></figure>
+<p>同样也会在<code>/etc</code>目录创建一些必要的文件，例如时区TZ、host文件、passwd。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">mkdir -p &quot;$(resolve_link /etc)&quot;</span><br><span class="line">if [ ! -s /etc/TZ ]; then</span><br><span class="line">    mkdir -p &quot;$(dirname $(resolve_link /etc/TZ))&quot;</span><br><span class="line">    echo &quot;EST5EDT&quot; &gt; &quot;$(resolve_link /etc/TZ)&quot;</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">if [ ! -s /etc/hosts ]; then</span><br><span class="line">    mkdir -p &quot;$(dirname $(resolve_link /etc/hosts))&quot;</span><br><span class="line">    echo &quot;127.0.0.1 localhost&quot; &gt; &quot;$(resolve_link /etc/hosts)&quot;</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">if [ ! -s /etc/passwd ]; then</span><br><span class="line">    mkdir -p &quot;$(dirname $(resolve_link /etc/passwd))&quot;</span><br><span class="line">    echo &quot;root::0:0:root:/root:/bin/sh&quot; &gt; &quot;$(resolve_link /etc/passwd)&quot;</span><br><span class="line">fi</span><br></pre></td></tr></table></figure>
+<p>创建<code>/dev</code>目录下的一些设备：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">mkdir -p &quot;$(resolve_link /dev)&quot;</span><br><span class="line">FILECOUNT=&quot;$($BUSYBOX find /dev -maxdepth 1 -type b -o -type c -print | $BUSYBOX wc -l)&quot;</span><br><span class="line">if [ $FILECOUNT -lt &quot;5&quot; ]; then</span><br><span class="line">    echo &quot;Warning: Recreating device nodes!&quot;</span><br><span class="line"></span><br><span class="line">    if ($&#123;FIRMAE_ETC&#125;); then</span><br><span class="line">      TMP_BUSYBOX=&quot;/busybox&quot;</span><br><span class="line">    else</span><br><span class="line">      TMP_BUSYBOX=&quot;&quot;</span><br><span class="line">    fi</span><br><span class="line"></span><br><span class="line">    $&#123;TMP_BUSYBOX&#125; mknod -m 660 /dev/mem c 1 1</span><br><span class="line">    $&#123;TMP_BUSYBOX&#125; mknod -m 640 /dev/kmem c 1 2</span><br><span class="line">    $&#123;TMP_BUSYBOX&#125; mknod -m 666 /dev/null c 1 3</span><br><span class="line">    $&#123;TMP_BUSYBOX&#125; mknod -m 666 /dev/zero c 1 5</span><br><span class="line">    $&#123;TMP_BUSYBOX&#125; mknod -m 444 /dev/random c 1 8</span><br><span class="line">    $&#123;TMP_BUSYBOX&#125; mknod -m 444 /dev/urandom c 1 9</span><br><span class="line">    $&#123;TMP_BUSYBOX&#125; mknod -m 666 /dev/armem c 1 13</span><br><span class="line">......</span><br></pre></td></tr></table></figure>
+<h2 id="添加实用工具到文件系统"><a href="#添加实用工具到文件系统" class="headerlink" title="添加实用工具到文件系统"></a>添加实用工具到文件系统</h2><p>这一步则主要是将针对目标架构静态编译的实用工具和实用脚本添加到<code>/firmadyne</code>目录中。如下，先判断目标系统的架构，然后复制静态编译的实用程序到<code>/firmadyne</code>目录。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line">for BINARY_NAME in &quot;$&#123;BINARIES[@]&#125;&quot;</span><br><span class="line">do</span><br><span class="line">    BINARY_PATH=`get_binary $&#123;BINARY_NAME&#125; $&#123;ARCH&#125;`</span><br><span class="line">    cp &quot;$&#123;BINARY_PATH&#125;&quot; &quot;$&#123;IMAGE_DIR&#125;/firmadyne/$&#123;BINARY_NAME&#125;&quot;</span><br><span class="line">    chmod a+x &quot;$&#123;IMAGE_DIR&#125;/firmadyne/$&#123;BINARY_NAME&#125;&quot;</span><br><span class="line">done</span><br><span class="line">mknod -m 666 &quot;$&#123;IMAGE_DIR&#125;/firmadyne/ttyS1&quot; c 4 65</span><br><span class="line"></span><br><span class="line">cp &quot;$&#123;SCRIPT_DIR&#125;/preInit.sh&quot; &quot;$&#123;IMAGE_DIR&#125;/firmadyne/preInit.sh&quot;</span><br><span class="line">chmod a+x &quot;$&#123;IMAGE_DIR&#125;/firmadyne/preInit.sh&quot;</span><br><span class="line"></span><br><span class="line">cp &quot;$&#123;SCRIPT_DIR&#125;/network.sh&quot; &quot;$&#123;IMAGE_DIR&#125;/firmadyne/network.sh&quot;</span><br><span class="line">chmod a+x &quot;$&#123;IMAGE_DIR&#125;/firmadyne/network.sh&quot;</span><br><span class="line"></span><br><span class="line">cp &quot;$&#123;SCRIPT_DIR&#125;/run_service.sh&quot; &quot;$&#123;IMAGE_DIR&#125;/firmadyne/run_service.sh&quot;</span><br><span class="line">chmod a+x &quot;$&#123;IMAGE_DIR&#125;/firmadyne/run_service.sh&quot;</span><br><span class="line"></span><br><span class="line">cp &quot;$&#123;SCRIPT_DIR&#125;/injectionChecker.sh&quot; &quot;$&#123;IMAGE_DIR&#125;/bin/a&quot;</span><br><span class="line">chmod a+x &quot;$&#123;IMAGE_DIR&#125;/bin/a&quot;</span><br><span class="line"></span><br><span class="line">touch &quot;$&#123;IMAGE_DIR&#125;/firmadyne/debug.sh&quot;</span><br><span class="line">chmod a+x &quot;$&#123;IMAGE_DIR&#125;/firmadyne/debug.sh&quot;</span><br><span class="line"></span><br><span class="line">if (! $&#123;FIRMAE_ETC&#125;); then</span><br><span class="line">  sed -i &#x27;s/sleep 60/sleep 15/g&#x27; &quot;$&#123;IMAGE_DIR&#125;/firmadyne/network.sh&quot;</span><br><span class="line">  sed -i &#x27;s/sleep 120/sleep 30/g&#x27; &quot;$&#123;IMAGE_DIR&#125;/firmadyne/run_service.sh&quot;</span><br><span class="line">  sed -i &#x27;s@/firmadyne/sh@/bin/sh@g&#x27; $&#123;IMAGE_DIR&#125;/firmadyne/&#123;preInit.sh,network.sh,run_service.sh&#125;</span><br><span class="line">  sed -i &#x27;s@BUSYBOX=/firmadyne/busybox@BUSYBOX=@g&#x27; $&#123;IMAGE_DIR&#125;/firmadyne/&#123;preInit.sh,network.sh,run_service.sh&#125;</span><br><span class="line">fi</span><br></pre></td></tr></table></figure>
+<h2 id="解除挂载"><a href="#解除挂载" class="headerlink" title="解除挂载"></a>解除挂载</h2><p>通过将镜像文件挂载到目录，写入文件系统，修改文件系统完毕后，则解除挂载。然后重新挂载镜像文件，并使用<code>e2fsck</code>进行检查，最后解除挂载。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">echo &quot;----Unmounting QEMU Image----&quot;</span><br><span class="line">sync</span><br><span class="line">umount &quot;$&#123;IMAGE_DIR&#125;&quot;</span><br><span class="line">del_partition $&#123;DEVICE:0:$(($&#123;#DEVICE&#125;-2))&#125;</span><br><span class="line"></span><br><span class="line">DEVICE=`add_partition $&#123;IMAGE&#125;`</span><br><span class="line">e2fsck -y $&#123;DEVICE&#125;</span><br><span class="line">sync</span><br><span class="line">sleep 1</span><br><span class="line">del_partition $&#123;DEVICE:0:$(($&#123;#DEVICE&#125;-2))&#125;</span><br></pre></td></tr></table></figure>
+<p>至此，将固件中的文件系统写入到磁盘镜像并修改相关文件以提高仿真成功率的工作完毕，得到一个qemu可使用的磁盘镜像。<br>那么回归到我之前的问题，如何在FirmAE仿真过程中修改固件的文件系统，此时就有如下的方案：</p>
+<p>第一种方案是在文件系统从固件提取的过程中进行修改：</p>
+<ol>
+<li>在<code>extractor.py</code>提取文件系统成功后，暂停，解压并修改文件系统，然后重新打包成压缩包形式</li>
+<li>如果要http server不启动的话，则需要修改相关的判定标志，使得web检查通过或者取消web检查改为使用者手动启动http server</li>
+</ol>
+<p>第二种方案是在创建磁盘镜像后，对磁盘镜像中的文件系统进行修改：</p>
+<ol>
+<li>将磁盘镜像进行手动挂载到宿主机，然后进行修改</li>
+<li>同样修改完毕后，如果不想http server启动，也需要修改源码中对web检查的部分。</li>
+</ol>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2022/12/23/mirai%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%EF%BC%9Abot%E5%88%86%E6%9E%90/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -728,108 +1335,10 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2022/09/20/%E5%A6%82%E4%BD%95%E6%90%AD%E5%BB%BA%E4%B8%80%E4%B8%AA%E5%8F%AF%E6%AD%A3%E5%B8%B8%E4%BD%BF%E7%94%A8%E7%9A%84mipsel%E8%99%9A%E6%8B%9F%E6%9C%BA/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="stay hungry, stay foolish">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2022/09/20/%E5%A6%82%E4%BD%95%E6%90%AD%E5%BB%BA%E4%B8%80%E4%B8%AA%E5%8F%AF%E6%AD%A3%E5%B8%B8%E4%BD%BF%E7%94%A8%E7%9A%84mipsel%E8%99%9A%E6%8B%9F%E6%9C%BA/" class="post-title-link" itemprop="url">如何搭建一个可正常使用的mipsel虚拟机</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2022-09-20 01:31:35" itemprop="dateCreated datePublished" datetime="2022-09-20T01:31:35+08:00">2022-09-20</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-02-07 12:50:54" itemprop="dateModified" datetime="2023-02-07T12:50:54+08:00">2023-02-07</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="如何手动搭建-qemu-mipsel-环境"><a href="#如何手动搭建-qemu-mipsel-环境" class="headerlink" title="如何手动搭建 qemu mipsel 环境"></a>如何手动搭建 qemu mipsel 环境</h1><p>之前搭建 qemu 系统级别的虚拟机的时候，一般都是下载已经编译好的特定架构的系统镜像，这些镜像有个缺点就是没有办法使用类似于 apt 的方式安装软件，每次要安装一些额外的软件都比较复杂，于是就想能不能手动安装一个具有正常功能的虚拟机。<br>此处安装的是 mipsel 环境的 Debian 虚拟机，其他架构也是类似的安装方法。</p>
-<h2 id="必要软件"><a href="#必要软件" class="headerlink" title="必要软件"></a>必要软件</h2><p>在 Host 机上安装 qemu-system-mipsel</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get install qemu-system-mipsel qemu-utils</span><br></pre></td></tr></table></figure>
-<h2 id="下载相关文件"><a href="#下载相关文件" class="headerlink" title="下载相关文件"></a>下载相关文件</h2><p>从稳定版本下载安装程序和引导文件。<br>下载安装程序 initrd.gz，23MB</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">wget https://ftp.debian.org/debian/dists/stable/main/installer-mipsel/current/images/malta/netboot/initrd.gz</span><br></pre></td></tr></table></figure>
-<p>下载内核引导 vmlinuz-5.10.0-18-4kc-malta，4.2MB，如果wget的时候报错404，可以尝试通过浏览器看看链接目录是否更新了</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">wget http://ftp.debian.org/debian/dists/stable/main/installer-mipsel/current/images/malta/netboot/vmlinuz-5.10.0-18-4kc-malta</span><br></pre></td></tr></table></figure>
-<h2 id="创建-QEMU-镜像文件"><a href="#创建-QEMU-镜像文件" class="headerlink" title="创建 QEMU 镜像文件"></a>创建 QEMU 镜像文件</h2><p>创建一个 QEMU 镜像文件，可以指定镜像存储大小以及文件类型。Debian 官方文档中有最低硬件要求，对于不带桌面的系统，2G 存储空间就足够了，也可以创建更大存储空间的镜像。<br>如下就是创建一个具有 8G 存储空间的 qcow2 格式镜像</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">qemu-img create -f qcow2 hda.img 8g</span><br></pre></td></tr></table></figure>
-<h2 id="安装-Debian-MIPSEL"><a href="#安装-Debian-MIPSEL" class="headerlink" title="安装 Debian MIPSEL"></a>安装 Debian MIPSEL</h2><p>安装前确保在当前工作目录中，3 个文件（had.img、vmlinuz-5.10.0-9-4kc-malta、initrd.gz）都存在。安装的过程，也是命令行形式的安装界面，基本上和在普通 PC 机上安装 Linux 的过程一致。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">qemu-system-mipsel -M malta \</span><br><span class="line">  -m 256 -hda hda.img \</span><br><span class="line">  -kernel vmlinuz-5.10.0-18-4kc-malta \</span><br><span class="line">  -initrd initrd.gz \</span><br><span class="line">  -append &quot;console=ttyS0 nokaslr&quot; \</span><br><span class="line">  -nographic</span><br></pre></td></tr></table></figure>
-<p>在默认情况下，QEMU 会启动 NAT 网络接口通过 Host 网络进行网络连接，这样虚拟机就可以安装和更新软件包。但是使用NAT存在一个问题就是，宿主机无法连接到QEMU虚拟机内部，可以理解为此时的QEMU和宿主机是一个整体。如果要连接到QEMU虚拟机中可以使用桥接或者NAT下端口映射的方式来解决。<br><strong>进入系统安装</strong><br><img src="/images/Pastedimage20220920184012.png" alt="undifined"><br>到选择镜像源的时候，可以选择China的镜像源，这样下载依赖会快一点。<br><img src="/images/Pastedimage20220926095223.png" alt="undifined"><br>后面还需要安装bootloader<br><img src="/images/Pastedimage20220926164632.png" alt="undifined"><br>到了下面的这个步骤，点击 Go Back -&gt; Go Down -&gt; Execute Shell，然后输入 poweroff 命令关闭虚拟机。如果点击 Continue，系统会重启，然后重新开始安装流程，类似于设置了 U 盘启动安装 Linux 系统，安装完毕后没有拔掉 U 盘，那么就会继续从 U 盘中的安装系统程序重新开始运行。<br><img src="/images/Pastedimage20220921133328.png" alt="undifined"></p>
-<h2 id="安装-bootloader"><a href="#安装-bootloader" class="headerlink" title="安装 bootloader"></a>安装 bootloader</h2><p>在安装过程中也会有提示说，no bootloader has been installed. 那么需要从 initrd.img 文件中获取 boot 分区，然后手动挂载出来。</p>
-<ol>
-<li>挂载 boot 分区 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">sudo modprobe nbd mac_part=63</span><br><span class="line">sudo qemu-nbd -c /dev/nbd0 hda.img</span><br><span class="line">sudo mount /dev/nbd0p1 /mnt</span><br></pre></td></tr></table></figure></li>
-<li>复制挂载的文件到当前文件夹 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">cp -r /mnt/boot/initrd.img-5.10.0-18-4kc-malta .</span><br><span class="line">cp -r /mnt/boot .</span><br></pre></td></tr></table></figure></li>
-<li>取消镜像挂载 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo umount /mnt</span><br><span class="line">sudo qemu-nbd -d /dev/nbd0</span><br></pre></td></tr></table></figure>
-通过上面的操作之后，当前文件夹目录及文件如下：<br><img src="/images/Pastedimage20220921133558.png" alt="undifined"></li>
-</ol>
-<h2 id="启动-QEMU-虚拟机"><a href="#启动-QEMU-虚拟机" class="headerlink" title="启动 QEMU 虚拟机"></a>启动 QEMU 虚拟机</h2><p>当上面的步骤完成后，一个可以正常启动的 QEMU Linux 系统就完成了，而且网络默认是使用的NAT，可以连通外网，但是宿主机没有办法连接到QEMU虚拟机中，用来配置安装QEMU虚拟机的软件是足够了，启动命令如下：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">sudo qemu-system-mipsel -M malta \</span><br><span class="line">  -m 1024 -hda hda.img \</span><br><span class="line">  -kernel vmlinuz-5.10.0-18-4kc-malta \</span><br><span class="line">  -initrd initrd.img-5.10.0-18-4kc-malta \</span><br><span class="line">  -append &quot;root=/dev/sda1 console=ttyS0 nokaslr&quot; \</span><br><span class="line">  -nographic</span><br></pre></td></tr></table></figure>
-<p>这样就可以在该架构上的虚拟机上做一些事了。<br><img src="/images/Pastedimage20220921171009.png" alt="undifined"></p>
-<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
-<li><a target="_blank" rel="noopener" href="https://markuta.com/how-to-build-a-mips-qemu-image-on-debian/">How to build a Debian MIPS image on QEMU</a></li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><span class="page-number current">2</span>
+    <a class="extend prev" rel="prev" href="/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><a class="extend next" rel="next" href="/page/3/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
   </nav>
 
 
@@ -895,7 +1404,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">16</span>
+          <span class="site-state-item-count">21</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>

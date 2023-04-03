@@ -20,35 +20,30 @@
     var CONFIG = {"hostname":"oneshell.top","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":true,"nav":{"gitalk":{"order":-2}},"activeClass":"gitalk"},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta name="description" content="在学习IDAPython之初，需要了解一下IDA反汇编窗口输出的内容和结构。以IDA反汇编窗口中的一条指令为例，如下的sw存储指令（最近在看MIPS），如下指令功能是将寄存器ra中的值保存到栈上 1.text:00429000 sw      $ra, 0x418+var_s10($sp) 其中，.text是section名；00429000是地址，IDA中会省略掉前缀0x；sw是指令助记符，随后">
-<meta property="og:type" content="article">
-<meta property="og:title" content="idapython-基础">
-<meta property="og:url" content="https://oneshell.top/2022/11/01/idapython-%E5%9F%BA%E7%A1%80/index.html">
+  <meta name="description" content="stay hungry, stay foolish">
+<meta property="og:type" content="website">
+<meta property="og:title" content="OneShell">
+<meta property="og:url" content="https://oneshell.top/page/3/index.html">
 <meta property="og:site_name" content="OneShell">
-<meta property="og:description" content="在学习IDAPython之初，需要了解一下IDA反汇编窗口输出的内容和结构。以IDA反汇编窗口中的一条指令为例，如下的sw存储指令（最近在看MIPS），如下指令功能是将寄存器ra中的值保存到栈上 1.text:00429000 sw      $ra, 0x418+var_s10($sp) 其中，.text是section名；00429000是地址，IDA中会省略掉前缀0x；sw是指令助记符，随后">
+<meta property="og:description" content="stay hungry, stay foolish">
 <meta property="og:locale">
-<meta property="og:image" content="https://oneshell.top/images/Pastedimage20221206141221.png">
-<meta property="article:published_time" content="2022-10-31T22:15:31.000Z">
-<meta property="article:modified_time" content="2023-02-07T05:04:12.084Z">
 <meta property="article:author" content="OneShell">
-<meta property="article:tag" content="idapython">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://oneshell.top/images/Pastedimage20221206141221.png">
 
-<link rel="canonical" href="https://oneshell.top/2022/11/01/idapython-%E5%9F%BA%E7%A1%80/">
+<link rel="canonical" href="https://oneshell.top/page/3/">
 
 
 <script id="page-configurations">
   // https://hexo.io/docs/variables.html
   CONFIG.page = {
     sidebar: "",
-    isHome : false,
-    isPost : true,
+    isHome : true,
+    isPost : false,
     lang   : 'zh-Hans'
   };
 </script>
 
-  <title>idapython-基础 | OneShell</title>
+  <title>OneShell</title>
   
 
 
@@ -167,14 +162,13 @@
         <div class="content-wrap">
           
 
-          <div class="content post posts-expand">
+          <div class="content index posts-expand">
             
-
-    
+      
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2022/11/01/idapython-%E5%9F%BA%E7%A1%80/">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2022/09/20/%E5%A6%82%E4%BD%95%E6%90%AD%E5%BB%BA%E4%B8%80%E4%B8%AA%E5%8F%AF%E6%AD%A3%E5%B8%B8%E4%BD%BF%E7%94%A8%E7%9A%84mipsel%E8%99%9A%E6%8B%9F%E6%9C%BA/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -186,9 +180,10 @@
       <meta itemprop="name" content="OneShell">
     </span>
       <header class="post-header">
-        <h1 class="post-title" itemprop="name headline">
-          idapython-基础
-        </h1>
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/09/20/%E5%A6%82%E4%BD%95%E6%90%AD%E5%BB%BA%E4%B8%80%E4%B8%AA%E5%8F%AF%E6%AD%A3%E5%B8%B8%E4%BD%BF%E7%94%A8%E7%9A%84mipsel%E8%99%9A%E6%8B%9F%E6%9C%BA/" class="post-title-link" itemprop="url">如何搭建一个可正常使用的mipsel虚拟机</a>
+        </h2>
 
         <div class="post-meta">
             <span class="post-meta-item">
@@ -197,14 +192,14 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2022-11-01 06:15:31" itemprop="dateCreated datePublished" datetime="2022-11-01T06:15:31+08:00">2022-11-01</time>
+              <time title="Created: 2022-09-20 01:31:35" itemprop="dateCreated datePublished" datetime="2022-09-20T01:31:35+08:00">2022-09-20</time>
             </span>
               <span class="post-meta-item">
                 <span class="post-meta-item-icon">
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-02-07 13:04:12" itemprop="dateModified" datetime="2023-02-07T13:04:12+08:00">2023-02-07</time>
+                <time title="Modified: 2023-02-07 12:50:54" itemprop="dateModified" datetime="2023-02-07T12:50:54+08:00">2023-02-07</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -227,51 +222,56 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p>在学习IDAPython之初，需要了解一下IDA反汇编窗口输出的内容和结构。<br>以IDA反汇编窗口中的一条指令为例，如下的<code>sw</code>存储指令（最近在看MIPS），如下指令功能是将寄存器<code>ra</code>中的值保存到栈上</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">.text:00429000 sw      $ra, 0x418+var_s10($sp)</span><br></pre></td></tr></table></figure>
-<p>其中，<code>.text</code>是section名；00429000是地址，IDA中会省略掉前缀0x；<code>sw</code>是指令助记符，随后是第一个操作数<code>ra</code>和第二个操作数<code>0x418+var_s10($sp)</code>。<br>在IDAPython中，指令地址是经常被传入到API中进行处理的参数，API描述中使用<code>ea</code>表示。</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">idc.get_segm_name(ea)        <span class="comment"># 获取当前光标所在指令的地址</span></span><br><span class="line">idc.GetDisasm(ea)            <span class="comment"># 获取反汇编指令</span></span><br><span class="line">idc.print_insn_mnem(ea)      <span class="comment"># 打印指令助记符</span></span><br><span class="line">idc.print_operand(ea, <span class="number">0</span>)     <span class="comment"># 打印第一个操作数</span></span><br><span class="line">idc.print_operand(ea, <span class="number">1</span>)     <span class="comment"># 打印第二个操作数</span></span><br></pre></td></tr></table></figure>
-<p>对于初学者使用IDAPython最简单的方式就是在IDA最下方的命令行中直接进行操作：<br><img src="/images/Pastedimage20221206141221.png" alt="undifined"></p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">Python&gt;</span><span class="language-bash">ea = idc.here()</span></span><br><span class="line"><span class="meta prompt_">Python&gt;</span><span class="language-bash"><span class="built_in">print</span>(<span class="string">&quot;0x%x, %s&quot;</span> % (ea, ea))</span></span><br><span class="line">0x40012c, 4194604</span><br><span class="line"><span class="meta prompt_">Python&gt;</span><span class="language-bash">idc.get_segm_name(ea)</span></span><br><span class="line">&#x27;.text&#x27;</span><br><span class="line"><span class="meta prompt_">Python&gt;</span><span class="language-bash">idc.GetDisasm(ea)</span></span><br><span class="line">&#x27;li      $gp, 0x492900&#x27;</span><br><span class="line"><span class="meta prompt_">Python&gt;</span><span class="language-bash">idc.print_insn_mnem(ea)</span></span><br><span class="line">&#x27;li&#x27;</span><br><span class="line"><span class="meta prompt_">Python&gt;</span><span class="language-bash">idc.print_operand(ea, 0)</span></span><br><span class="line">&#x27;$gp&#x27;</span><br><span class="line"><span class="meta prompt_">Python&gt;</span><span class="language-bash">idc.print_operand(ea, 1)</span></span><br><span class="line">&#x27;0x492900&#x27;</span><br></pre></td></tr></table></figure>
-<p>对于指令的操作数的类型和值，具体还可以使用<code>idc.get_operand_type()</code>和<code>idc.get_operand_value()</code>来获得，这将在后续的笔记中进行简单说明。</p>
+          <h1 id="如何手动搭建-qemu-mipsel-环境"><a href="#如何手动搭建-qemu-mipsel-环境" class="headerlink" title="如何手动搭建 qemu mipsel 环境"></a>如何手动搭建 qemu mipsel 环境</h1><p>之前搭建 qemu 系统级别的虚拟机的时候，一般都是下载已经编译好的特定架构的系统镜像，这些镜像有个缺点就是没有办法使用类似于 apt 的方式安装软件，每次要安装一些额外的软件都比较复杂，于是就想能不能手动安装一个具有正常功能的虚拟机。<br>此处安装的是 mipsel 环境的 Debian 虚拟机，其他架构也是类似的安装方法。</p>
+<h2 id="必要软件"><a href="#必要软件" class="headerlink" title="必要软件"></a>必要软件</h2><p>在 Host 机上安装 qemu-system-mipsel</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get install qemu-system-mipsel qemu-utils</span><br></pre></td></tr></table></figure>
+<h2 id="下载相关文件"><a href="#下载相关文件" class="headerlink" title="下载相关文件"></a>下载相关文件</h2><p>从稳定版本下载安装程序和引导文件。<br>下载安装程序 initrd.gz，23MB</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">wget https://ftp.debian.org/debian/dists/stable/main/installer-mipsel/current/images/malta/netboot/initrd.gz</span><br></pre></td></tr></table></figure>
+<p>下载内核引导 vmlinuz-5.10.0-18-4kc-malta，4.2MB，如果wget的时候报错404，可以尝试通过浏览器看看链接目录是否更新了</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">wget http://ftp.debian.org/debian/dists/stable/main/installer-mipsel/current/images/malta/netboot/vmlinuz-5.10.0-18-4kc-malta</span><br></pre></td></tr></table></figure>
+<h2 id="创建-QEMU-镜像文件"><a href="#创建-QEMU-镜像文件" class="headerlink" title="创建 QEMU 镜像文件"></a>创建 QEMU 镜像文件</h2><p>创建一个 QEMU 镜像文件，可以指定镜像存储大小以及文件类型。Debian 官方文档中有最低硬件要求，对于不带桌面的系统，2G 存储空间就足够了，也可以创建更大存储空间的镜像。<br>如下就是创建一个具有 8G 存储空间的 qcow2 格式镜像</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">qemu-img create -f qcow2 hda.img 8g</span><br></pre></td></tr></table></figure>
+<h2 id="安装-Debian-MIPSEL"><a href="#安装-Debian-MIPSEL" class="headerlink" title="安装 Debian MIPSEL"></a>安装 Debian MIPSEL</h2><p>安装前确保在当前工作目录中，3 个文件（had.img、vmlinuz-5.10.0-9-4kc-malta、initrd.gz）都存在。安装的过程，也是命令行形式的安装界面，基本上和在普通 PC 机上安装 Linux 的过程一致。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">qemu-system-mipsel -M malta \</span><br><span class="line">  -m 256 -hda hda.img \</span><br><span class="line">  -kernel vmlinuz-5.10.0-18-4kc-malta \</span><br><span class="line">  -initrd initrd.gz \</span><br><span class="line">  -append &quot;console=ttyS0 nokaslr&quot; \</span><br><span class="line">  -nographic</span><br></pre></td></tr></table></figure>
+<p>在默认情况下，QEMU 会启动 NAT 网络接口通过 Host 网络进行网络连接，这样虚拟机就可以安装和更新软件包。但是使用NAT存在一个问题就是，宿主机无法连接到QEMU虚拟机内部，可以理解为此时的QEMU和宿主机是一个整体。如果要连接到QEMU虚拟机中可以使用桥接或者NAT下端口映射的方式来解决。<br><strong>进入系统安装</strong><br><img src="/images/Pastedimage20220920184012.png" alt="undifined"><br>到选择镜像源的时候，可以选择China的镜像源，这样下载依赖会快一点。<br><img src="/images/Pastedimage20220926095223.png" alt="undifined"><br>后面还需要安装bootloader<br><img src="/images/Pastedimage20220926164632.png" alt="undifined"><br>到了下面的这个步骤，点击 Go Back -&gt; Go Down -&gt; Execute Shell，然后输入 poweroff 命令关闭虚拟机。如果点击 Continue，系统会重启，然后重新开始安装流程，类似于设置了 U 盘启动安装 Linux 系统，安装完毕后没有拔掉 U 盘，那么就会继续从 U 盘中的安装系统程序重新开始运行。<br><img src="/images/Pastedimage20220921133328.png" alt="undifined"></p>
+<h2 id="安装-bootloader"><a href="#安装-bootloader" class="headerlink" title="安装 bootloader"></a>安装 bootloader</h2><p>在安装过程中也会有提示说，no bootloader has been installed. 那么需要从 initrd.img 文件中获取 boot 分区，然后手动挂载出来。</p>
+<ol>
+<li>挂载 boot 分区 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">sudo modprobe nbd mac_part=63</span><br><span class="line">sudo qemu-nbd -c /dev/nbd0 hda.img</span><br><span class="line">sudo mount /dev/nbd0p1 /mnt</span><br></pre></td></tr></table></figure></li>
+<li>复制挂载的文件到当前文件夹 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">cp -r /mnt/boot/initrd.img-5.10.0-18-4kc-malta .</span><br><span class="line">cp -r /mnt/boot .</span><br></pre></td></tr></table></figure></li>
+<li>取消镜像挂载 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo umount /mnt</span><br><span class="line">sudo qemu-nbd -d /dev/nbd0</span><br></pre></td></tr></table></figure>
+通过上面的操作之后，当前文件夹目录及文件如下：<br><img src="/images/Pastedimage20220921133558.png" alt="undifined"></li>
+</ol>
+<h2 id="启动-QEMU-虚拟机"><a href="#启动-QEMU-虚拟机" class="headerlink" title="启动 QEMU 虚拟机"></a>启动 QEMU 虚拟机</h2><p>当上面的步骤完成后，一个可以正常启动的 QEMU Linux 系统就完成了，而且网络默认是使用的NAT，可以连通外网，但是宿主机没有办法连接到QEMU虚拟机中，用来配置安装QEMU虚拟机的软件是足够了，启动命令如下：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">sudo qemu-system-mipsel -M malta \</span><br><span class="line">  -m 1024 -hda hda.img \</span><br><span class="line">  -kernel vmlinuz-5.10.0-18-4kc-malta \</span><br><span class="line">  -initrd initrd.img-5.10.0-18-4kc-malta \</span><br><span class="line">  -append &quot;root=/dev/sda1 console=ttyS0 nokaslr&quot; \</span><br><span class="line">  -nographic</span><br></pre></td></tr></table></figure>
+<p>这样就可以在该架构上的虚拟机上做一些事了。<br><img src="/images/Pastedimage20220921171009.png" alt="undifined"></p>
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://markuta.com/how-to-build-a-mips-qemu-image-on-debian/">How to build a Debian MIPS image on QEMU</a></li>
+</ul>
 
+      
     </div>
 
     
     
     
-
       <footer class="post-footer">
-          <div class="post-tags">
-              <a href="/tags/idapython/" rel="tag"># idapython</a>
-          </div>
-
-        
-
-
-        
-    <div class="post-nav">
-      <div class="post-nav-item">
-    <a href="/2022/10/10/IDAPython-%E6%90%AD%E5%BB%BAVSCode%E7%BC%96%E8%BE%91%E7%8E%AF%E5%A2%83/" rel="prev" title="IDAPython-搭建VSCode编辑环境">
-      <i class="fa fa-chevron-left"></i> IDAPython-搭建VSCode编辑环境
-    </a></div>
-      <div class="post-nav-item">
-    <a href="/2022/11/30/mirai%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%EF%BC%9A%E8%BF%90%E8%A1%8C%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/" rel="next" title="mirai源码分析：运行环境搭建">
-      mirai源码分析：运行环境搭建 <i class="fa fa-chevron-right"></i>
-    </a></div>
-    </div>
+        <div class="post-eof"></div>
       </footer>
-    
   </article>
   
   
   
 
 
+  
+  <nav class="pagination">
+    <a class="extend prev" rel="prev" href="/page/2/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span>
+  </nav>
+
+
 
           </div>
           
-    <div class="comments" id="gitalk-container"></div>
 
 <script>
   window.addEventListener('tabs:register', () => {
@@ -431,25 +431,6 @@
 
   
 
-<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
-
-<script>
-NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
-  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
-    var gitalk = new Gitalk({
-      clientID    : 'd364449d44c374dab007',
-      clientSecret: 'bb821aa84a81e3bd904d059c6e9ec7eb0e1cab4f',
-      repo        : 'BlogComments',
-      owner       : 'NoneShell',
-      admin       : ['NoneShell'],
-      id          : '47c4d8dabf112974b406aacb9bed7c9d',
-        language: 'zh-CN',
-      distractionFreeMode: true
-    });
-    gitalk.render('gitalk-container');
-  }, window.Gitalk);
-});
-</script>
 
 </body>
 </html>
