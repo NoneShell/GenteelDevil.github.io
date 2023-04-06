@@ -20,19 +20,19 @@
     var CONFIG = {"hostname":"oneshell.top","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":true,"nav":{"gitalk":{"order":-2}},"activeClass":"gitalk"},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta name="description" content="我打算整理和总结一下IDAPython相关的笔记，由于使用的场景大多是在IoT领域，此处和后续的笔记采用了dir-850l固件中的cgibin（漏洞多）来作为演示。个人笔记，也不讲究通用性了，如果能被其他人作为有用参考就用叭。 在学习IDAPython之初，需要了解一下IDA反汇编窗口输出的内容和结构。以IDA反汇编窗口中的一条指令为例，如下的sw存储指令（最近在看MIPS），如下指令功能是将寄存">
+  <meta name="description" content="简单说明了IDA的反汇编输出窗口内容、如何使用IDAPython对单条指令进行简单分析。后续的笔记将先分别从段（segment）、函数（function）、块（block）、指令（instruction）多个粒度，对IDAPython经常使用到的数据结构和函数API进行说明，然后再到分析必不可少的交叉引用（cross-references）和数据搜索（searching for code or d">
 <meta property="og:type" content="article">
-<meta property="og:title" content="IDAPython-基础">
-<meta property="og:url" content="https://oneshell.top/2023/04/06/idapython-%E5%9F%BA%E7%A1%80/index.html">
+<meta property="og:title" content="IDAPython-段粒度">
+<meta property="og:url" content="https://oneshell.top/2023/04/06/IDAPython-%E6%AE%B5%E7%B2%92%E5%BA%A6/index.html">
 <meta property="og:site_name" content="OneShell">
-<meta property="og:description" content="我打算整理和总结一下IDAPython相关的笔记，由于使用的场景大多是在IoT领域，此处和后续的笔记采用了dir-850l固件中的cgibin（漏洞多）来作为演示。个人笔记，也不讲究通用性了，如果能被其他人作为有用参考就用叭。 在学习IDAPython之初，需要了解一下IDA反汇编窗口输出的内容和结构。以IDA反汇编窗口中的一条指令为例，如下的sw存储指令（最近在看MIPS），如下指令功能是将寄存">
+<meta property="og:description" content="简单说明了IDA的反汇编输出窗口内容、如何使用IDAPython对单条指令进行简单分析。后续的笔记将先分别从段（segment）、函数（function）、块（block）、指令（instruction）多个粒度，对IDAPython经常使用到的数据结构和函数API进行说明，然后再到分析必不可少的交叉引用（cross-references）和数据搜索（searching for code or d">
 <meta property="og:locale">
-<meta property="article:published_time" content="2023-04-05T17:18:57.000Z">
-<meta property="article:modified_time" content="2023-04-06T07:40:46.261Z">
+<meta property="article:published_time" content="2023-04-05T17:19:48.000Z">
+<meta property="article:modified_time" content="2023-04-06T10:31:03.671Z">
 <meta property="article:author" content="OneShell">
 <meta name="twitter:card" content="summary">
 
-<link rel="canonical" href="https://oneshell.top/2023/04/06/idapython-%E5%9F%BA%E7%A1%80/">
+<link rel="canonical" href="https://oneshell.top/2023/04/06/IDAPython-%E6%AE%B5%E7%B2%92%E5%BA%A6/">
 
 
 <script id="page-configurations">
@@ -45,7 +45,7 @@
   };
 </script>
 
-  <title>IDAPython-基础 | OneShell</title>
+  <title>IDAPython-段粒度 | OneShell</title>
   
 
 
@@ -171,7 +171,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/06/idapython-%E5%9F%BA%E7%A1%80/">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/06/IDAPython-%E6%AE%B5%E7%B2%92%E5%BA%A6/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -184,7 +184,7 @@
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
-          IDAPython-基础
+          IDAPython-段粒度
         </h1>
 
         <div class="post-meta">
@@ -195,7 +195,7 @@
               <span class="post-meta-item-text">Posted on</span>
               
 
-              <time title="Created: 2023-04-06 01:18:57 / Modified: 15:40:46" itemprop="dateCreated datePublished" datetime="2023-04-06T01:18:57+08:00">2023-04-06</time>
+              <time title="Created: 2023-04-06 01:19:48 / Modified: 18:31:03" itemprop="dateCreated datePublished" datetime="2023-04-06T01:19:48+08:00">2023-04-06</time>
             </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -218,14 +218,52 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p>我打算整理和总结一下IDAPython相关的笔记，由于使用的场景大多是在IoT领域，此处和后续的笔记采用了dir-850l固件中的cgibin（漏洞多）来作为演示。个人笔记，也不讲究通用性了，如果能被其他人作为有用参考就用叭。</p>
-<p>在学习IDAPython之初，需要了解一下IDA反汇编窗口输出的内容和结构。<br>以IDA反汇编窗口中的一条指令为例，如下的<code>sw</code>存储指令（最近在看MIPS），如下指令功能是将寄存器<code>ra</code>中的值保存到栈上：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">.text:00429000 sw      $ra, 0x418+var_s10($sp)</span><br></pre></td></tr></table></figure>
-<p>其中，<code>.text</code>是section名，也就是text节；00429000是地址，IDA中会省略掉前缀0x；<code>sw</code>是指令助记符，随后是第一个操作数<code>ra</code>和第二个操作数<code>0x418+var_s10($sp)</code>。<br>在IDAPython中，指令地址是经常被传入到API函数中进行处理的参数，API描述中使用<code>ea</code>表示，如下：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">idc.get_segm_name(ea)        <span class="comment"># 获取当前光标所在指令的地址</span></span><br><span class="line">idc.GetDisasm(ea)            <span class="comment"># 获取反汇编指令</span></span><br><span class="line">idc.print_insn_mnem(ea)      <span class="comment"># 打印指令助记符</span></span><br><span class="line">idc.print_operand(ea, <span class="number">0</span>)     <span class="comment"># 打印第一个操作数</span></span><br><span class="line">idc.print_operand(ea, <span class="number">1</span>)     <span class="comment"># 打印第二个操作数</span></span><br></pre></td></tr></table></figure>
-<p>IDAPython使用得比较频繁的一个操作就是获取到反汇编窗口光标所在的行的地址，可以使用<code>idc.get_screen_ea()</code>来获取，也可以直接使用<code>here()</code>获取。但如果在IDAPython脚本中不能直接使用<code>here()</code>，必须保证<code>import idc</code>，然后使用<code>idc.here()</code>。<br>对于初学者使用IDAPython最简单的方式就是在IDA最下方的命令行中直接进行操作：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;ea = idc.here()</span><br><span class="line">Python&gt;<span class="built_in">print</span>(<span class="string">&quot;0x%x, %s&quot;</span> % (ea, ea))</span><br><span class="line"><span class="number">0x40012c</span>, <span class="number">4194604</span></span><br><span class="line">Python&gt;idc.get_segm_name(ea)</span><br><span class="line"><span class="string">&#x27;.text&#x27;</span></span><br><span class="line">Python&gt;idc.GetDisasm(ea)</span><br><span class="line"><span class="string">&#x27;li      $gp, 0x492900&#x27;</span></span><br><span class="line">Python&gt;idc.print_insn_mnem(ea)</span><br><span class="line"><span class="string">&#x27;li&#x27;</span></span><br><span class="line">Python&gt;idc.print_operand(ea, <span class="number">0</span>)</span><br><span class="line"><span class="string">&#x27;$gp&#x27;</span></span><br><span class="line">Python&gt;idc.print_operand(ea, <span class="number">1</span>)</span><br><span class="line"><span class="string">&#x27;0x492900&#x27;</span></span><br></pre></td></tr></table></figure>
-<p>对于指令的操作数的类型和值，具体还可以使用<code>idc.get_operand_type()</code>和<code>idc.get_operand_value()</code>来获得，这将在后续的笔记中进行简单说明。</p>
+        <p>简单说明了IDA的反汇编输出窗口内容、如何使用IDAPython对单条指令进行简单分析。后续的笔记将先分别从段（segment）、函数（function）、块（block）、指令（instruction）多个粒度，对IDAPython经常使用到的数据结构和函数API进行说明，然后再到分析必不可少的交叉引用（cross-references）和数据搜索（searching for code or data）。</p>
+<h2 id="segment的基本操作"><a href="#segment的基本操作" class="headerlink" title="segment的基本操作"></a>segment的基本操作</h2><p>如下是对段（segments）进行一些基本的操作。<code>idautils.Segments()</code>会返回一个迭代器，可以使用循环遍历当前文件的所有段对象。对于每一个段对象可以使用<code>idc.get_segm_name</code>获取段名、<code>idc.get_segm_start</code>获取段起始地址、<code>idc.get_segm_end</code>获取段的结束地址。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> idautils</span><br><span class="line"><span class="keyword">for</span> seg <span class="keyword">in</span> idautils.Segments():</span><br><span class="line">    <span class="built_in">print</span>(idc.get_segm_name(seg), idc.get_segm_start(seg), idc.get_segm_end(seg))</span><br><span class="line">    </span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br><span class="line"><span class="string">LOAD 4194304 4194568</span></span><br><span class="line"><span class="string">REGINFO 4194568 4194592</span></span><br><span class="line"><span class="string">LOAD 4194592 4216248</span></span><br><span class="line"><span class="string">.init 4216248 4216384</span></span><br><span class="line"><span class="string">.text 4216384 4649072</span></span><br><span class="line"><span class="string">.MIPS.stubs 4649072 4651008</span></span><br><span class="line"><span class="string">.fini 4651008 4651096</span></span><br><span class="line"><span class="string">LOAD 4651096 4651104</span></span><br><span class="line"><span class="string">......</span></span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br></pre></td></tr></table></figure>
+<p>在实际的代码中，有时候需要对当前地址<code>ea</code>所在的段进行分析。<code>idc.get_segm_start(ea)</code>和<code>idc.get_segm_end(ea)</code>分别可以获取到地址<code>ea</code>所在的段的起始地址和结束地址；<code>idc.get_next_seg(ea)</code>可以获取到<code>ea</code>所在段的下一个段起始地址，然后没有找到对应的寻找上一个段起始地址的API。使用<code>idc.get_segm_name(ea)</code>则可以获取到当前地址<code>ea</code>所在段的段名。如下：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;ea = idc.here()</span><br><span class="line">Python&gt;idc.get_segm_start(ea)</span><br><span class="line"><span class="number">0x400120</span></span><br><span class="line">Python&gt;idc.get_segm_end(ea)</span><br><span class="line"><span class="number">0x46f8f8</span></span><br><span class="line">Python&gt;idc.get_next_seg(ea)</span><br><span class="line"><span class="number">0x46f8f8</span></span><br><span class="line">Python&gt;idc.get_segm_name(ea)</span><br><span class="line"><span class="string">&#x27;.text&#x27;</span></span><br><span class="line">Python&gt;idc.get_segm_name(<span class="number">0x46f8f8</span>)</span><br><span class="line"><span class="string">&#x27;.fini&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<p>同样的，也可以根据段名来获取到段相关属性：<code>idc.get_segm_by_sel(idc.selector_by_name(str_SectionName))</code>。需要首先使用<code>idc.selector_by_name(str_SectionName)</code>获取到段名为<code>str_SectionName</code>的段选择器（selector），然后使用<code>idc.get_segm_by_sel()</code>来获取到段的起始地址。如下：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;str_SectionName = <span class="string">&quot;.text&quot;</span></span><br><span class="line">Python&gt;idc.get_segm_by_sel(idc.selector_by_name(str_SectionName))</span><br><span class="line"><span class="number">0x400120</span></span><br></pre></td></tr></table></figure>
+<h2 id="idc模块中常用的段操作函数"><a href="#idc模块中常用的段操作函数" class="headerlink" title="idc模块中常用的段操作函数"></a>idc模块中常用的段操作函数</h2><table>
+<thead>
+<tr>
+<th>api</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>get_segm_attr(segea, attr)</td>
+<td>根据段中的地址segea获取段的attr属性</td>
+</tr>
+<tr>
+<td>get_segm_start(ea)</td>
+<td>获取段起始地址</td>
+</tr>
+<tr>
+<td>get_segm_end(ea)</td>
+<td>获取段结束地址</td>
+</tr>
+<tr>
+<td>get_segm_name(ea)</td>
+<td>获取段名</td>
+</tr>
+</tbody></table>
+<h2 id="包含更多段操作的模块：ida-segment"><a href="#包含更多段操作的模块：ida-segment" class="headerlink" title="包含更多段操作的模块：ida_segment"></a>包含更多段操作的模块：ida_segment</h2><p><code>idc</code>模块中对段的操作实际上是对<code>ida_segment</code>模块中函数的封装，在<code>ida_segment</code>模块中还有更多段的数据结构和方法，例如：</p>
+<ul>
+<li>新增段：<code>add_segm</code></li>
+<li>删除段：<code>del_segm</code></li>
+<li>根据段名获取段：<code>get_segm_by_name</code></li>
+<li>根据当前地址获取段名：<code>get_segm_name</code></li>
+<li>设置段名：<code>set_segm_name</code></li>
+<li>设置段的起始地址：<code>set_segm_start</code>、<code>set_segm_end</code></li>
+<li>……</li>
+</ul>
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://www.hex-rays.com/products/ida/support/idapython_docs/idc.html">idc API documentation</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.hex-rays.com/products/ida/support/idapython_docs/ida_segment.html">ida_segment API documentation</a></li>
+</ul>
 
     </div>
 
@@ -241,12 +279,12 @@
         
     <div class="post-nav">
       <div class="post-nav-item">
-    <a href="/2023/04/04/ret2csu_mipsel/" rel="prev" title="ret2csu_mipsel">
-      <i class="fa fa-chevron-left"></i> ret2csu_mipsel
+    <a href="/2023/04/06/idapython-%E5%9F%BA%E7%A1%80/" rel="prev" title="IDAPython-基础">
+      <i class="fa fa-chevron-left"></i> IDAPython-基础
     </a></div>
       <div class="post-nav-item">
-    <a href="/2023/04/06/IDAPython-%E6%AE%B5%E7%B2%92%E5%BA%A6/" rel="next" title="IDAPython-段粒度">
-      IDAPython-段粒度 <i class="fa fa-chevron-right"></i>
+    <a href="/2023/04/06/IDAPython-%E6%8C%87%E4%BB%A4%E7%B2%92%E5%BA%A6/" rel="next" title="IDAPython-指令粒度">
+      IDAPython-指令粒度 <i class="fa fa-chevron-right"></i>
     </a></div>
     </div>
       </footer>
@@ -307,6 +345,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#segment%E7%9A%84%E5%9F%BA%E6%9C%AC%E6%93%8D%E4%BD%9C"><span class="nav-number">1.</span> <span class="nav-text">segment的基本操作</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#idc%E6%A8%A1%E5%9D%97%E4%B8%AD%E5%B8%B8%E7%94%A8%E7%9A%84%E6%AE%B5%E6%93%8D%E4%BD%9C%E5%87%BD%E6%95%B0"><span class="nav-number">2.</span> <span class="nav-text">idc模块中常用的段操作函数</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8C%85%E5%90%AB%E6%9B%B4%E5%A4%9A%E6%AE%B5%E6%93%8D%E4%BD%9C%E7%9A%84%E6%A8%A1%E5%9D%97%EF%BC%9Aida-segment"><span class="nav-number">3.</span> <span class="nav-text">包含更多段操作的模块：ida_segment</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E9%93%BE%E6%8E%A5"><span class="nav-number">4.</span> <span class="nav-text">参考链接</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
@@ -431,7 +470,7 @@ NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
       repo        : 'BlogComments',
       owner       : 'NoneShell',
       admin       : ['NoneShell'],
-      id          : '3953c9e798d629cd3fac0884a735a01e',
+      id          : '5c295ee90ef63b176887f435890e37b6',
         language: 'zh-CN',
       distractionFreeMode: true
     });
