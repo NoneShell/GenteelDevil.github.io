@@ -20,19 +20,21 @@
     var CONFIG = {"hostname":"oneshell.top","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":true,"nav":{"gitalk":{"order":-2}},"activeClass":"gitalk"},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta name="description" content="我打算整理和总结一下IDAPython相关的笔记，由于使用的场景大多是在IoT领域，此处和后续的笔记采用了dir-850l固件中的cgibin（漏洞多）来作为演示。个人笔记，也不讲究通用性了，如果能被其他人作为有用参考就用叭。 在学习IDAPython之初，需要了解一下IDA反汇编窗口输出的内容和结构。以IDA反汇编窗口中的一条指令为例，如下的sw存储指令（最近在看MIPS），如下指令功能是将寄存">
+  <meta name="description" content="该环境搭建步骤也适用于其他架构的rop练习环境搭建。构建Linux内核为3.2.0，debian wheezy的ARMel下载debain的wheezy文件系统、引导、操作系统内核。 123https:&#x2F;&#x2F;people.debian.org&#x2F;~aurel32&#x2F;qemu&#x2F;armel&#x2F;debian_wheezy_armel_standard.qcow2https:&#x2F;&#x2F;people.debian.org">
 <meta property="og:type" content="article">
-<meta property="og:title" content="IDAPython-基础">
-<meta property="og:url" content="https://oneshell.top/2023/04/06/idapython-%E5%9F%BA%E7%A1%80/index.html">
+<meta property="og:title" content="ROPemporium-arm环境搭建">
+<meta property="og:url" content="https://oneshell.top/2023/02/20/ROPemporium-arm%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/index.html">
 <meta property="og:site_name" content="OneShell">
-<meta property="og:description" content="我打算整理和总结一下IDAPython相关的笔记，由于使用的场景大多是在IoT领域，此处和后续的笔记采用了dir-850l固件中的cgibin（漏洞多）来作为演示。个人笔记，也不讲究通用性了，如果能被其他人作为有用参考就用叭。 在学习IDAPython之初，需要了解一下IDA反汇编窗口输出的内容和结构。以IDA反汇编窗口中的一条指令为例，如下的sw存储指令（最近在看MIPS），如下指令功能是将寄存">
+<meta property="og:description" content="该环境搭建步骤也适用于其他架构的rop练习环境搭建。构建Linux内核为3.2.0，debian wheezy的ARMel下载debain的wheezy文件系统、引导、操作系统内核。 123https:&#x2F;&#x2F;people.debian.org&#x2F;~aurel32&#x2F;qemu&#x2F;armel&#x2F;debian_wheezy_armel_standard.qcow2https:&#x2F;&#x2F;people.debian.org">
 <meta property="og:locale">
-<meta property="article:published_time" content="2023-04-05T17:18:57.000Z">
-<meta property="article:modified_time" content="2023-04-06T07:40:46.261Z">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-0410-111429849.png">
+<meta property="article:published_time" content="2023-02-19T17:47:42.000Z">
+<meta property="article:modified_time" content="2023-04-10T03:18:53.613Z">
 <meta property="article:author" content="OneShell">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://oneshell.top/images/image-2023-0410-111429849.png">
 
-<link rel="canonical" href="https://oneshell.top/2023/04/06/idapython-%E5%9F%BA%E7%A1%80/">
+<link rel="canonical" href="https://oneshell.top/2023/02/20/ROPemporium-arm%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/">
 
 
 <script id="page-configurations">
@@ -45,7 +47,7 @@
   };
 </script>
 
-  <title>IDAPython-基础 | OneShell</title>
+  <title>ROPemporium-arm环境搭建 | OneShell</title>
   
 
 
@@ -171,7 +173,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/06/idapython-%E5%9F%BA%E7%A1%80/">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/02/20/ROPemporium-arm%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -184,7 +186,7 @@
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
-          IDAPython-基础
+          ROPemporium-arm环境搭建
         </h1>
 
         <div class="post-meta">
@@ -193,10 +195,16 @@
                 <i class="far fa-calendar"></i>
               </span>
               <span class="post-meta-item-text">Posted on</span>
-              
 
-              <time title="Created: 2023-04-06 01:18:57 / Modified: 15:40:46" itemprop="dateCreated datePublished" datetime="2023-04-06T01:18:57+08:00">2023-04-06</time>
+              <time title="Created: 2023-02-20 01:47:42" itemprop="dateCreated datePublished" datetime="2023-02-20T01:47:42+08:00">2023-02-20</time>
             </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-04-10 11:18:53" itemprop="dateModified" datetime="2023-04-10T11:18:53+08:00">2023-04-10</time>
+              </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
                 <i class="far fa-folder"></i>
@@ -218,14 +226,30 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p>我打算整理和总结一下IDAPython相关的笔记，由于使用的场景大多是在IoT领域，此处和后续的笔记采用了dir-850l固件中的cgibin（漏洞多）来作为演示。个人笔记，也不讲究通用性了，如果能被其他人作为有用参考就用叭。</p>
-<p>在学习IDAPython之初，需要了解一下IDA反汇编窗口输出的内容和结构。<br>以IDA反汇编窗口中的一条指令为例，如下的<code>sw</code>存储指令（最近在看MIPS），如下指令功能是将寄存器<code>ra</code>中的值保存到栈上：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">.text:00429000 sw      $ra, 0x418+var_s10($sp)</span><br></pre></td></tr></table></figure>
-<p>其中，<code>.text</code>是section名，也就是text节；00429000是地址，IDA中会省略掉前缀0x；<code>sw</code>是指令助记符，随后是第一个操作数<code>ra</code>和第二个操作数<code>0x418+var_s10($sp)</code>。<br>在IDAPython中，指令地址是经常被传入到API函数中进行处理的参数，API描述中使用<code>ea</code>表示，如下：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">idc.get_segm_name(ea)        <span class="comment"># 获取当前光标所在指令的地址</span></span><br><span class="line">idc.GetDisasm(ea)            <span class="comment"># 获取反汇编指令</span></span><br><span class="line">idc.print_insn_mnem(ea)      <span class="comment"># 打印指令助记符</span></span><br><span class="line">idc.print_operand(ea, <span class="number">0</span>)     <span class="comment"># 打印第一个操作数</span></span><br><span class="line">idc.print_operand(ea, <span class="number">1</span>)     <span class="comment"># 打印第二个操作数</span></span><br></pre></td></tr></table></figure>
-<p>IDAPython使用得比较频繁的一个操作就是获取到反汇编窗口光标所在的行的地址，可以使用<code>idc.get_screen_ea()</code>来获取，也可以直接使用<code>here()</code>获取。但如果在IDAPython脚本中不能直接使用<code>here()</code>，必须保证<code>import idc</code>，然后使用<code>idc.here()</code>。<br>对于初学者使用IDAPython最简单的方式就是在IDA最下方的命令行中直接进行操作：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;ea = idc.here()</span><br><span class="line">Python&gt;<span class="built_in">print</span>(<span class="string">&quot;0x%x, %s&quot;</span> % (ea, ea))</span><br><span class="line"><span class="number">0x40012c</span>, <span class="number">4194604</span></span><br><span class="line">Python&gt;idc.get_segm_name(ea)</span><br><span class="line"><span class="string">&#x27;.text&#x27;</span></span><br><span class="line">Python&gt;idc.GetDisasm(ea)</span><br><span class="line"><span class="string">&#x27;li      $gp, 0x492900&#x27;</span></span><br><span class="line">Python&gt;idc.print_insn_mnem(ea)</span><br><span class="line"><span class="string">&#x27;li&#x27;</span></span><br><span class="line">Python&gt;idc.print_operand(ea, <span class="number">0</span>)</span><br><span class="line"><span class="string">&#x27;$gp&#x27;</span></span><br><span class="line">Python&gt;idc.print_operand(ea, <span class="number">1</span>)</span><br><span class="line"><span class="string">&#x27;0x492900&#x27;</span></span><br></pre></td></tr></table></figure>
-<p>对于指令的操作数的类型和值，具体还可以使用<code>idc.get_operand_type()</code>和<code>idc.get_operand_value()</code>来获得，这将在后续的笔记中进行简单说明。</p>
+        <p>该环境搭建步骤也适用于其他架构的rop练习环境搭建。<br>构建Linux内核为3.2.0，debian wheezy的ARMel<br>下载debain的wheezy文件系统、引导、操作系统内核。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">https://people.debian.org/~aurel32/qemu/armel/debian_wheezy_armel_standard.qcow2</span><br><span class="line">https://people.debian.org/~aurel32/qemu/armel/initrd.img-3.2.0-4-versatile</span><br><span class="line">https://people.debian.org/~aurel32/qemu/armel/vmlinuz-3.2.0-4-versatile</span><br></pre></td></tr></table></figure>
+<p>使用如下的命令启动：网络配置是使用的NAT网络，在虚拟机中就可以连接到外网；除此之外，还对外映射了端口，将qemu虚拟机的6666、8888、22端口分别映射到宿主机的6666、8888、22端口。通过端口映射的方式就解决了qemu虚拟机连接外网和宿主机通信的问题，宿主机可以通过<code>ssh root@127.0.0.1 -p 2222</code>连接到qemu虚拟机中，在虚拟机中可以通过socat将题目映射出来，可以通过gdbserver将调试接口映射出来。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">sudo qemu-system-arm \</span><br><span class="line">	-M versatilepb \</span><br><span class="line">	-kernel vmlinuz-3.2.0-4-versatile \</span><br><span class="line">	-initrd initrd.img-3.2.0-4-versatile \</span><br><span class="line">	-hda debian_wheezy_armel_standard.qcow2 \</span><br><span class="line">	-append &quot;root=/dev/sda1&quot; \</span><br><span class="line">	-nographic \</span><br><span class="line">	-nic user,hostfwd=tcp:127.0.0.1:6666-:6666,hostfwd=tcp:127.0.0.1:8888-:8888,hostfwd=tcp:127.0.0.1:2222-:22</span><br></pre></td></tr></table></figure>
+<p>虚拟机的账号密码是<code>root:root</code>。</p>
+<h2 id="环境搭建"><a href="#环境搭建" class="headerlink" title="环境搭建"></a>环境搭建</h2><p>该虚拟机默认的源现在已经不可用，经过我的搜寻，最终找到了一个阿里云的debian7（wheezy）目前还可用，可以用来更新、下载一些必要的软件。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">deb http://mirrors.aliyun.com/debian-archive/debian/ wheezy main non-free contrib</span><br></pre></td></tr></table></figure>
+<p>在虚拟机里面安装一些必要的软件：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">apt-get update</span><br><span class="line">apt-get install vim gdb gdbserver tmux socat</span><br></pre></td></tr></table></figure>
+<p>将armrop的题目通过scp（随意各种方式）传送到qemu虚拟机中，我设置的如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">root@debian-armel:~/armv5# tree -L 1</span><br><span class="line">.</span><br><span class="line">|-- badchars_armv5</span><br><span class="line">|-- callme_armv5</span><br><span class="line">|-- fluff_armv5</span><br><span class="line">|-- pivot_armv5</span><br><span class="line">|-- ret2csu_armv5</span><br><span class="line">|-- ret2win_armv5</span><br><span class="line">|-- split_armv5</span><br><span class="line">`-- write4_armv5</span><br></pre></td></tr></table></figure>
+<p>例如我现在要做ret2win_armv5这道题目，那么就先进入题目目录，使用socat将题目设置到8888端口，如果要调试的话，就使用gdbserver attach到进程，并将调试端口设置到6666。如果终端不够用的话，就ssh到qemu虚拟机中新开终端。</p>
+<ol>
+<li>在qemu虚拟机中使用socat转发题目的io到8888端口：<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">socat tcp-l:8888,fork exec:./ret2win_armv5</span><br></pre></td></tr></table></figure></li>
+<li>在宿主机使用nc获取题目：<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">$ nc 127.0.0.1 8888</span><br><span class="line">ret2win by ROP Emporium</span><br><span class="line">ARMv5</span><br><span class="line"></span><br><span class="line">For my first trick, I will attempt to fit 56 bytes of user input into 32 bytes of stack buffer!</span><br><span class="line">What could possibly go wrong?</span><br><span class="line">You there, may I have your input please? And don&#x27;t worry about null bytes, we&#x27;re using read()!</span><br><span class="line"></span><br><span class="line">&gt;</span><br></pre></td></tr></table></figure></li>
+<li>如果要调试，使用gdbserver attach到进程。如果是使用pwntools写题目的时候进行调试，remote连接到题目后先<code>pause()</code>暂停一下。<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">root@debian-armel:~/armv5# pidof ret2win_armv5</span><br><span class="line">3710</span><br><span class="line">root@debian-armel:~/armv5# gdbserver :6666 --attach 3710</span><br><span class="line">Attached; pid = 3710</span><br><span class="line">Listening on port 6666</span><br></pre></td></tr></table></figure></li>
+<li>在宿主机就可以联动gdb-multiarch和pwntools进行调试了<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">target remote :6666</span><br></pre></td></tr></table></figure>
+<img src="/images/image-2023-0410-111429849.png" alt="undifined"></li>
+</ol>
+<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>将qemu虚拟机使用端口映射的方式来启动真的特别方便，主要就解决了两个问题：</p>
+<ol>
+<li>qemu虚拟机连接到外网</li>
+<li>qemu虚拟机需要和宿主机进行通信<br>适用场景就是这样的IoT题目搭建，将题目通过一个端口（8888）映射出去，调试接口通过一个端口（6666）映射出去，如果需要使用更多的终端，可以通过ssh连接到虚拟机中。<br>真滴方便。</li>
+</ol>
 
     </div>
 
@@ -241,12 +265,12 @@
         
     <div class="post-nav">
       <div class="post-nav-item">
-    <a href="/2023/04/04/ret2csu_mipsel/" rel="prev" title="ret2csu_mipsel">
-      <i class="fa fa-chevron-left"></i> ret2csu_mipsel
+    <a href="/2023/02/08/Linux%E5%86%85%E6%A0%B8%E8%B0%83%E8%AF%95%E7%8E%AF%E5%A2%83%E7%9A%84%E6%90%AD%E5%BB%BA/" rel="prev" title="Linux内核调试环境的搭建">
+      <i class="fa fa-chevron-left"></i> Linux内核调试环境的搭建
     </a></div>
       <div class="post-nav-item">
-    <a href="/2023/04/06/IDAPython-%E6%AE%B5%E7%B2%92%E5%BA%A6/" rel="next" title="IDAPython-段粒度">
-      IDAPython-段粒度 <i class="fa fa-chevron-right"></i>
+    <a href="/2023/02/22/pwndbg+pwntools+tmux%E7%9C%9F%E4%B9%83%E5%A4%A9%E4%BD%9C%E4%B9%8B%E5%90%88/" rel="next" title="pwndbg+pwntools+tmux真乃天作之合">
+      pwndbg+pwntools+tmux真乃天作之合 <i class="fa fa-chevron-right"></i>
     </a></div>
     </div>
       </footer>
@@ -307,6 +331,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA"><span class="nav-number">1.</span> <span class="nav-text">环境搭建</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B0%8F%E7%BB%93"><span class="nav-number">2.</span> <span class="nav-text">小结</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
@@ -431,7 +456,7 @@ NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
       repo        : 'BlogComments',
       owner       : 'NoneShell',
       admin       : ['NoneShell'],
-      id          : '3953c9e798d629cd3fac0884a735a01e',
+      id          : 'eaeae1259d5324ba582c91b30ab65019',
         language: 'zh-CN',
       distractionFreeMode: true
     });
