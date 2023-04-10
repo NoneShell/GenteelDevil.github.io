@@ -168,6 +168,208 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/02/22/pwndbg+pwntools+tmux%E7%9C%9F%E4%B9%83%E5%A4%A9%E4%BD%9C%E4%B9%8B%E5%90%88/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="stay hungry, stay foolish">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/02/22/pwndbg+pwntools+tmux%E7%9C%9F%E4%B9%83%E5%A4%A9%E4%BD%9C%E4%B9%8B%E5%90%88/" class="post-title-link" itemprop="url">pwndbg+pwntools+tmux真乃天作之合</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-02-22 01:26:37 / Modified: 15:35:09" itemprop="dateCreated datePublished" datetime="2023-02-22T01:26:37+08:00">2023-02-22</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>一直以来都在使用tmux作为终端复用的工具，非常喜欢它可以自由切换、分割当前终端的功能。现在自己每次都是通过ssh登录到调试机，然后使用tmux创建一个session在后台，这样就算因为网络原因ssh断掉，当前终端正在进行的工作也不会断掉。<br>最基础的流程就是：</p>
+<ul>
+<li><code>tmux new -s test</code>：创建一个名为test的session</li>
+<li>Ctrl + B，然后<code>&quot;</code>：水平切割当前的pane</li>
+<li>Ctrl + B，然后<code>%</code>：垂直切割当前pane<br>更多操作可以参考这个教程：<a target="_blank" rel="noopener" href="https://www.ruanyifeng.com/blog/2019/10/tmux.html">Tmux 使用教程 - 阮一峰的网络日志</a></li>
+</ul>
+<p>最近在看pwndbg的FEATURES.md时，发现其支持一个特性：<a target="_blank" rel="noopener" href="https://github.com/pwndbg/pwndbg/blob/dev/FEATURES.md#splitting--layouting-context">将其section重定向到任意的tty</a>。那么通过这个功能就可以实现将pwndbg的各个section重定向到终端由tmux切割出来的不同pane上，从而最大化利用当前的屏幕（也更好看）。</p>
+<p>也有人在pwndbg的基础上开发出了另外一个插件<a target="_blank" rel="noopener" href="https://github.com/jerdna-regeiz/splitmind">splitmind</a>，其官方库中给出的一个实现效果如下，在一个由tmux分割的终端上，让pwndbg调试信息区域按照使用人员最喜欢的方式排列、输出。<br><img src="/images/image-2023-0222-134915202.png" alt="undifined"></p>
+<p>如上的实现配置文件gdb.init如下，其大概原理就是：在tmux的一个window中，会默认打开一个名为main的gdb调试pane，然后基于该main的上、下、左、右可以自由进行窗口的切割和划分，并将pwndbg相应的section重定向到切割出来的pane中。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">source /home/user/pwndbg/gdbinit.py</span><br><span class="line">set context-clear-screen on</span><br><span class="line">set follow-fork-mode parent</span><br><span class="line"></span><br><span class="line">source /home/user/splitmind/gdbinit.py</span><br><span class="line">python</span><br><span class="line">import splitmind</span><br><span class="line">(splitmind.Mind()</span><br><span class="line">  .tell_splitter(show_titles=True)</span><br><span class="line">  .tell_splitter(set_title=&quot;Main&quot;)</span><br><span class="line">  .right(display=&quot;backtrace&quot;, size=&quot;25%&quot;)</span><br><span class="line">  .above(of=&quot;main&quot;, display=&quot;disasm&quot;, size=&quot;80%&quot;, banner=&quot;top&quot;)</span><br><span class="line">  .show(&quot;code&quot;, on=&quot;disasm&quot;, banner=&quot;none&quot;)</span><br><span class="line">  .right(cmd=&#x27;tty; tail -f /dev/null&#x27;, size=&quot;65%&quot;, clearing=False)</span><br><span class="line">  .tell_splitter(set_title=&#x27;Input / Output&#x27;)</span><br><span class="line">  .above(display=&quot;stack&quot;, size=&quot;75%&quot;)</span><br><span class="line">  .above(display=&quot;legend&quot;, size=&quot;25&quot;)</span><br><span class="line">  .show(&quot;regs&quot;, on=&quot;legend&quot;)</span><br><span class="line">  .below(of=&quot;backtrace&quot;, cmd=&quot;ipython&quot;, size=&quot;30%&quot;)</span><br><span class="line">).build(nobanner=True)</span><br><span class="line">end</span><br><span class="line">set context-code-lines 30</span><br><span class="line">set context-source-code-lines 30</span><br><span class="line">set context-sections  &quot;regs args code disasm stack backtrace&quot;</span><br></pre></td></tr></table></figure>
+<p>例如：<code>.above(of=&quot;main&quot;, display=&quot;disasm&quot;, size=&quot;80%&quot;, banner=&quot;top&quot;)</code>，就是对main进行切割，展示pwndbg的disasm区域，并且控制所占据的大小为80%。</p>
+<p>pwndbg所支持的section如下，在gdb中由<code>context-sections</code>变量控制：</p>
+<ul>
+<li>regs：寄存器</li>
+<li>disasm：反汇编</li>
+<li>code：源代码</li>
+<li>ghidra：Ghidra相关（未使用过）</li>
+<li>stack：栈</li>
+<li>backtrace：调用栈</li>
+<li>expressions：表达式跟踪，非常强大，可用于动态根据某个变量、内存、或者是自定义的值类型<br>与之配合的还有一些其他的gdb调试环境变量，例如</li>
+<li><code>context-code-lines</code>：在disasm中展示的反汇编行数</li>
+<li><code>context-source-code-lines</code>：在code中展示的源代码行数</li>
+<li><code>context-stack-lines</code>：在stack中展示的栈行数<br>等等，这些都可以在<code>pwndbg/pwndbg/commands/context.py</code>去查询含义以及默认值。了解section和控制section大小的环境变量可以让我们更好自定义属于自己的gdb界面。</li>
+</ul>
+<p>在如上的基础上，我定制了自己的一个gdb配置，能达到的效果就是，在gdb启动的时候选择模式，并按照自己的习惯展示gdb调试信息：</p>
+<ul>
+<li>s：源代码模式，可用于直接调试源码</li>
+<li>d：汇编模式，用于调试反汇编</li>
+<li>m：同时显示源码和汇编语句</li>
+</ul>
+<p>s：源码模式，如下<br><img src="/images/image-2023-0222-143209518.png" alt="undifined"></p>
+<p>d：汇编模式，如下<br><img src="/images/image-2023-0222-144220301.png" alt="undifined"></p>
+<p>m：混合模式，如下<br><img src="/images/image-2023-0222-144252588.png" alt="undifined"></p>
+<p>那么直接给出我的gdb配置文件，也给出了相应的注释，更多的配置还可以参考我个人的GitHub配置文件库：</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/NoneShell/OwnConfigs">GitHub - NoneShell&#x2F;OwnConfigs: some useful configs</a></li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line"># 加载pwndbg和gdbinit插件</span><br><span class="line">source /home/utest/app/pwndbg/gdbinit.py</span><br><span class="line">source /home/utest/app/splitmind/gdbinit.py</span><br><span class="line"># 调试过程是否每次输入一条指令都清屏，我选择否这样可以在main区域看到程序输出</span><br><span class="line">set context-clear-screen off</span><br><span class="line">set debug-events off</span><br><span class="line"></span><br><span class="line"># python执行区域</span><br><span class="line">python</span><br><span class="line">sections = &quot;regs&quot; # sections控制所要展示的所有区域，先初始化只有寄存器regs</span><br><span class="line">mode = input(&quot;source/disasm/mixed mode:?(s/d/m)&quot;) or &quot;d&quot; # 读取调试模式</span><br><span class="line"></span><br><span class="line">import splitmind  # 导入splitmind库</span><br><span class="line">spliter = splitmind.Mind() # 创建一个spliter</span><br><span class="line">spliter.select(&quot;main&quot;).right(display=&quot;regs&quot;, size=&quot;50%&quot;) </span><br><span class="line"></span><br><span class="line">legend_on = &quot;code&quot;</span><br><span class="line">if mode == &quot;d&quot;:</span><br><span class="line">    legend_on = &quot;disasm&quot;</span><br><span class="line">    sections += &quot; disasm&quot;</span><br><span class="line">    spliter.select(&quot;main&quot;).above(display=&quot;disasm&quot;, size=&quot;70%&quot;, banner=&quot;none&quot;)</span><br><span class="line">    gdb.execute(&quot;set context-code-lines 30&quot;)</span><br><span class="line"></span><br><span class="line">elif mode == &quot;s&quot;:</span><br><span class="line">    sections += &quot; code&quot;</span><br><span class="line">    spliter.select(&quot;main&quot;).above(display=&quot;code&quot;, size=&quot;70%&quot;, banner=&quot;none&quot;)</span><br><span class="line">    gdb.execute(&quot;set context-source-code-lines 30&quot;)</span><br><span class="line"></span><br><span class="line">else:</span><br><span class="line">    sections += &quot; disasm code&quot;</span><br><span class="line">    spliter.select(&quot;main&quot;).above(display=&quot;code&quot;, size=&quot;70%&quot;)</span><br><span class="line">    spliter.select(&quot;code&quot;).below(display=&quot;disasm&quot;, size=&quot;40%&quot;)</span><br><span class="line">    gdb.execute(&quot;set context-code-lines 8&quot;)</span><br><span class="line">    gdb.execute(&quot;set context-source-code-lines 20&quot;)</span><br><span class="line"></span><br><span class="line">sections += &quot; args stack backtrace expressions&quot;</span><br><span class="line"></span><br><span class="line">spliter.show(&quot;legend&quot;, on=legend_on)</span><br><span class="line">spliter.show(&quot;stack&quot;, on=&quot;regs&quot;)</span><br><span class="line">spliter.show(&quot;backtrace&quot;, on=&quot;regs&quot;)</span><br><span class="line">spliter.show(&quot;args&quot;, on=&quot;regs&quot;)</span><br><span class="line">spliter.show(&quot;expressions&quot;, on=&quot;args&quot;)</span><br><span class="line"></span><br><span class="line"># 自定义的一些gdb环境变量</span><br><span class="line">gdb.execute(&quot;set context-stack-lines 10&quot;)</span><br><span class="line">gdb.execute(&quot;set context-sections \&quot;%s\&quot;&quot; % sections)</span><br><span class="line"></span><br><span class="line">spliter.build()</span><br><span class="line"></span><br><span class="line">end</span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/02/20/ROPemporium-arm%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="stay hungry, stay foolish">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/02/20/ROPemporium-arm%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/" class="post-title-link" itemprop="url">ROPemporium-arm环境搭建</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-02-20 01:47:42" itemprop="dateCreated datePublished" datetime="2023-02-20T01:47:42+08:00">2023-02-20</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-04-10 11:18:53" itemprop="dateModified" datetime="2023-04-10T11:18:53+08:00">2023-04-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>该环境搭建步骤也适用于其他架构的rop练习环境搭建。<br>构建Linux内核为3.2.0，debian wheezy的ARMel<br>下载debain的wheezy文件系统、引导、操作系统内核。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">https://people.debian.org/~aurel32/qemu/armel/debian_wheezy_armel_standard.qcow2</span><br><span class="line">https://people.debian.org/~aurel32/qemu/armel/initrd.img-3.2.0-4-versatile</span><br><span class="line">https://people.debian.org/~aurel32/qemu/armel/vmlinuz-3.2.0-4-versatile</span><br></pre></td></tr></table></figure>
+<p>使用如下的命令启动：网络配置是使用的NAT网络，在虚拟机中就可以连接到外网；除此之外，还对外映射了端口，将qemu虚拟机的6666、8888、22端口分别映射到宿主机的6666、8888、22端口。通过端口映射的方式就解决了qemu虚拟机连接外网和宿主机通信的问题，宿主机可以通过<code>ssh root@127.0.0.1 -p 2222</code>连接到qemu虚拟机中，在虚拟机中可以通过socat将题目映射出来，可以通过gdbserver将调试接口映射出来。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">sudo qemu-system-arm \</span><br><span class="line">	-M versatilepb \</span><br><span class="line">	-kernel vmlinuz-3.2.0-4-versatile \</span><br><span class="line">	-initrd initrd.img-3.2.0-4-versatile \</span><br><span class="line">	-hda debian_wheezy_armel_standard.qcow2 \</span><br><span class="line">	-append &quot;root=/dev/sda1&quot; \</span><br><span class="line">	-nographic \</span><br><span class="line">	-nic user,hostfwd=tcp:127.0.0.1:6666-:6666,hostfwd=tcp:127.0.0.1:8888-:8888,hostfwd=tcp:127.0.0.1:2222-:22</span><br></pre></td></tr></table></figure>
+<p>虚拟机的账号密码是<code>root:root</code>。</p>
+<h2 id="环境搭建"><a href="#环境搭建" class="headerlink" title="环境搭建"></a>环境搭建</h2><p>该虚拟机默认的源现在已经不可用，经过我的搜寻，最终找到了一个阿里云的debian7（wheezy）目前还可用，可以用来更新、下载一些必要的软件。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">deb http://mirrors.aliyun.com/debian-archive/debian/ wheezy main non-free contrib</span><br></pre></td></tr></table></figure>
+<p>在虚拟机里面安装一些必要的软件：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">apt-get update</span><br><span class="line">apt-get install vim gdb gdbserver tmux socat</span><br></pre></td></tr></table></figure>
+<p>将armrop的题目通过scp（随意各种方式）传送到qemu虚拟机中，我设置的如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">root@debian-armel:~/armv5# tree -L 1</span><br><span class="line">.</span><br><span class="line">|-- badchars_armv5</span><br><span class="line">|-- callme_armv5</span><br><span class="line">|-- fluff_armv5</span><br><span class="line">|-- pivot_armv5</span><br><span class="line">|-- ret2csu_armv5</span><br><span class="line">|-- ret2win_armv5</span><br><span class="line">|-- split_armv5</span><br><span class="line">`-- write4_armv5</span><br></pre></td></tr></table></figure>
+<p>例如我现在要做ret2win_armv5这道题目，那么就先进入题目目录，使用socat将题目设置到8888端口，如果要调试的话，就使用gdbserver attach到进程，并将调试端口设置到6666。如果终端不够用的话，就ssh到qemu虚拟机中新开终端。</p>
+<ol>
+<li>在qemu虚拟机中使用socat转发题目的io到8888端口：<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">socat tcp-l:8888,fork exec:./ret2win_armv5</span><br></pre></td></tr></table></figure></li>
+<li>在宿主机使用nc获取题目：<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">$ nc 127.0.0.1 8888</span><br><span class="line">ret2win by ROP Emporium</span><br><span class="line">ARMv5</span><br><span class="line"></span><br><span class="line">For my first trick, I will attempt to fit 56 bytes of user input into 32 bytes of stack buffer!</span><br><span class="line">What could possibly go wrong?</span><br><span class="line">You there, may I have your input please? And don&#x27;t worry about null bytes, we&#x27;re using read()!</span><br><span class="line"></span><br><span class="line">&gt;</span><br></pre></td></tr></table></figure></li>
+<li>如果要调试，使用gdbserver attach到进程。如果是使用pwntools写题目的时候进行调试，remote连接到题目后先<code>pause()</code>暂停一下。<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">root@debian-armel:~/armv5# pidof ret2win_armv5</span><br><span class="line">3710</span><br><span class="line">root@debian-armel:~/armv5# gdbserver :6666 --attach 3710</span><br><span class="line">Attached; pid = 3710</span><br><span class="line">Listening on port 6666</span><br></pre></td></tr></table></figure></li>
+<li>在宿主机就可以联动gdb-multiarch和pwntools进行调试了<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">target remote :6666</span><br></pre></td></tr></table></figure>
+<img src="/images/image-2023-0410-111429849.png" alt="undifined"></li>
+</ol>
+<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>将qemu虚拟机使用端口映射的方式来启动真的特别方便，主要就解决了两个问题：</p>
+<ol>
+<li>qemu虚拟机连接到外网</li>
+<li>qemu虚拟机需要和宿主机进行通信<br>适用场景就是这样的IoT题目搭建，将题目通过一个端口（8888）映射出去，调试接口通过一个端口（6666）映射出去，如果需要使用更多的终端，可以通过ssh连接到虚拟机中。<br>真滴方便。</li>
+</ol>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/02/08/Linux%E5%86%85%E6%A0%B8%E8%B0%83%E8%AF%95%E7%8E%AF%E5%A2%83%E7%9A%84%E6%90%AD%E5%BB%BA/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1227,7 +1429,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">28</span>
+          <span class="site-state-item-count">30</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
