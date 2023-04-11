@@ -168,6 +168,96 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/03/09/gcc%E4%BC%98%E5%8C%96%E9%80%89%E9%A1%B9%E8%AF%B4%E6%98%8E/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="stay hungry, stay foolish">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/03/09/gcc%E4%BC%98%E5%8C%96%E9%80%89%E9%A1%B9%E8%AF%B4%E6%98%8E/" class="post-title-link" itemprop="url">gcc优化选项说明</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-03-09 09:59:17 / Modified: 10:50:47" itemprop="dateCreated datePublished" datetime="2023-03-09T09:59:17+08:00">2023-03-09</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>在使用编译程序的时候，如果不启动优化选项，gcc会产生有利于调试的编译结果，例如使用gdb可以方便查看、修改源代码中的变量的值；如果启用优化选项，gcc会使用更多的编译时间和牺牲程序的可调试性为代价来提高程序的性能或者减少代码大小。</p>
+<p>在不同的gcc版本和目标平台下，同一个优化选项所启动的优化标识集合也不一样，可以使用<code>-Q --help=optimizers</code>来获取相应的优化选项采用的优化标识集。在下文中的每个<code>-f**</code>优化标识都可以在参考链接中查询到具体的含义。</p>
+<p>在编译源码+调试的过程中，使用到比较多的是<code>-O0</code>和<code>-Og</code>两个优化选项。<code>-O0</code>不会启动任何优化标识，能产生有利于调试的可执行程序，但是有些时候在编译大型程序（例如我在编译libc）的时候，使用该选项会报错；<code>-Og</code>则是进行合理优化的程度上保证了程序的可调试性。</p>
+<h2 id="O0"><a href="#O0" class="headerlink" title="-O0"></a>-O0</h2><p>减少编译时间，产生方便调试的程序，是gcc的默认设置</p>
+<h2 id="Og"><a href="#Og" class="headerlink" title="-Og"></a>-Og</h2><p>优化调试体验。提供合理的优化级别，同时保证快速编译和良好的调试体验。有时候修改Makefile到-O0会失败，这是因为编译器在收集调试信息的时候会禁用-O0，这个时候就可以使用-Og。</p>
+<h2 id="O、-O1"><a href="#O、-O1" class="headerlink" title="-O、-O1"></a>-O、-O1</h2><p>-O、- O1：二者是一样的，都是在不影响编译速度的前提下，采用一些优化算法来减少代码的大小和提高代码的运行速度，开启的优化选项如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line">-fauto-inc-dec </span><br><span class="line">-fbranch-count-reg </span><br><span class="line">-fcombine-stack-adjustments </span><br><span class="line">-fcompare-elim </span><br><span class="line">-fcprop-registers </span><br><span class="line">-fdce </span><br><span class="line">-fdefer-pop </span><br><span class="line">-fdelayed-branch </span><br><span class="line">-fdse </span><br><span class="line">-fforward-propagate </span><br><span class="line">-fguess-branch-probability </span><br><span class="line">-fif-conversion </span><br><span class="line">-fif-conversion2 </span><br><span class="line">-finline-functions-called-once </span><br><span class="line">-fipa-modref </span><br><span class="line">-fipa-profile </span><br><span class="line">-fipa-pure-const </span><br><span class="line">-fipa-reference </span><br><span class="line">-fipa-reference-addressable </span><br><span class="line">-fmerge-constants </span><br><span class="line">-fmove-loop-invariants </span><br><span class="line">-fmove-loop-stores</span><br><span class="line">-fomit-frame-pointer </span><br><span class="line">-freorder-blocks </span><br><span class="line">-fshrink-wrap </span><br><span class="line">-fshrink-wrap-separate </span><br><span class="line">-fsplit-wide-types </span><br><span class="line">-fssa-backprop </span><br><span class="line">-fssa-phiopt </span><br><span class="line">-ftree-bit-ccp </span><br><span class="line">-ftree-ccp </span><br><span class="line">-ftree-ch </span><br><span class="line">-ftree-coalesce-vars </span><br><span class="line">-ftree-copy-prop </span><br><span class="line">-ftree-dce </span><br><span class="line">-ftree-dominator-opts </span><br><span class="line">-ftree-dse </span><br><span class="line">-ftree-forwprop </span><br><span class="line">-ftree-fre </span><br><span class="line">-ftree-phiprop </span><br><span class="line">-ftree-pta </span><br><span class="line">-ftree-scev-cprop </span><br><span class="line">-ftree-sink </span><br><span class="line">-ftree-slsr </span><br><span class="line">-ftree-sra </span><br><span class="line">-ftree-ter </span><br><span class="line">-funit-at-a-time</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="O2"><a href="#O2" class="headerlink" title="-O2"></a>-O2</h2><p>在-O的基础上优化更多的选项，会增加编译时间、提高代码的性能。新增加的优化选项如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line">-falign-functions  -falign-jumps </span><br><span class="line">-falign-labels  -falign-loops </span><br><span class="line">-fcaller-saves </span><br><span class="line">-fcode-hoisting </span><br><span class="line">-fcrossjumping </span><br><span class="line">-fcse-follow-jumps  -fcse-skip-blocks </span><br><span class="line">-fdelete-null-pointer-checks </span><br><span class="line">-fdevirtualize  -fdevirtualize-speculatively </span><br><span class="line">-fexpensive-optimizations </span><br><span class="line">-ffinite-loops </span><br><span class="line">-fgcse  -fgcse-lm  </span><br><span class="line">-fhoist-adjacent-loads </span><br><span class="line">-finline-functions </span><br><span class="line">-finline-small-functions </span><br><span class="line">-findirect-inlining </span><br><span class="line">-fipa-bit-cp  -fipa-cp  -fipa-icf </span><br><span class="line">-fipa-ra  -fipa-sra  -fipa-vrp </span><br><span class="line">-fisolate-erroneous-paths-dereference </span><br><span class="line">-flra-remat </span><br><span class="line">-foptimize-sibling-calls </span><br><span class="line">-foptimize-strlen </span><br><span class="line">-fpartial-inlining </span><br><span class="line">-fpeephole2 </span><br><span class="line">-freorder-blocks-algorithm=stc </span><br><span class="line">-freorder-blocks-and-partition  -freorder-functions </span><br><span class="line">-frerun-cse-after-loop  </span><br><span class="line">-fschedule-insns  -fschedule-insns2 </span><br><span class="line">-fsched-interblock  -fsched-spec </span><br><span class="line">-fstore-merging </span><br><span class="line">-fstrict-aliasing </span><br><span class="line">-fthread-jumps </span><br><span class="line">-ftree-builtin-call-dce </span><br><span class="line">-ftree-loop-vectorize </span><br><span class="line">-ftree-pre </span><br><span class="line">-ftree-slp-vectorize </span><br><span class="line">-ftree-switch-conversion  -ftree-tail-merge </span><br><span class="line">-ftree-vrp </span><br><span class="line">-fvect-cost-model=very-cheap</span><br></pre></td></tr></table></figure>
+
+<h2 id="O3"><a href="#O3" class="headerlink" title="-O3"></a>-O3</h2><p>在-O2的优化选项基础上，采用了更多的向量化算法，利用现代CPU中的流水线、cache等特性提高代码的并行执行速度。该选项会增加代码大小。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">-fgcse-after-reload </span><br><span class="line">-fipa-cp-clone</span><br><span class="line">-floop-interchange </span><br><span class="line">-floop-unroll-and-jam </span><br><span class="line">-fpeel-loops </span><br><span class="line">-fpredictive-commoning </span><br><span class="line">-fsplit-loops </span><br><span class="line">-fsplit-paths </span><br><span class="line">-ftree-loop-distribution </span><br><span class="line">-ftree-partial-pre </span><br><span class="line">-funswitch-loops </span><br><span class="line">-fvect-cost-model=dynamic </span><br><span class="line">-fversion-loops-for-strides</span><br></pre></td></tr></table></figure>
+
+<h2 id="Os"><a href="#Os" class="headerlink" title="-Os"></a>-Os</h2><p>这个编译选项和-O3相反，-O3是牺牲代码的空间换取执行时间，-O4则是牺牲代码的执行时间降低代码大小，这在一些存储容量较少的设备中非常重要，例如嵌入式设备。<br>-Os也是在-O2的基础上，使用了如下的优化选项，通过优化选项可以看出是对代码的空白对齐进行了压缩之类的操作。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">-falign-functions  </span><br><span class="line">-falign-jumps </span><br><span class="line">-falign-labels  </span><br><span class="line">-falign-loops </span><br><span class="line">-fprefetch-loop-arrays  </span><br><span class="line">-freorder-blocks-algorithm=stc</span><br></pre></td></tr></table></figure>
+
+<h2 id="Ofast"><a href="#Ofast" class="headerlink" title="-Ofast"></a>-Ofast</h2><p>在-O3的优化选项基础上，无视严格的标准合规性（不是很懂什么意思）</p>
+<h2 id=""><a href="#" class="headerlink" title=""></a></h2><h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html">Optimize Options (Using the GNU Compiler Collection (GCC))</a></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/02/22/pwndbg+pwntools+tmux%E7%9C%9F%E4%B9%83%E5%A4%A9%E4%BD%9C%E4%B9%8B%E5%90%88/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1262,108 +1352,10 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2022/09/20/%E5%A6%82%E4%BD%95%E6%90%AD%E5%BB%BA%E4%B8%80%E4%B8%AA%E5%8F%AF%E6%AD%A3%E5%B8%B8%E4%BD%BF%E7%94%A8%E7%9A%84mipsel%E8%99%9A%E6%8B%9F%E6%9C%BA/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="stay hungry, stay foolish">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2022/09/20/%E5%A6%82%E4%BD%95%E6%90%AD%E5%BB%BA%E4%B8%80%E4%B8%AA%E5%8F%AF%E6%AD%A3%E5%B8%B8%E4%BD%BF%E7%94%A8%E7%9A%84mipsel%E8%99%9A%E6%8B%9F%E6%9C%BA/" class="post-title-link" itemprop="url">如何搭建一个可正常使用的mipsel虚拟机</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2022-09-20 01:31:35" itemprop="dateCreated datePublished" datetime="2022-09-20T01:31:35+08:00">2022-09-20</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-02-07 12:50:54" itemprop="dateModified" datetime="2023-02-07T12:50:54+08:00">2023-02-07</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="如何手动搭建-qemu-mipsel-环境"><a href="#如何手动搭建-qemu-mipsel-环境" class="headerlink" title="如何手动搭建 qemu mipsel 环境"></a>如何手动搭建 qemu mipsel 环境</h1><p>之前搭建 qemu 系统级别的虚拟机的时候，一般都是下载已经编译好的特定架构的系统镜像，这些镜像有个缺点就是没有办法使用类似于 apt 的方式安装软件，每次要安装一些额外的软件都比较复杂，于是就想能不能手动安装一个具有正常功能的虚拟机。<br>此处安装的是 mipsel 环境的 Debian 虚拟机，其他架构也是类似的安装方法。</p>
-<h2 id="必要软件"><a href="#必要软件" class="headerlink" title="必要软件"></a>必要软件</h2><p>在 Host 机上安装 qemu-system-mipsel</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get install qemu-system-mipsel qemu-utils</span><br></pre></td></tr></table></figure>
-<h2 id="下载相关文件"><a href="#下载相关文件" class="headerlink" title="下载相关文件"></a>下载相关文件</h2><p>从稳定版本下载安装程序和引导文件。<br>下载安装程序 initrd.gz，23MB</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">wget https://ftp.debian.org/debian/dists/stable/main/installer-mipsel/current/images/malta/netboot/initrd.gz</span><br></pre></td></tr></table></figure>
-<p>下载内核引导 vmlinuz-5.10.0-18-4kc-malta，4.2MB，如果wget的时候报错404，可以尝试通过浏览器看看链接目录是否更新了</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">wget http://ftp.debian.org/debian/dists/stable/main/installer-mipsel/current/images/malta/netboot/vmlinuz-5.10.0-18-4kc-malta</span><br></pre></td></tr></table></figure>
-<h2 id="创建-QEMU-镜像文件"><a href="#创建-QEMU-镜像文件" class="headerlink" title="创建 QEMU 镜像文件"></a>创建 QEMU 镜像文件</h2><p>创建一个 QEMU 镜像文件，可以指定镜像存储大小以及文件类型。Debian 官方文档中有最低硬件要求，对于不带桌面的系统，2G 存储空间就足够了，也可以创建更大存储空间的镜像。<br>如下就是创建一个具有 8G 存储空间的 qcow2 格式镜像</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">qemu-img create -f qcow2 hda.img 8g</span><br></pre></td></tr></table></figure>
-<h2 id="安装-Debian-MIPSEL"><a href="#安装-Debian-MIPSEL" class="headerlink" title="安装 Debian MIPSEL"></a>安装 Debian MIPSEL</h2><p>安装前确保在当前工作目录中，3 个文件（had.img、vmlinuz-5.10.0-9-4kc-malta、initrd.gz）都存在。安装的过程，也是命令行形式的安装界面，基本上和在普通 PC 机上安装 Linux 的过程一致。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">qemu-system-mipsel -M malta \</span><br><span class="line">  -m 256 -hda hda.img \</span><br><span class="line">  -kernel vmlinuz-5.10.0-18-4kc-malta \</span><br><span class="line">  -initrd initrd.gz \</span><br><span class="line">  -append &quot;console=ttyS0 nokaslr&quot; \</span><br><span class="line">  -nographic</span><br></pre></td></tr></table></figure>
-<p>在默认情况下，QEMU 会启动 NAT 网络接口通过 Host 网络进行网络连接，这样虚拟机就可以安装和更新软件包。但是使用NAT存在一个问题就是，宿主机无法连接到QEMU虚拟机内部，可以理解为此时的QEMU和宿主机是一个整体。如果要连接到QEMU虚拟机中可以使用桥接或者NAT下端口映射的方式来解决。<br><strong>进入系统安装</strong><br><img src="/images/Pastedimage20220920184012.png" alt="undifined"><br>到选择镜像源的时候，可以选择China的镜像源，这样下载依赖会快一点。<br><img src="/images/Pastedimage20220926095223.png" alt="undifined"><br>后面还需要安装bootloader<br><img src="/images/Pastedimage20220926164632.png" alt="undifined"><br>到了下面的这个步骤，点击 Go Back -&gt; Go Down -&gt; Execute Shell，然后输入 poweroff 命令关闭虚拟机。如果点击 Continue，系统会重启，然后重新开始安装流程，类似于设置了 U 盘启动安装 Linux 系统，安装完毕后没有拔掉 U 盘，那么就会继续从 U 盘中的安装系统程序重新开始运行。<br><img src="/images/Pastedimage20220921133328.png" alt="undifined"></p>
-<h2 id="安装-bootloader"><a href="#安装-bootloader" class="headerlink" title="安装 bootloader"></a>安装 bootloader</h2><p>在安装过程中也会有提示说，no bootloader has been installed. 那么需要从 initrd.img 文件中获取 boot 分区，然后手动挂载出来。</p>
-<ol>
-<li>挂载 boot 分区 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">sudo modprobe nbd mac_part=63</span><br><span class="line">sudo qemu-nbd -c /dev/nbd0 hda.img</span><br><span class="line">sudo mount /dev/nbd0p1 /mnt</span><br></pre></td></tr></table></figure></li>
-<li>复制挂载的文件到当前文件夹 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">cp -r /mnt/boot/initrd.img-5.10.0-18-4kc-malta .</span><br><span class="line">cp -r /mnt/boot .</span><br></pre></td></tr></table></figure></li>
-<li>取消镜像挂载 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo umount /mnt</span><br><span class="line">sudo qemu-nbd -d /dev/nbd0</span><br></pre></td></tr></table></figure>
-通过上面的操作之后，当前文件夹目录及文件如下：<br><img src="/images/Pastedimage20220921133558.png" alt="undifined"></li>
-</ol>
-<h2 id="启动-QEMU-虚拟机"><a href="#启动-QEMU-虚拟机" class="headerlink" title="启动 QEMU 虚拟机"></a>启动 QEMU 虚拟机</h2><p>当上面的步骤完成后，一个可以正常启动的 QEMU Linux 系统就完成了，而且网络默认是使用的NAT，可以连通外网，但是宿主机没有办法连接到QEMU虚拟机中，用来配置安装QEMU虚拟机的软件是足够了，启动命令如下：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">sudo qemu-system-mipsel -M malta \</span><br><span class="line">  -m 1024 -hda hda.img \</span><br><span class="line">  -kernel vmlinuz-5.10.0-18-4kc-malta \</span><br><span class="line">  -initrd initrd.img-5.10.0-18-4kc-malta \</span><br><span class="line">  -append &quot;root=/dev/sda1 console=ttyS0 nokaslr&quot; \</span><br><span class="line">  -nographic</span><br></pre></td></tr></table></figure>
-<p>这样就可以在该架构上的虚拟机上做一些事了。<br><img src="/images/Pastedimage20220921171009.png" alt="undifined"></p>
-<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
-<li><a target="_blank" rel="noopener" href="https://markuta.com/how-to-build-a-mips-qemu-image-on-debian/">How to build a Debian MIPS image on QEMU</a></li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/2/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span>
+    <a class="extend prev" rel="prev" href="/page/2/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><a class="extend next" rel="next" href="/page/4/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
   </nav>
 
 
@@ -1429,7 +1421,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">30</span>
+          <span class="site-state-item-count">31</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>

