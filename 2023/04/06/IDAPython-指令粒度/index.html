@@ -28,7 +28,7 @@
 <meta property="og:description" content="使用IDAPython进行指令粒度的操作，其实主要就是关注如下几点：  如何从函数地址获取到指令 对指令进行分析：包括指令、操作数，其中又包含指令类型、操作数类型、操作数值  所使用到的API速查：    模块 API原型 功能说明    idautils FuncItems(ea) 获取地址ea所在函数的所有指令集合   idc GetDisasm(ea) 获取地址ea所在指令的反汇编（返回字符">
 <meta property="og:locale">
 <meta property="article:published_time" content="2023-04-05T17:22:41.000Z">
-<meta property="article:modified_time" content="2023-04-06T07:39:37.866Z">
+<meta property="article:modified_time" content="2023-04-11T05:47:36.540Z">
 <meta property="article:author" content="OneShell">
 <meta name="twitter:card" content="summary">
 
@@ -193,17 +193,27 @@
                 <i class="far fa-calendar"></i>
               </span>
               <span class="post-meta-item-text">Posted on</span>
-              
 
-              <time title="Created: 2023-04-06 01:22:41 / Modified: 15:39:37" itemprop="dateCreated datePublished" datetime="2023-04-06T01:22:41+08:00">2023-04-06</time>
+              <time title="Created: 2023-04-06 01:22:41" itemprop="dateCreated datePublished" datetime="2023-04-06T01:22:41+08:00">2023-04-06</time>
             </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-04-11 13:47:36" itemprop="dateModified" datetime="2023-04-11T13:47:36+08:00">2023-04-11</time>
+              </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
                 <i class="far fa-folder"></i>
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/" itemprop="url" rel="index"><span itemprop="name">工具党</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/IDAPython/" itemprop="url" rel="index"><span itemprop="name">IDAPython</span></a>
                 </span>
             </span>
 
@@ -313,6 +323,7 @@
 <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;ea = idc.here()</span><br><span class="line">Python&gt;idc.GetDisasm(ea)</span><br><span class="line"><span class="string">&#x27;BL              ProcUserLog&#x27;</span></span><br><span class="line">Python&gt;idc.get_operand_type(ea, <span class="number">0</span>)</span><br><span class="line"><span class="number">0x7</span></span><br><span class="line">Python&gt;idc.get_operand_value(ea, <span class="number">0</span>)</span><br><span class="line"><span class="number">0x41e2c</span></span><br></pre></td></tr></table></figure>
 <p>其中，地址0x41e2位于plt中：</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">.plt:00041E2C</span><br><span class="line">.plt:00041E2C</span><br><span class="line">.plt:00041E2C ; Attributes: thunk</span><br><span class="line">.plt:00041E2C</span><br><span class="line">.plt:00041E2C ProcUserLog</span><br><span class="line">.plt:00041E2C ADR             R12, 0x141E34</span><br><span class="line">.plt:00041E30 ADD             R12, R12, #0x41000</span><br><span class="line">.plt:00041E34 LDR             PC, [R12,#(ProcUserLog_ptr - 0x182E34)]! ; __imp_ProcUserLog</span><br><span class="line">.plt:00041E34 ; End of function ProcUserLog</span><br><span class="line">.plt:00041E34</span><br></pre></td></tr></table></figure>
+
     </div>
 
     
@@ -414,7 +425,7 @@
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-count">10</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">

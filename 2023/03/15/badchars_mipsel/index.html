@@ -28,7 +28,7 @@
 <meta property="og:description" content="pwnme反编译代码如下，可以看到会对写入的缓冲区逐个字节进行检查，如果包含x、g、a、.字符，则替换成0xEB。在程序中含有print_file函数，因此大概的思路是需要使用ROP带参数flag.txt调用print_file函数，同时需要找一个方法来规避pwnme函数对缓冲区中数字的过滤。 123456789101112131415161718192021222324int pwnme()&amp;#">
 <meta property="og:locale">
 <meta property="article:published_time" content="2023-03-15T02:13:27.000Z">
-<meta property="article:modified_time" content="2023-04-03T05:07:16.114Z">
+<meta property="article:modified_time" content="2023-04-11T05:54:56.068Z">
 <meta property="article:author" content="OneShell">
 <meta name="twitter:card" content="summary">
 
@@ -201,7 +201,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-03 13:07:16" itemprop="dateModified" datetime="2023-04-03T13:07:16+08:00">2023-04-03</time>
+                <time title="Modified: 2023-04-11 13:54:56" itemprop="dateModified" datetime="2023-04-11T13:54:56+08:00">2023-04-11</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -209,7 +209,11 @@
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/MIPS/" itemprop="url" rel="index"><span itemprop="name">MIPS</span></a>
                 </span>
             </span>
 
@@ -349,7 +353,7 @@
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-count">10</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">

@@ -28,7 +28,7 @@
 <meta property="og:description" content="这道题目的本质是如何让ROP去执行system，同时将命令&#x2F;bin&#x2F;cat flag.txt的地址传递给system函数。漏洞的溢出点还是非常简单，缓冲区位于：sp+18h，ra中的函数返回地址保存在：sp + 3ch，填充24h个数据后，开始覆盖掉返回地址。那么需要找个一个gadget可以控制a0寄存器，随后可以执行到system函数，非常巧的是，在该题目ELF中塞入了一个这">
 <meta property="og:locale">
 <meta property="article:published_time" content="2023-03-15T02:11:51.000Z">
-<meta property="article:modified_time" content="2023-04-03T05:03:10.582Z">
+<meta property="article:modified_time" content="2023-04-11T05:57:37.473Z">
 <meta property="article:author" content="OneShell">
 <meta name="twitter:card" content="summary">
 
@@ -201,7 +201,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-03 13:03:10" itemprop="dateModified" datetime="2023-04-03T13:03:10+08:00">2023-04-03</time>
+                <time title="Modified: 2023-04-11 13:57:37" itemprop="dateModified" datetime="2023-04-11T13:57:37+08:00">2023-04-11</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -209,7 +209,11 @@
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/MIPSROP/" itemprop="url" rel="index"><span itemprop="name">MIPSROP</span></a>
                 </span>
             </span>
 
@@ -338,7 +342,7 @@
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-count">10</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
