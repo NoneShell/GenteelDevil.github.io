@@ -168,6 +168,100 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/12/CVE-2015-2049%20Dlink%2093XL%E4%BB%BB%E6%84%8F%E6%96%87%E4%BB%B6%E4%B8%8A%E4%BC%A0/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="菜">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/12/CVE-2015-2049%20Dlink%2093XL%E4%BB%BB%E6%84%8F%E6%96%87%E4%BB%B6%E4%B8%8A%E4%BC%A0/" class="post-title-link" itemprop="url">CVE-2015-2049 Dlink 93XL任意文件上传</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-04-12 06:21:26 / Modified: 18:26:37" itemprop="dateCreated datePublished" datetime="2023-04-12T06:21:26+08:00">2023-04-12</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="CVE-2015-2049-Dlink-93XL-任意文件上传"><a href="#CVE-2015-2049-Dlink-93XL-任意文件上传" class="headerlink" title="CVE-2015-2049 Dlink 93XL 任意文件上传"></a>CVE-2015-2049 Dlink 93XL 任意文件上传</h1><h2 id="漏洞分析"><a href="#漏洞分析" class="headerlink" title="漏洞分析"></a>漏洞分析</h2><p>CVE-2015-2049 是发生在设备 Dlink 931L 上 1.04 版本的任意文件上传漏洞，漏洞允许通过认证的用户上传一个可执行脚本到指定目录，如果将目录设置到系统目录中，就会覆盖掉原有的系统文件，进而实现代码执行。该固件版本还被用于其他 Dlink 93X 系列 IP 摄像头，因此其他也可能存在此漏洞。</p>
+<p>此次漏洞复现采用的固件是 Dlink 931l 1.04 版本固件，固件下载地址见参考链接。</p>
+<p>存在漏洞的程序依旧是后端服务器 alphapd，通过分析 exploit.db 上的 exp，可以得到大概原理。<br>漏洞函数调用链通过调试如下，大概的流程就是保存文件并通过格式化字符串，然后通过 system 函数更改文件权限为 a+rwx。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">► f 0 0x42b6bc uploadfile+844</span><br><span class="line">  f 1 0x42ce94 websCgibinProcessor+1724</span><br><span class="line">  f 2 0x41573c websUrlProcessRequest+428</span><br><span class="line">  f 3 0x409a34 websReadEvent+920</span><br><span class="line">  f 4 0x40af24 websSocketEvent+140</span><br><span class="line">  f 5 0x4137f4 websSocketEventProcess+680</span><br><span class="line">  f 6 0x406df0 httpd_main+232</span><br><span class="line">  f 7 0x407620 main+772</span><br></pre></td></tr></table></figure>
+
+<p>存在任意文件上传的 uri 是 uploadfile.htm，选择上传文件路径和上传文件，点击 Upload File，会调用 setFileUpload。如下是上传文件并保存到 &#x2F;tmp&#x2F;test.sh 中。<br><img src="/images/image-2023-0412-182227290.png" alt="undifined"><br><img src="/images/image-2023-0412-182245226.png" alt="undifined"><br><img src="/images/image-2023-0412-182307962.png" alt="undifined"></p>
+<h2 id="环境搭建"><a href="#环境搭建" class="headerlink" title="环境搭建"></a>环境搭建</h2><p>在 main 函数中可以根据初始化流程来手动创建一些启动需要的文件。初始化流程是：读取相关 pid 文件、解析 SSL Key、从 nvram 中读取 IPAddress、最后根据 IP 和 port 启动 http 服务。SSL Key 解析不是非必要的，用 QEMU 模拟的时候如果报错可以忽略。</p>
+<p>那么首先手动创建相关的 pid 文件：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">mkdir ./var/run</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">创建 alphapd pid 文件</span></span><br><span class="line">touch ./var/run/alphapd.pid</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">创建 nvramd pid 文件</span></span><br><span class="line">touch ./var/run/nvramd.pid</span><br></pre></td></tr></table></figure>
+
+<p>然后根据 websStartupServer 启动流程，IP 地址是先从 getSysInfoLong 函数中获取，该函数通过读取 &#x2F;dev&#x2F;gpio 设备，仿真条件下没有该设备，读取会失败无法执行。那么手动对函数流程进行 patch，执行完 getSysInfoLong 后 v3 &#x3D; 0，然后跳转到 inet_ntoa 处执行，就会解析处 IP 地址为 0.0.0.0，然后在本地启动。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> __fastcall <span class="title function_">websStartupServer</span><span class="params">(<span class="type">int</span> a1)</span> &#123;</span><br><span class="line">  ...</span><br><span class="line">  v3 = getSysInfoLong(<span class="number">30</span>);</span><br><span class="line">  <span class="keyword">if</span> ( !v3</span><br><span class="line">    &amp;&amp; (v4 = (<span class="type">const</span> <span class="type">char</span> *)nvram_bufget(<span class="number">0</span>, <span class="string">&quot;IPAddress&quot;</span>),</span><br><span class="line">        trace(<span class="number">0</span>, <span class="string">&quot;Can&#x27;t get lan ip from sysinfo!\n&quot;</span>),</span><br><span class="line">        v3 = inet_addr(v4),</span><br><span class="line">        v3 == <span class="number">-1</span>) )</span><br><span class="line">  &#123;</span><br><span class="line">    trace(<span class="number">0</span>, <span class="string">&quot;failed to convert %s to binary ip data&quot;</span>, v4);</span><br><span class="line">    result = <span class="number">-1</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">else</span></span><br><span class="line">  &#123;</span><br><span class="line">    v5 = inet_ntoa(v3);</span><br><span class="line">    ...</span><br><span class="line">    result = websOpenListen(a1);</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> result;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>patch 如下：<br><img src="/images/image-2023-0412-182345533.png" alt="undifined"><br>服务启动成功：<br><img src="/images/image-2023-0412-182404037.png" alt="undifined"><br><img src="/images/image-2023-0412-182420441.png" alt="undifined"></p>
+<h2 id="漏洞复现"><a href="#漏洞复现" class="headerlink" title="漏洞复现"></a>漏洞复现</h2><p>然后最终的调试还是在 qemu-system-mipsel 搭建的 debian 虚拟机中进行的，原因如下：</p>
+<ol>
+<li><p>qemu-mipsel-static 的调试不能进入子进程追踪，设置了 set follow-fork-mode child 也不行</p>
+</li>
+<li><p>qemu-mipsel-static 搭建的 server 上传的文件属性无可执行，如下是使用 kali 搭建的 server 上传文件后的属性</p>
+</li>
+</ol>
+<p><img src="/images/image-2023-0412-182500484.png" alt="undifined"><br>漏洞复现没有什么可说的了，前面已经在漏洞分析过程使用 burpsuite 抓包然后上传文件，调试使用重放就行。<br>感兴趣的话可以看看 MSF 里面是如何利用该漏洞的，思路就是使用文件上传覆盖掉一些可开机自启的文件，然后实现命令执行。</p>
+<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>漏洞原理简单，搭建环境简单，没有什么难度。</p>
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://www.exploit-db.com/exploits/39192">[exploit-db] D-Link DCS-931L - Arbitrary File Upload (Metasploit)</a></li>
+<li><a target="_blank" rel="noopener" href="https://d3.driverscollection.com/-46693313106bb356827d84470ae/6e6dedeb53d2/4ea7d0b7ae412e6088176bf03682fbecc8d32328aec157addbf041def1c8cc4f801f760acb605007e45f6cb1213c1a2a618e14a1/4/48/41/1414948882/DCS-931L_FIRMWARE_1.04B1.ZIP">[固件下载] dlink 931l 1.04</a></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/12/CVE-2014-3936%20Dlink%20505%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1249,129 +1343,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/06/IDAPython-%E6%AE%B5%E7%B2%92%E5%BA%A6/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="菜">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/04/06/IDAPython-%E6%AE%B5%E7%B2%92%E5%BA%A6/" class="post-title-link" itemprop="url">IDAPython-段粒度</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-04-06 01:19:48" itemprop="dateCreated datePublished" datetime="2023-04-06T01:19:48+08:00">2023-04-06</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-11 13:48:03" itemprop="dateModified" datetime="2023-04-11T13:48:03+08:00">2023-04-11</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/" itemprop="url" rel="index"><span itemprop="name">工具党</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/IDAPython/" itemprop="url" rel="index"><span itemprop="name">IDAPython</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>简单说明了IDA的反汇编输出窗口内容、如何使用IDAPython对单条指令进行简单分析。后续的笔记将先分别从段（segment）、函数（function）、块（block）、指令（instruction）多个粒度，对IDAPython经常使用到的数据结构和函数API进行说明，然后再到分析必不可少的交叉引用（cross-references）和数据搜索（searching for code or data）。</p>
-<h2 id="segment的基本操作"><a href="#segment的基本操作" class="headerlink" title="segment的基本操作"></a>segment的基本操作</h2><p>如下是对段（segments）进行一些基本的操作。<code>idautils.Segments()</code>会返回一个迭代器，可以使用循环遍历当前文件的所有段对象。对于每一个段对象可以使用<code>idc.get_segm_name</code>获取段名、<code>idc.get_segm_start</code>获取段起始地址、<code>idc.get_segm_end</code>获取段的结束地址。</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> idautils</span><br><span class="line"><span class="keyword">for</span> seg <span class="keyword">in</span> idautils.Segments():</span><br><span class="line">    <span class="built_in">print</span>(idc.get_segm_name(seg), idc.get_segm_start(seg), idc.get_segm_end(seg))</span><br><span class="line">    </span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br><span class="line"><span class="string">LOAD 4194304 4194568</span></span><br><span class="line"><span class="string">REGINFO 4194568 4194592</span></span><br><span class="line"><span class="string">LOAD 4194592 4216248</span></span><br><span class="line"><span class="string">.init 4216248 4216384</span></span><br><span class="line"><span class="string">.text 4216384 4649072</span></span><br><span class="line"><span class="string">.MIPS.stubs 4649072 4651008</span></span><br><span class="line"><span class="string">.fini 4651008 4651096</span></span><br><span class="line"><span class="string">LOAD 4651096 4651104</span></span><br><span class="line"><span class="string">......</span></span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br></pre></td></tr></table></figure>
-<p>在实际的代码中，有时候需要对当前地址<code>ea</code>所在的段进行分析。<code>idc.get_segm_start(ea)</code>和<code>idc.get_segm_end(ea)</code>分别可以获取到地址<code>ea</code>所在的段的起始地址和结束地址；<code>idc.get_next_seg(ea)</code>可以获取到<code>ea</code>所在段的下一个段起始地址，然后没有找到对应的寻找上一个段起始地址的API。使用<code>idc.get_segm_name(ea)</code>则可以获取到当前地址<code>ea</code>所在段的段名。如下：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;ea = idc.here()</span><br><span class="line">Python&gt;idc.get_segm_start(ea)</span><br><span class="line"><span class="number">0x400120</span></span><br><span class="line">Python&gt;idc.get_segm_end(ea)</span><br><span class="line"><span class="number">0x46f8f8</span></span><br><span class="line">Python&gt;idc.get_next_seg(ea)</span><br><span class="line"><span class="number">0x46f8f8</span></span><br><span class="line">Python&gt;idc.get_segm_name(ea)</span><br><span class="line"><span class="string">&#x27;.text&#x27;</span></span><br><span class="line">Python&gt;idc.get_segm_name(<span class="number">0x46f8f8</span>)</span><br><span class="line"><span class="string">&#x27;.fini&#x27;</span></span><br></pre></td></tr></table></figure>
-
-<p>同样的，也可以根据段名来获取到段相关属性：<code>idc.get_segm_by_sel(idc.selector_by_name(str_SectionName))</code>。需要首先使用<code>idc.selector_by_name(str_SectionName)</code>获取到段名为<code>str_SectionName</code>的段选择器（selector），然后使用<code>idc.get_segm_by_sel()</code>来获取到段的起始地址。如下：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;str_SectionName = <span class="string">&quot;.text&quot;</span></span><br><span class="line">Python&gt;idc.get_segm_by_sel(idc.selector_by_name(str_SectionName))</span><br><span class="line"><span class="number">0x400120</span></span><br></pre></td></tr></table></figure>
-<h2 id="idc模块中常用的段操作函数"><a href="#idc模块中常用的段操作函数" class="headerlink" title="idc模块中常用的段操作函数"></a>idc模块中常用的段操作函数</h2><table>
-<thead>
-<tr>
-<th>api</th>
-<th>作用</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>get_segm_attr(segea, attr)</td>
-<td>根据段中的地址segea获取段的attr属性</td>
-</tr>
-<tr>
-<td>get_segm_start(ea)</td>
-<td>获取段起始地址</td>
-</tr>
-<tr>
-<td>get_segm_end(ea)</td>
-<td>获取段结束地址</td>
-</tr>
-<tr>
-<td>get_segm_name(ea)</td>
-<td>获取段名</td>
-</tr>
-</tbody></table>
-<h2 id="包含更多段操作的模块：ida-segment"><a href="#包含更多段操作的模块：ida-segment" class="headerlink" title="包含更多段操作的模块：ida_segment"></a>包含更多段操作的模块：ida_segment</h2><p><code>idc</code>模块中对段的操作实际上是对<code>ida_segment</code>模块中函数的封装，在<code>ida_segment</code>模块中还有更多段的数据结构和方法，例如：</p>
-<ul>
-<li>新增段：<code>add_segm</code></li>
-<li>删除段：<code>del_segm</code></li>
-<li>根据段名获取段：<code>get_segm_by_name</code></li>
-<li>根据当前地址获取段名：<code>get_segm_name</code></li>
-<li>设置段名：<code>set_segm_name</code></li>
-<li>设置段的起始地址：<code>set_segm_start</code>、<code>set_segm_end</code></li>
-<li>……</li>
-</ul>
-<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
-<li><a target="_blank" rel="noopener" href="https://www.hex-rays.com/products/ida/support/idapython_docs/idc.html">idc API documentation</a></li>
-<li><a target="_blank" rel="noopener" href="https://www.hex-rays.com/products/ida/support/idapython_docs/ida_segment.html">ida_segment API documentation</a></li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1441,7 +1412,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">34</span>
+          <span class="site-state-item-count">35</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
