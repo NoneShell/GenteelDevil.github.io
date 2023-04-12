@@ -168,6 +168,94 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/12/CVE-2016-1554%20Netgear%20wnap320%20AP%E4%BB%BB%E6%84%8F%E5%91%BD%E4%BB%A4%E6%89%A7%E8%A1%8C/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="菜">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/12/CVE-2016-1554%20Netgear%20wnap320%20AP%E4%BB%BB%E6%84%8F%E5%91%BD%E4%BB%A4%E6%89%A7%E8%A1%8C/" class="post-title-link" itemprop="url">CVE-2016-1554 Netgear wnap320 AP任意命令执行</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-04-12 06:28:22 / Modified: 18:33:30" itemprop="dateCreated datePublished" datetime="2023-04-12T06:28:22+08:00">2023-04-12</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/" itemprop="url" rel="index"><span itemprop="name">漏洞复现</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/IoT/" itemprop="url" rel="index"><span itemprop="name">IoT</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="漏洞概述"><a href="#漏洞概述" class="headerlink" title="漏洞概述"></a>漏洞概述</h2><h3 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h3><p><img src="/images/image-2023-0412-182900988.png" alt="undifined"><br>Netgear wnap320 access point是一款很老的路由器设备，早已经停产了。<br>CVE-2016-1554是上述设备的一个未授权任意命令执行漏洞，通过构造字段<code>macAddress</code>可以拼接成命令让路由器执行。</p>
+<h3 id="影响版本"><a href="#影响版本" class="headerlink" title="影响版本"></a>影响版本</h3><p>Netgear wnap320 access point Firmware &#x3D;&#x3D; v2.0.3</p>
+<h3 id="漏洞危害"><a href="#漏洞危害" class="headerlink" title="漏洞危害"></a>漏洞危害</h3><p>高危</p>
+<h2 id="漏洞复现"><a href="#漏洞复现" class="headerlink" title="漏洞复现"></a>漏洞复现</h2><h3 id="复现环境"><a href="#复现环境" class="headerlink" title="复现环境"></a>复现环境</h3><p>kali、qemu5.2</p>
+<h3 id="漏洞原理"><a href="#漏洞原理" class="headerlink" title="漏洞原理"></a>漏洞原理</h3><p>漏洞产生的原因是<code>boardDataWW.php</code>页面表单中，对于数据段<code>macAddress</code>的值在后端只做了符合”12个连续整数“字符串的验证，并没有对值整体合法性进行验证</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?php</span></span><br><span class="line">	<span class="variable">$flag</span>=<span class="literal">false</span>;</span><br><span class="line">	<span class="variable">$msg</span>=<span class="string">&#x27;&#x27;</span>;</span><br><span class="line">	<span class="keyword">if</span> (!<span class="keyword">empty</span>(<span class="variable">$_REQUEST</span>[<span class="string">&#x27;writeData&#x27;</span>])) &#123;</span><br><span class="line">        <span class="comment">// maxAddress字段不为空 且 reginfo字段值正确 且 macAddress中存在满足[0-9a-fA-F]字符串</span></span><br><span class="line">		<span class="keyword">if</span> (!<span class="keyword">empty</span>(<span class="variable">$_REQUEST</span>[<span class="string">&#x27;macAddress&#x27;</span>]) &amp;&amp; <span class="title function_ invoke__">array_search</span>(<span class="variable">$_REQUEST</span>[<span class="string">&#x27;reginfo&#x27;</span>],<span class="title function_ invoke__">Array</span>(<span class="string">&#x27;WW&#x27;</span>=&gt;<span class="string">&#x27;0&#x27;</span>,<span class="string">&#x27;NA&#x27;</span>=&gt;<span class="string">&#x27;1&#x27;</span>))!==<span class="literal">false</span> &amp;&amp; <span class="title function_ invoke__">ereg</span>(<span class="string">&quot;[0-9a-fA-F]&#123;12,12&#125;&quot;</span>,<span class="variable">$_REQUEST</span>[<span class="string">&#x27;macAddress&#x27;</span>],<span class="variable">$regs</span>)!==<span class="literal">false</span>) &#123;</span><br><span class="line">			<span class="comment">//echo &quot;test &quot;.$_REQUEST[&#x27;macAddress&#x27;].&quot; &quot;.$_REQUEST[&#x27;reginfo&#x27;];</span></span><br><span class="line">			<span class="comment">//exec(&quot;wr_mfg_data &quot;.$_REQUEST[&#x27;macAddress&#x27;].&quot; &quot;.$_REQUEST[&#x27;reginfo&#x27;],$dummy,$res);</span></span><br><span class="line">            <span class="comment">// 直接将macAddress与命令进行了拼接 存在命令注入</span></span><br><span class="line"> 			<span class="title function_ invoke__">exec</span>(<span class="string">&quot;wr_mfg_data -m &quot;</span>.<span class="variable">$_REQUEST</span>[<span class="string">&#x27;macAddress&#x27;</span>].<span class="string">&quot; -c &quot;</span>.<span class="variable">$_REQUEST</span>[<span class="string">&#x27;reginfo&#x27;</span>],<span class="variable">$dummy</span>,<span class="variable">$res</span>);</span><br><span class="line">            <span class="keyword">if</span> (<span class="variable">$res</span>==<span class="number">0</span>) &#123;</span><br><span class="line">                <span class="title function_ invoke__">conf_set_buffer</span>(<span class="string">&quot;system:basicSettings:apName netgear&quot;</span>.<span class="title function_ invoke__">substr</span>(<span class="variable">$_REQUEST</span>[<span class="string">&#x27;macAddress&#x27;</span>], -<span class="number">6</span>).<span class="string">&quot;\n&quot;</span>);</span><br><span class="line">                <span class="title function_ invoke__">conf_save</span>();</span><br><span class="line">                <span class="variable">$msg</span> = <span class="string">&#x27;Update Success!&#x27;</span>;</span><br><span class="line">                <span class="variable">$flag</span> = <span class="literal">true</span>;</span><br><span class="line">            &#125;</span><br><span class="line">      	&#125;</span><br><span class="line">        <span class="keyword">else</span></span><br><span class="line">			<span class="variable">$flag</span> = <span class="literal">true</span>;</span><br><span class="line">	&#125;</span><br><span class="line"><span class="meta">?&gt;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="漏洞复现-1"><a href="#漏洞复现-1" class="headerlink" title="漏洞复现"></a>漏洞复现</h3><p>使用qemu的system模式对路由器整体进行模拟，还是比较简单的，而且漏洞也是php漏洞，分析也不复杂。<br>首先进行固件的提取，比较简单，在官网上可以下载到存在漏洞版本的<a target="_blank" rel="noopener" href="https://www.downloads.netgear.com/files/GDC/WNAP320/WNAP320%20Firmware%20Version%202.0.3.zip">固件</a>，然后使用binwalk直接就可以将固件解压，得到的是squashfs文件系统。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">binwalk -Me WNAP320_V2.0.3_firmware.tar</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/image-2023-0412-182938583.png" alt="undifined"><br>使用qemu的system模式对路由器整体进行模拟，虚拟机的搭建过程以及文件系统的挂载可以参考<a target="_blank" rel="noopener" href="https://xz.aliyun.com/t/8494">此处</a>。<br>搭建完毕后分析路由器相关进程的启动，在文件夹<code>squashfs-root/etc/init.d</code>&#x2F;中的启动脚本进行分析，可以知道路由器的整体是由脚本<code>rcS</code>进行初始化的。于是挂载文件系统后直接启动脚本，对路由器进行初始化。<br><img src="/images/image-2023-0412-183006264.png" alt="undifined"><br>初始化完毕后，查看虚拟机的网络设置，对相关页面进行访问，看是否启动成功。<br><img src="/images/image-2023-0412-183031897.png" alt="undifined"><br>说明路由器的web服务至少是正常启动了，尝试使用EXP去打，的确存在命令执行漏洞<br><img src="/images/image-2023-0412-183044069.png" alt="undifined"></p>
+<h2 id="防护方案"><a href="#防护方案" class="headerlink" title="防护方案"></a>防护方案</h2><p>这个程序员就是只对符合标准的字符串进行了正则的匹配，但是却没有对字符串整体进行合法性的验证。</p>
+<h2 id="相关链接"><a href="#相关链接" class="headerlink" title="相关链接"></a>相关链接</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://xz.aliyun.com/t/8494">华为路由器漏洞CVE-2017-17215复现</a></li>
+<li><a target="_blank" rel="noopener" href="https://nvd.nist.gov/vuln/detail/CVE-2016-1555">https://nvd.nist.gov/vuln/detail/CVE-2016-1555</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.exploit-db.com/exploits/50069">https://www.exploit-db.com/exploits/50069</a></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/12/CVE-2015-2049%20Dlink%2093XL%E4%BB%BB%E6%84%8F%E6%96%87%E4%BB%B6%E4%B8%8A%E4%BC%A0/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1171,178 +1259,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/06/IDAPython-%E6%8C%87%E4%BB%A4%E7%B2%92%E5%BA%A6/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="菜">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/04/06/IDAPython-%E6%8C%87%E4%BB%A4%E7%B2%92%E5%BA%A6/" class="post-title-link" itemprop="url">IDAPython-指令粒度</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-04-06 01:22:41" itemprop="dateCreated datePublished" datetime="2023-04-06T01:22:41+08:00">2023-04-06</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-11 13:47:36" itemprop="dateModified" datetime="2023-04-11T13:47:36+08:00">2023-04-11</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/" itemprop="url" rel="index"><span itemprop="name">工具党</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/IDAPython/" itemprop="url" rel="index"><span itemprop="name">IDAPython</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>使用IDAPython进行指令粒度的操作，其实主要就是关注如下几点：</p>
-<ol>
-<li>如何从函数地址获取到指令</li>
-<li>对指令进行分析：包括指令、操作数，其中又包含指令类型、操作数类型、操作数值</li>
-</ol>
-<p>所使用到的API速查：</p>
-<table>
-<thead>
-<tr>
-<th>模块</th>
-<th>API原型</th>
-<th>功能说明</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>idautils</td>
-<td>FuncItems(ea)</td>
-<td>获取地址ea所在函数的所有指令集合</td>
-</tr>
-<tr>
-<td>idc</td>
-<td>GetDisasm(ea)</td>
-<td>获取地址ea所在指令的反汇编（返回字符串）</td>
-</tr>
-<tr>
-<td>idc</td>
-<td>next_head(ea)</td>
-<td>获取地址ea的下一条指令的地址</td>
-</tr>
-<tr>
-<td>idc</td>
-<td>prev_head(ea)</td>
-<td>获取地址ea的上一条指令的地址</td>
-</tr>
-<tr>
-<td>idc</td>
-<td>next_addr(ea)</td>
-<td>地址ea+1</td>
-</tr>
-<tr>
-<td>idc</td>
-<td>prev_addr(ea)</td>
-<td>地址ea-1</td>
-</tr>
-<tr>
-<td>idc</td>
-<td>print_insn_mnem(ea)</td>
-<td>获取地址ea所在指令的助记符（返回字符串）</td>
-</tr>
-<tr>
-<td>idc</td>
-<td>print_operand(ea, n)</td>
-<td>获取地址ea所在指令的第n个操作数（从0开始，返回字符串）</td>
-</tr>
-<tr>
-<td>idc</td>
-<td>get_operand_type(ea, n)</td>
-<td>获取地址ea所在指令的第n个操作数的类型</td>
-</tr>
-<tr>
-<td>idc</td>
-<td>get_operand_value(ea, n)</td>
-<td>获取地址ea所在指令的第n个操作数的值</td>
-</tr>
-</tbody></table>
-<h2 id="指令（construction）"><a href="#指令（construction）" class="headerlink" title="指令（construction）"></a>指令（construction）</h2><p>可以使用<code>idautils.FuncItems(ea)</code>来获取到当前地址<code>ea</code>所在函数的所有指令集合。如下，同时，可以使用<code>idc.GetDisasm(ea)</code>来获取到指令的反汇编。演示所用到的程序是cgibin，在<code>main</code>函数处。</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> idautils</span><br><span class="line"><span class="keyword">import</span> idc</span><br><span class="line"></span><br><span class="line">dism_items = idautils.FuncItems(here())</span><br><span class="line"><span class="keyword">for</span> item <span class="keyword">in</span> dism_items:</span><br><span class="line">	<span class="built_in">print</span>(<span class="built_in">hex</span>(item), idc.GetDisasm(item))</span><br><span class="line"></span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br><span class="line"><span class="string">Python&gt;</span></span><br><span class="line"><span class="string">0x402da0 addiu   $sp, -0x30</span></span><br><span class="line"><span class="string">0x402da4 sw      $ra, 0x20+var_sC($sp)</span></span><br><span class="line"><span class="string">0x402da8 sw      $s2, 0x20+var_s8($sp)</span></span><br><span class="line"><span class="string">0x402dac sw      $s1, 0x20+var_s4($sp)</span></span><br><span class="line"><span class="string">0x402db0 sw      $s0, 0x20+var_s0($sp)</span></span><br><span class="line"><span class="string">0x402db4 li      $gp, 0x43F7F0</span></span><br><span class="line"><span class="string">0x402dbc sw      $gp, 0x20+var_10($sp)</span></span><br><span class="line"><span class="string">0x402dc0 move    $s1, $a1</span></span><br><span class="line"><span class="string">0x402dc4 la      $t9, strrchr</span></span><br><span class="line"><span class="string">...</span></span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br></pre></td></tr></table></figure>
-<p><code>idautils.FuncItems(ea)</code>会获取<code>ea</code>地址所在函数的所有指令的地址，返回一个迭代器。<code>idc.GetDiasm(ea)</code>则是在第一小节的时候出现过用来打印指令的反汇编结果。<br>如果是要获取到当前指令<code>ea</code>的上一条指令的地址和下一条指令的地址，分别使用<code>idc.next_head</code>、<code>idc.prev_head</code>，当然这只是从代码段的地址顺序遍历指令，不会因为当前指令是某个跳转则遍历到跳转后的指令。这两条指令可以应用在遍历某一段地址的指令上。</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;ea = here()</span><br><span class="line">Python&gt;<span class="built_in">print</span>(<span class="built_in">hex</span>(ea))</span><br><span class="line"><span class="number">0x402da0</span></span><br><span class="line">Python&gt;idc.next_head(ea)</span><br><span class="line"><span class="number">0x402da4</span></span><br><span class="line">Python&gt;idc.prev_head(ea)</span><br><span class="line"><span class="number">0x402d9c</span></span><br></pre></td></tr></table></figure>
-<p>需要和这两个API进行区分：<code>idc.next_addr</code>、<code>idc.prev_addr</code>，这两条指令只会机械增加和减小地址：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;ea = here()</span><br><span class="line">Python&gt;<span class="built_in">print</span>(<span class="built_in">hex</span>(ea))</span><br><span class="line"><span class="number">0x402da0</span></span><br><span class="line">Python&gt;idc.next_addr(ea) <span class="comment"># 增加1</span></span><br><span class="line"><span class="number">0x402da1</span></span><br><span class="line">Python&gt;idc.prev_addr(ea) <span class="comment"># 减小1</span></span><br><span class="line"><span class="number">0x402d9f</span></span><br></pre></td></tr></table></figure>
-<h2 id="操作数（Operands）"><a href="#操作数（Operands）" class="headerlink" title="操作数（Operands）"></a>操作数（Operands）</h2><p>操作数的打印如下，主要就是可以将一条指令分解为助记符、操作数1、操作数2等，但是都是以字符串的形式进行打印。</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;idc.GetDisasm(ea)         <span class="comment"># 单条汇编指令</span></span><br><span class="line"><span class="string">&#x27;addiu   $sp, -0x30&#x27;</span></span><br><span class="line">Python&gt;idc.print_insn_mnem(ea)。 <span class="comment"># 打印助记符</span></span><br><span class="line"><span class="string">&#x27;addiu&#x27;</span></span><br><span class="line">Python&gt;idc.print_operand(ea, <span class="number">0</span>)  <span class="comment"># 打印第一个操作数</span></span><br><span class="line"><span class="string">&#x27;$sp&#x27;</span></span><br><span class="line">Python&gt;idc.print_operand(ea, <span class="number">1</span>)。<span class="comment"># 打印第二个操作数</span></span><br><span class="line"><span class="string">&#x27;-0x30&#x27;</span></span><br></pre></td></tr></table></figure>
-<h3 id="操作数类型（operand-type）"><a href="#操作数类型（operand-type）" class="headerlink" title="操作数类型（operand type）"></a>操作数类型（operand type）</h3><p>有时候需要对指令的操作数类型进行判断，例如某个命令执行函数通过寄存器传参，传入的是一个立即数（命令字符串地址）还是某个内存（函数栈变量）呢。使用<code>idc.get_operand_type(ea, n)</code>可以对操作数的类型进行判断，其中<code>ea</code>是当前指令地址，<code>n</code>是第<code>n+1</code>个操作数，例如<code>n=0</code>为第一个操作数。<br>操作数的类型如下，好气，居然没有MIPS的，实际测试也发现MIPS架构判断操作数类型不可用，如果要判断操作数类型就只能使用<code>idc.print_operand</code>来进行字符串的比较：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line">o_void     = ida_ua.o_void      <span class="comment"># No Operand                           ----------</span></span><br><span class="line">o_reg      = ida_ua.o_reg       <span class="comment"># General Register (al,ax,es,ds...)    reg</span></span><br><span class="line">o_mem      = ida_ua.o_mem       <span class="comment"># Direct Memory Reference  (DATA)      addr</span></span><br><span class="line">o_phrase   = ida_ua.o_phrase    <span class="comment"># Memory Ref [Base Reg + Index Reg]    phrase</span></span><br><span class="line">o_displ    = ida_ua.o_displ     <span class="comment"># Memory Reg [Base Reg + Index Reg + Displacement] phrase+addr</span></span><br><span class="line">o_imm      = ida_ua.o_imm       <span class="comment"># Immediate Value                      value</span></span><br><span class="line">o_far      = ida_ua.o_far       <span class="comment"># Immediate Far Address  (CODE)        addr</span></span><br><span class="line">o_near     = ida_ua.o_near      <span class="comment"># Immediate Near Address (CODE)        addr</span></span><br><span class="line">o_idpspec0 = ida_ua.o_idpspec0  <span class="comment"># Processor specific type</span></span><br><span class="line">o_idpspec1 = ida_ua.o_idpspec1  <span class="comment"># Processor specific type</span></span><br><span class="line">o_idpspec2 = ida_ua.o_idpspec2  <span class="comment"># Processor specific type</span></span><br><span class="line">o_idpspec3 = ida_ua.o_idpspec3  <span class="comment"># Processor specific type</span></span><br><span class="line">o_idpspec4 = ida_ua.o_idpspec4  <span class="comment"># Processor specific type</span></span><br><span class="line">o_idpspec5 = ida_ua.o_idpspec5  <span class="comment"># Processor specific type</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># x86</span></span><br><span class="line">o_trreg  =       ida_ua.o_idpspec0      <span class="comment"># trace register</span></span><br><span class="line">o_dbreg  =       ida_ua.o_idpspec1      <span class="comment"># debug register</span></span><br><span class="line">o_crreg  =       ida_ua.o_idpspec2      <span class="comment"># control register</span></span><br><span class="line">o_fpreg  =       ida_ua.o_idpspec3      <span class="comment"># floating point register</span></span><br><span class="line">o_mmxreg  =      ida_ua.o_idpspec4      <span class="comment"># mmx register</span></span><br><span class="line">o_xmmreg  =      ida_ua.o_idpspec5      <span class="comment"># xmm register</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># arm</span></span><br><span class="line">o_reglist  =     ida_ua.o_idpspec1      <span class="comment"># Register list (for LDM/STM)</span></span><br><span class="line">o_creglist  =    ida_ua.o_idpspec2      <span class="comment"># Coprocessor register list (for CDP)</span></span><br><span class="line">o_creg  =        ida_ua.o_idpspec3      <span class="comment"># Coprocessor register (for LDC/STC)</span></span><br><span class="line">o_fpreglist  =   ida_ua.o_idpspec4      <span class="comment"># Floating point register list</span></span><br><span class="line">o_text  =        ida_ua.o_idpspec5      <span class="comment"># Arbitrary text stored in the operand</span></span><br><span class="line">o_cond  =        (ida_ua.o_idpspec5+<span class="number">1</span>)  <span class="comment"># ARM condition as an operand</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># ppc</span></span><br><span class="line">o_spr  =         ida_ua.o_idpspec0      <span class="comment"># Special purpose register</span></span><br><span class="line">o_twofpr  =      ida_ua.o_idpspec1      <span class="comment"># Two FPRs</span></span><br><span class="line">o_shmbme  =      ida_ua.o_idpspec2      <span class="comment"># SH &amp; MB &amp; ME</span></span><br><span class="line">o_crf  =         ida_ua.o_idpspec3      <span class="comment"># crfield      x.reg</span></span><br><span class="line">o_crb  =         ida_ua.o_idpspec4      <span class="comment"># crbit        x.reg</span></span><br><span class="line">o_dcr  =         ida_ua.o_idpspec5      <span class="comment"># Device control register</span></span><br></pre></td></tr></table></figure>
-<h3 id="操作数值（operand-value）"><a href="#操作数值（operand-value）" class="headerlink" title="操作数值（operand value）"></a>操作数值（operand value）</h3><p>获取到了操作数的类型还不够，例如不仅需要知道某条指令的第一个操作数是寄存器，还需要知道寄存器编号。使用<code>idc.get_operand_value(ea, n)</code>可以获取到地址<code>ea</code>处指令的第<code>n+1</code>个操作数的值。该API是在<code>ida_ua</code>基础上进行封装的，代码如下。</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">get_operand_value</span>(<span class="params">ea, n</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    Get number used in the operand</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    This function returns an immediate number used in the operand</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    @param ea: linear address of instruction</span></span><br><span class="line"><span class="string">    @param n: the operand number</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    @return: value</span></span><br><span class="line"><span class="string">        operand is an immediate value  =&gt; immediate value</span></span><br><span class="line"><span class="string">        operand has a displacement     =&gt; displacement</span></span><br><span class="line"><span class="string">        operand is a direct memory ref =&gt; memory address</span></span><br><span class="line"><span class="string">        operand is a register          =&gt; register number</span></span><br><span class="line"><span class="string">        operand is a register phrase   =&gt; phrase number</span></span><br><span class="line"><span class="string">        otherwise                      =&gt; -1</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    insn = ida_ua.insn_t()</span><br><span class="line">    inslen = ida_ua.decode_insn(insn, ea)</span><br><span class="line">    <span class="keyword">if</span> inslen == <span class="number">0</span>:</span><br><span class="line">        <span class="keyword">return</span> -<span class="number">1</span></span><br><span class="line">    op = insn.ops[n]</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">not</span> op:</span><br><span class="line">        <span class="keyword">return</span> -<span class="number">1</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> op.<span class="built_in">type</span> <span class="keyword">in</span> [ ida_ua.o_mem, ida_ua.o_far, ida_ua.o_near, ida_ua.o_displ ]:</span><br><span class="line">        value = op.addr</span><br><span class="line">    <span class="keyword">elif</span> op.<span class="built_in">type</span> == ida_ua.o_reg:</span><br><span class="line">        value = op.reg</span><br><span class="line">    <span class="keyword">elif</span> op.<span class="built_in">type</span> == ida_ua.o_imm:</span><br><span class="line">        value = op.value</span><br><span class="line">    <span class="keyword">elif</span> op.<span class="built_in">type</span> == ida_ua.o_phrase:</span><br><span class="line">        value = op.phrase</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        value = -<span class="number">1</span></span><br><span class="line">    <span class="keyword">return</span> value</span><br></pre></td></tr></table></figure>
-<p>可以看到函数注释中的返回值类型和结果：</p>
-<ul>
-<li>操作数是立即数：返回立即数</li>
-<li>操作数是displacement：（俺不晓得）</li>
-<li>操作数是直接内存引用：内存地址</li>
-<li>操作数是寄存器：寄存器编号</li>
-<li>操作数是register phrase：（俺不晓得）</li>
-</ul>
-<h2 id="指令分析示例"><a href="#指令分析示例" class="headerlink" title="指令分析示例"></a>指令分析示例</h2><p>那没办法，随便找了一个ARM架构为例，如下，该指令的第一个操作数和第二个操作数类型都是寄存器：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;ea = idc.here()</span><br><span class="line">Python&gt;idc.GetDisasm(ea)            <span class="comment"># 反编译指令</span></span><br><span class="line"><span class="string">&#x27;MOV             R4, R0&#x27;</span></span><br><span class="line">Python&gt;idc.get_operand_type(ea, <span class="number">0</span>)  <span class="comment"># 第一个操作数类型：寄存器</span></span><br><span class="line"><span class="number">0x1</span></span><br><span class="line">Python&gt;idc.get_operand_value(ea, <span class="number">0</span>) <span class="comment"># 第一个操作数值：寄存器编号4-&gt;R4</span></span><br><span class="line"><span class="number">0x4</span></span><br><span class="line">Python&gt;idc.get_operand_type(ea, <span class="number">1</span>)  <span class="comment"># 第二个操作数类型：寄存器</span></span><br><span class="line"><span class="number">0x1</span></span><br><span class="line">Python&gt;idc.get_operand_value(ea, <span class="number">1</span>) <span class="comment"># 第二个操作数值：寄存器编号0-&gt;R0</span></span><br><span class="line"><span class="number">0x0</span></span><br></pre></td></tr></table></figure>
-<p>同样，对一个<code>LDR</code>指令进行分析：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;ea = idc.here()</span><br><span class="line">Python&gt;idc.GetDisasm(ea)</span><br><span class="line"><span class="string">&#x27;LDR             R3, =aTagSIsEmpty; &quot;tag %s is empty\\n&quot;&#x27;</span></span><br><span class="line">Python&gt;idc.get_operand_type(ea, <span class="number">0</span>)  <span class="comment"># 第一个操作数类型：寄存器</span></span><br><span class="line"><span class="number">0x1</span></span><br><span class="line">Python&gt;idc.get_operand_value(ea, <span class="number">0</span>) <span class="comment"># 第一个操作数值：寄存器编号3-&gt;R3</span></span><br><span class="line"><span class="number">0x3</span></span><br><span class="line">Python&gt;idc.get_operand_type(ea, <span class="number">1</span>)  <span class="comment"># 第二个操作数类型：直接内存引用</span></span><br><span class="line"><span class="number">0x2</span></span><br><span class="line">Python&gt;idc.get_operand_value(ea, <span class="number">1</span>) <span class="comment"># 第二个操作数值：内存的地址0x12a8ac</span></span><br><span class="line"><span class="number">0x12a8ac</span></span><br></pre></td></tr></table></figure>
-<p>跳转到地址0x12a8ac，此处的确存储的是字符串的地址。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">.text:0012A8AC off_12A8AC      DCD aTagSIsEmpty        ; DATA XREF: sub_12A774+C8↑r</span><br><span class="line">.text:0012A8AC                                         ; &quot;tag %s is empty\n&quot;</span><br></pre></td></tr></table></figure>
-<p>对一个跳转指令<code>BL</code>进行分析：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;ea = idc.here()</span><br><span class="line">Python&gt;idc.GetDisasm(ea)</span><br><span class="line"><span class="string">&#x27;BL              ProcUserLog&#x27;</span></span><br><span class="line">Python&gt;idc.get_operand_type(ea, <span class="number">0</span>)</span><br><span class="line"><span class="number">0x7</span></span><br><span class="line">Python&gt;idc.get_operand_value(ea, <span class="number">0</span>)</span><br><span class="line"><span class="number">0x41e2c</span></span><br></pre></td></tr></table></figure>
-<p>其中，地址0x41e2位于plt中：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">.plt:00041E2C</span><br><span class="line">.plt:00041E2C</span><br><span class="line">.plt:00041E2C ; Attributes: thunk</span><br><span class="line">.plt:00041E2C</span><br><span class="line">.plt:00041E2C ProcUserLog</span><br><span class="line">.plt:00041E2C ADR             R12, 0x141E34</span><br><span class="line">.plt:00041E30 ADD             R12, R12, #0x41000</span><br><span class="line">.plt:00041E34 LDR             PC, [R12,#(ProcUserLog_ptr - 0x182E34)]! ; __imp_ProcUserLog</span><br><span class="line">.plt:00041E34 ; End of function ProcUserLog</span><br><span class="line">.plt:00041E34</span><br></pre></td></tr></table></figure>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1412,7 +1328,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">35</span>
+          <span class="site-state-item-count">36</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
