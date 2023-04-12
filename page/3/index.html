@@ -168,6 +168,92 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/03/29/%E6%A0%91%E8%8E%93%E6%B4%BE%E6%8A%98%E8%85%BE%E6%97%A5%E8%AE%B0-%E4%BD%BF%E7%94%A8minicom%E5%92%8CK2P%E8%BF%9B%E8%A1%8C%E9%80%9A%E4%BF%A1/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="菜">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/03/29/%E6%A0%91%E8%8E%93%E6%B4%BE%E6%8A%98%E8%85%BE%E6%97%A5%E8%AE%B0-%E4%BD%BF%E7%94%A8minicom%E5%92%8CK2P%E8%BF%9B%E8%A1%8C%E9%80%9A%E4%BF%A1/" class="post-title-link" itemprop="url">树莓派折腾日记-使用minicom和K2P进行通信</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-03-29 03:12:08 / Modified: 17:21:44" itemprop="dateCreated datePublished" datetime="2023-03-29T03:12:08+08:00">2023-03-29</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>这篇文章本质是上说明一下minicom的使用，和树莓派设备倒是没有太大的关系，Linux平台、WSL、Mac都是通用的。</p>
+<h2 id="minicom"><a href="#minicom" class="headerlink" title="minicom"></a>minicom</h2><p>minicom是Linux下的一个常用的命令行串口调试工具，可以串口和硬件设备进行通信，通常用于嵌入式设备中。安装minicom非常简单：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get install minicom</span><br></pre></td></tr></table></figure>
+<p>选项说明：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">-b, --baudrate         : 设置波特率，忽略配置文件</span><br><span class="line">-D, --device           : 指定串口设备，Linux下的设备/dev/ttyUSB这样，忽略配置文件</span><br><span class="line">-s, --setup            : 进入设置模式</span><br><span class="line">-o, --noinit           : 启动时不初始化modem和lockfiles</span><br><span class="line">-m, --metakey          : use meta or alt key for commands</span><br><span class="line">-M, --metakey8         : use 8bit meta key for commands</span><br><span class="line">-l, --ansi             : literal; assume screen uses non IBM-PC character set</span><br><span class="line">-L, --iso              : don&#x27;t assume screen uses ISO8859</span><br><span class="line">-w, --wrap             : Linewrap on</span><br><span class="line">-H, --displayhex       : display output in hex</span><br><span class="line">-z, --statline         : 尝试使用终端的状态栏</span><br><span class="line">-7, --7bit             : 强制使用7位模式</span><br><span class="line">-8, --8bit             : 强制使用8位模式</span><br><span class="line">-c, --color=on/off     : 开启或者关闭ANSI风格颜色用法</span><br><span class="line">-a, --attrib=on/off    : 开启或者关闭高亮属性</span><br><span class="line">-t, --term=TERM        : 覆盖TERM环境变量</span><br><span class="line">-S, --script=SCRIPT    : 启动时运行脚本</span><br><span class="line">-d, --dial=ENTRY       : dial ENTRY from the dialing directory</span><br><span class="line">-p, --ptty=TTYP        : 连接到伪终端</span><br><span class="line">-C, --capturefile=FILE : 捕获终端输出并保存到文件中</span><br><span class="line">--capturefile-buffer-mode=MODE : set buffering mode of capture file</span><br><span class="line">-F, --statlinefmt      : format of status line</span><br><span class="line">-R, --remotecharset    : character set of communication partner</span><br><span class="line">-v, --version          : 版本信息</span><br><span class="line">-h, --help             : 帮助文档</span><br><span class="line">configuration          : 指定minicom配置文件启动</span><br></pre></td></tr></table></figure>
+<p>启动minicom有两种方式，一种是先对当前文件设置一个配置文件，配置文件包括波特率、校验位等等信息，后续通过该配置文件启动；另一种是直接在终端命令配置启动。</p>
+<p>我买的ch341a编程器支持TTL和编程器两种模式，只需要将跳帽连接到对应模式引脚即可。连接线我买的是钻石头（形状）探针，前端是4个弹簧收缩的探针，这样在测试引脚的时候就不用先焊接到板子的UART端口上。<br><img src="/images/image-2023-0329-162438893.png" alt="undifined"></p>
+<p>实验使用的K2P板子上的UART口也非常明显，还贴心标明了端口，那么连接的时候使用跳线将板子上的TX和编程器的RXD连接、板子上的RX和编程器的TXD连接，设置好minicom就可以进行通信了<br><img src="/images/image-2023-0329-162845546.png" alt="undifined"><br>工作时的探针+K2P+树莓派如下：<br><img src="/images/image-2023-0329-171322420.png" alt="undifined"></p>
+<p>当编程器连接到树莓派时，出现设备&#x2F;dev&#x2F;ttyUSB0，后续在minicom中设置<br><img src="/images/image-2023-0329-165128592.png" alt="undifined"></p>
+<h2 id="1-从配置文件启动"><a href="#1-从配置文件启动" class="headerlink" title="1. 从配置文件启动"></a>1. 从配置文件启动</h2><p>minicom的配置文件保存在&#x2F;etc&#x2F;minicom&#x2F;目录下，因此如果要保存当前的设置到配置文件或者默认配置，必须以root权限运行minicom。<br>进入minicom，然后在Serial port setup中进行配置：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo minicom -s</span><br></pre></td></tr></table></figure>
+<p><img src="/images/image-2023-0329-170309270.png" alt="undifined"><br>设置波特率&#x3D;57600，8N1。要修改某个选项就按下对应的按键即可，例如修改串口设备，按下A，则可以修改。<br><img src="/images/image-2023-0329-170147829.png" alt="undifined"><br>保存完毕后，ESC退出，Save setup as ..。例如我保存为K2P的配置文件。<br><img src="/images/image-2023-0329-170506679.png" alt="undifined"><br>再退出，就可以按照当前的配置进行通信了。熟悉折腾的可以看出，这个K2P已经被我刷了Breed（不死鸟，一个bootloader）了。<br><img src="/images/image-2023-0329-170828970.png" alt="undifined"></p>
+<p>下次启动，则可以直接指定当前设备的配置文件：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo minicom K2P</span><br></pre></td></tr></table></figure>
+<h2 id="2-命令行配置启动"><a href="#2-命令行配置启动" class="headerlink" title="2. 命令行配置启动"></a>2. 命令行配置启动</h2><p>没有什么好说的，就是在命令行参数进行了相关的配置，例如下：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo minicom -b 57600 -D /dev/ttyUSB0 -8</span><br></pre></td></tr></table></figure>
+<p><img src="/images/image-2023-0329-171654138.png" alt="undifined"></p>
+<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>先简单说了一下minicom的相关配置，然后以K2P为例，使用探针和编程器连接到K2P的UART，配置好minicom的参数后，上电即可看到UART的相关输出。</p>
+<p>个人更加偏好将minicom的配置保存为一个设备配置文件，而后从中启动，这样比较方便。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/03/28/%E6%A0%91%E8%8E%93%E6%B4%BE%E6%8A%98%E8%85%BE%E6%97%A5%E8%AE%B0-%E8%AF%BB%E5%8F%96K2P%E7%9A%84SPI%20flash/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1063,110 +1149,10 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/03/09/gcc%E4%BC%98%E5%8C%96%E9%80%89%E9%A1%B9%E8%AF%B4%E6%98%8E/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="菜">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/03/09/gcc%E4%BC%98%E5%8C%96%E9%80%89%E9%A1%B9%E8%AF%B4%E6%98%8E/" class="post-title-link" itemprop="url">gcc优化选项说明</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-03-09 09:59:17" itemprop="dateCreated datePublished" datetime="2023-03-09T09:59:17+08:00">2023-03-09</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-11 13:46:14" itemprop="dateModified" datetime="2023-04-11T13:46:14+08:00">2023-04-11</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/" itemprop="url" rel="index"><span itemprop="name">工具党</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/gcc/" itemprop="url" rel="index"><span itemprop="name">gcc</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>在使用编译程序的时候，如果不启动优化选项，gcc会产生有利于调试的编译结果，例如使用gdb可以方便查看、修改源代码中的变量的值；如果启用优化选项，gcc会使用更多的编译时间和牺牲程序的可调试性为代价来提高程序的性能或者减少代码大小。</p>
-<p>在不同的gcc版本和目标平台下，同一个优化选项所启动的优化标识集合也不一样，可以使用<code>-Q --help=optimizers</code>来获取相应的优化选项采用的优化标识集。在下文中的每个<code>-f**</code>优化标识都可以在参考链接中查询到具体的含义。</p>
-<p>在编译源码+调试的过程中，使用到比较多的是<code>-O0</code>和<code>-Og</code>两个优化选项。<code>-O0</code>不会启动任何优化标识，能产生有利于调试的可执行程序，但是有些时候在编译大型程序（例如我在编译libc）的时候，使用该选项会报错；<code>-Og</code>则是进行合理优化的程度上保证了程序的可调试性。</p>
-<h2 id="O0"><a href="#O0" class="headerlink" title="-O0"></a>-O0</h2><p>减少编译时间，产生方便调试的程序，是gcc的默认设置</p>
-<h2 id="Og"><a href="#Og" class="headerlink" title="-Og"></a>-Og</h2><p>优化调试体验。提供合理的优化级别，同时保证快速编译和良好的调试体验。有时候修改Makefile到-O0会失败，这是因为编译器在收集调试信息的时候会禁用-O0，这个时候就可以使用-Og。</p>
-<h2 id="O、-O1"><a href="#O、-O1" class="headerlink" title="-O、-O1"></a>-O、-O1</h2><p>-O、- O1：二者是一样的，都是在不影响编译速度的前提下，采用一些优化算法来减少代码的大小和提高代码的运行速度，开启的优化选项如下：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line">-fauto-inc-dec </span><br><span class="line">-fbranch-count-reg </span><br><span class="line">-fcombine-stack-adjustments </span><br><span class="line">-fcompare-elim </span><br><span class="line">-fcprop-registers </span><br><span class="line">-fdce </span><br><span class="line">-fdefer-pop </span><br><span class="line">-fdelayed-branch </span><br><span class="line">-fdse </span><br><span class="line">-fforward-propagate </span><br><span class="line">-fguess-branch-probability </span><br><span class="line">-fif-conversion </span><br><span class="line">-fif-conversion2 </span><br><span class="line">-finline-functions-called-once </span><br><span class="line">-fipa-modref </span><br><span class="line">-fipa-profile </span><br><span class="line">-fipa-pure-const </span><br><span class="line">-fipa-reference </span><br><span class="line">-fipa-reference-addressable </span><br><span class="line">-fmerge-constants </span><br><span class="line">-fmove-loop-invariants </span><br><span class="line">-fmove-loop-stores</span><br><span class="line">-fomit-frame-pointer </span><br><span class="line">-freorder-blocks </span><br><span class="line">-fshrink-wrap </span><br><span class="line">-fshrink-wrap-separate </span><br><span class="line">-fsplit-wide-types </span><br><span class="line">-fssa-backprop </span><br><span class="line">-fssa-phiopt </span><br><span class="line">-ftree-bit-ccp </span><br><span class="line">-ftree-ccp </span><br><span class="line">-ftree-ch </span><br><span class="line">-ftree-coalesce-vars </span><br><span class="line">-ftree-copy-prop </span><br><span class="line">-ftree-dce </span><br><span class="line">-ftree-dominator-opts </span><br><span class="line">-ftree-dse </span><br><span class="line">-ftree-forwprop </span><br><span class="line">-ftree-fre </span><br><span class="line">-ftree-phiprop </span><br><span class="line">-ftree-pta </span><br><span class="line">-ftree-scev-cprop </span><br><span class="line">-ftree-sink </span><br><span class="line">-ftree-slsr </span><br><span class="line">-ftree-sra </span><br><span class="line">-ftree-ter </span><br><span class="line">-funit-at-a-time</span><br></pre></td></tr></table></figure>
-
-
-
-<h2 id="O2"><a href="#O2" class="headerlink" title="-O2"></a>-O2</h2><p>在-O的基础上优化更多的选项，会增加编译时间、提高代码的性能。新增加的优化选项如下：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line">-falign-functions  -falign-jumps </span><br><span class="line">-falign-labels  -falign-loops </span><br><span class="line">-fcaller-saves </span><br><span class="line">-fcode-hoisting </span><br><span class="line">-fcrossjumping </span><br><span class="line">-fcse-follow-jumps  -fcse-skip-blocks </span><br><span class="line">-fdelete-null-pointer-checks </span><br><span class="line">-fdevirtualize  -fdevirtualize-speculatively </span><br><span class="line">-fexpensive-optimizations </span><br><span class="line">-ffinite-loops </span><br><span class="line">-fgcse  -fgcse-lm  </span><br><span class="line">-fhoist-adjacent-loads </span><br><span class="line">-finline-functions </span><br><span class="line">-finline-small-functions </span><br><span class="line">-findirect-inlining </span><br><span class="line">-fipa-bit-cp  -fipa-cp  -fipa-icf </span><br><span class="line">-fipa-ra  -fipa-sra  -fipa-vrp </span><br><span class="line">-fisolate-erroneous-paths-dereference </span><br><span class="line">-flra-remat </span><br><span class="line">-foptimize-sibling-calls </span><br><span class="line">-foptimize-strlen </span><br><span class="line">-fpartial-inlining </span><br><span class="line">-fpeephole2 </span><br><span class="line">-freorder-blocks-algorithm=stc </span><br><span class="line">-freorder-blocks-and-partition  -freorder-functions </span><br><span class="line">-frerun-cse-after-loop  </span><br><span class="line">-fschedule-insns  -fschedule-insns2 </span><br><span class="line">-fsched-interblock  -fsched-spec </span><br><span class="line">-fstore-merging </span><br><span class="line">-fstrict-aliasing </span><br><span class="line">-fthread-jumps </span><br><span class="line">-ftree-builtin-call-dce </span><br><span class="line">-ftree-loop-vectorize </span><br><span class="line">-ftree-pre </span><br><span class="line">-ftree-slp-vectorize </span><br><span class="line">-ftree-switch-conversion  -ftree-tail-merge </span><br><span class="line">-ftree-vrp </span><br><span class="line">-fvect-cost-model=very-cheap</span><br></pre></td></tr></table></figure>
-
-<h2 id="O3"><a href="#O3" class="headerlink" title="-O3"></a>-O3</h2><p>在-O2的优化选项基础上，采用了更多的向量化算法，利用现代CPU中的流水线、cache等特性提高代码的并行执行速度。该选项会增加代码大小。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">-fgcse-after-reload </span><br><span class="line">-fipa-cp-clone</span><br><span class="line">-floop-interchange </span><br><span class="line">-floop-unroll-and-jam </span><br><span class="line">-fpeel-loops </span><br><span class="line">-fpredictive-commoning </span><br><span class="line">-fsplit-loops </span><br><span class="line">-fsplit-paths </span><br><span class="line">-ftree-loop-distribution </span><br><span class="line">-ftree-partial-pre </span><br><span class="line">-funswitch-loops </span><br><span class="line">-fvect-cost-model=dynamic </span><br><span class="line">-fversion-loops-for-strides</span><br></pre></td></tr></table></figure>
-
-<h2 id="Os"><a href="#Os" class="headerlink" title="-Os"></a>-Os</h2><p>这个编译选项和-O3相反，-O3是牺牲代码的空间换取执行时间，-O4则是牺牲代码的执行时间降低代码大小，这在一些存储容量较少的设备中非常重要，例如嵌入式设备。<br>-Os也是在-O2的基础上，使用了如下的优化选项，通过优化选项可以看出是对代码的空白对齐进行了压缩之类的操作。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">-falign-functions  </span><br><span class="line">-falign-jumps </span><br><span class="line">-falign-labels  </span><br><span class="line">-falign-loops </span><br><span class="line">-fprefetch-loop-arrays  </span><br><span class="line">-freorder-blocks-algorithm=stc</span><br></pre></td></tr></table></figure>
-
-<h2 id="Ofast"><a href="#Ofast" class="headerlink" title="-Ofast"></a>-Ofast</h2><p>在-O3的优化选项基础上，无视严格的标准合规性（不是很懂什么意思）</p>
-<h2 id=""><a href="#" class="headerlink" title=""></a></h2><h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
-<li><a target="_blank" rel="noopener" href="https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html">Optimize Options (Using the GNU Compiler Collection (GCC))</a></li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/2/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><a class="extend next" rel="next" href="/page/4/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
+    <a class="extend prev" rel="prev" href="/page/2/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><a class="page-number" href="/page/5/">5</a><a class="extend next" rel="next" href="/page/4/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
   </nav>
 
 
@@ -1232,7 +1218,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">40</span>
+          <span class="site-state-item-count">41</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
