@@ -168,6 +168,120 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/03/10/%E8%B0%83%E8%AF%95httpd%E8%B0%83%E7%94%A8%E7%9A%84cgibin%E7%A8%8B%E5%BA%8F/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="菜">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/03/10/%E8%B0%83%E8%AF%95httpd%E8%B0%83%E7%94%A8%E7%9A%84cgibin%E7%A8%8B%E5%BA%8F/" class="post-title-link" itemprop="url">调试httpd调用的cgibin程序</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-03-10 03:23:06" itemprop="dateCreated datePublished" datetime="2023-03-10T03:23:06+08:00">2023-03-10</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-03-14 10:46:54" itemprop="dateModified" datetime="2023-03-14T10:46:54+08:00">2023-03-14</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>在调试dlink的httpd时，漏洞可能发生在httpd通过fork+execute调用的cgibin中，其中httpd解析网络请求中的字段，并且以环境变量的形式传递给cgibin进行处理。那么要调试cgibin就有两种方式：</p>
+<ol>
+<li>设置环境变量，然后直接调试cgibin。</li>
+<li>了解httpd是如何调用cgibin的，然后通过设置gdb调试子进程、catch exec，调试cgibin。</li>
+</ol>
+<p>方法1的优点是简单直接，缺点是需要了解httpd是如何处理、传递数据到环境变量，以免使用了实际上通不过httpd校验的环境变量；方法2的优点是直观，但是需要熟练掌握gdb调试子进程相关的知识。</p>
+<h2 id="httpd调用CGI上下文说明"><a href="#httpd调用CGI上下文说明" class="headerlink" title="httpd调用CGI上下文说明"></a>httpd调用CGI上下文说明</h2><p>和许多典型的httpdserver一样，传入到函数process_cgi中的参数a1是httpd所定义的数据结构，其中包含了一个网络请求的数据集合，例如请求方式REQUEST_METHOD、URI、SESSION等等。a1传递到process_cgi函数中进行处理，获取到需要调用的cgi，以及将需要处理的数据转化成环境变量集合到cgi中。在dir 850l的固件中，几乎所有的cgi都是通过链接的形式到程序cgibin，cgibin根据请求的不同来采用不同的接口（函数）进行处理。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">int __fastcall process_cgi(_DWORD *a1) </span><br><span class="line">&#123;</span><br><span class="line">......</span><br><span class="line">  v77 = spawn(*filename, filename, argv, v79, v75, v9, v8, a1 + 992);</span><br><span class="line">......</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>spawn函数则是一个典型的封装了fork+execve的函数，通过fork函数创建子进程，设置子进程的进程组、资源限制、重定向输入输出等。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">__pid_t</span> __fastcall <span class="title function_">spawn</span><span class="params">(<span class="type">const</span> <span class="type">char</span> *filename, <span class="type">char</span> *<span class="type">const</span> *argv, <span class="type">char</span> *<span class="type">const</span> *envp, <span class="type">int</span> a4, <span class="type">int</span> a5, <span class="type">int</span> a6, <span class="type">int</span> a7, <span class="type">char</span> *path)</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="type">__pid_t</span> result; <span class="comment">// $v0</span></span><br><span class="line">  <span class="type">int</span> v13; <span class="comment">// $a0</span></span><br><span class="line">  <span class="type">int</span> v14[<span class="number">4</span>]; <span class="comment">// [sp+18h] [-18h] BYREF</span></span><br><span class="line">  <span class="type">__pid_t</span> v15; <span class="comment">// [sp+28h] [-8h]</span></span><br><span class="line"></span><br><span class="line">  result = fork();  <span class="comment">// 创建子进程，此时的子进程依旧是httpd的程序镜像</span></span><br><span class="line">  <span class="keyword">if</span> ( result == <span class="number">-1</span> )</span><br><span class="line">  &#123;</span><br><span class="line">    v15 = <span class="number">-1</span>;</span><br><span class="line">    lerror(<span class="string">&quot;spawn: failed to create child process&quot;</span>);</span><br><span class="line">    <span class="keyword">goto</span> LABEL_6;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">if</span> ( !result )</span><br><span class="line">  &#123;</span><br><span class="line">    setpgid(<span class="number">0</span>, <span class="number">0</span>);  <span class="comment">// 改变子进程的进程组</span></span><br><span class="line">    sub_409C9C(<span class="number">13</span>, <span class="number">0</span>);</span><br><span class="line">    <span class="keyword">if</span> ( coredir )</span><br><span class="line">    &#123;</span><br><span class="line">      v14[<span class="number">3</span>] = <span class="number">0</span>;</span><br><span class="line">      v14[<span class="number">2</span>] = <span class="number">0</span>;</span><br><span class="line">      v14[<span class="number">1</span>] = <span class="number">0</span>;</span><br><span class="line">      v14[<span class="number">0</span>] = <span class="number">0</span>;</span><br><span class="line">      setrlimit64(<span class="number">4</span>, v14);  <span class="comment">// 设置资源限制</span></span><br><span class="line">    &#125;</span><br><span class="line">    dup2(a4, <span class="number">0</span>);  <span class="comment">// 复制文件描述符：标准输入和标准输出</span></span><br><span class="line">    dup2(a4, <span class="number">1</span>);</span><br><span class="line">    <span class="keyword">if</span> ( a5 != <span class="number">-1</span> )</span><br><span class="line">      dup2(a5, <span class="number">2</span>);</span><br><span class="line">    <span class="keyword">if</span> ( chdir(path) == <span class="number">-1</span> )</span><br><span class="line">    &#123;</span><br><span class="line">      v13 = <span class="number">5</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">else</span></span><br><span class="line">    &#123;</span><br><span class="line">      execve(filename, argv, envp);  <span class="comment">// 执行cgibin，将cgibin加载并替换掉子进程的httpd</span></span><br><span class="line">      v13 = <span class="number">6</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="built_in">exit</span>(v13);</span><br><span class="line">  &#125;</span><br><span class="line">  ++dword_42350C;</span><br><span class="line">  <span class="keyword">if</span> ( debug )</span><br><span class="line">  &#123;</span><br><span class="line">    v15 = result;</span><br><span class="line">    log_d(<span class="string">&quot;child process %d created&quot;</span>, result);</span><br><span class="line">LABEL_6:</span><br><span class="line">    result = v15;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> result;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>那么到此，回想之前的标题：如何调试httpd通过execute调用的cgibin，该问题就可以抽象为：如何调试子进程中通过execute调用的可执行文件。</p>
+<h2 id="调试原理"><a href="#调试原理" class="headerlink" title="调试原理"></a>调试原理</h2><p>默认情况下，gdb在调试多进程的时候，只会追踪父进程，例如执行完fork函数，fork的返回值是子进程的pid，gdb中实际上在调试的是父进程。如果要调试子进程，则需要在gdb中使用如下的命令：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">set follow-fork-mode child</span><br></pre></td></tr></table></figure>
+<p>上面命令解决了让gdb调试到子进程，但是有时候还需要同时调试父进程和子进程，如果仅仅是gdb在子进程中，父进程依旧会正常运行。那么，就可以使用如下的命令，使得在调试子进程的时候，父进程也暂停处于挂起的状态：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">set detach-on-fork off # 默认是on</span><br></pre></td></tr></table></figure>
+<p>上面两条命令结合起来就实现了同时调试父进程和子进程，那么这个时候也还有一个问题：在子进程中，execute调用cgibin是作为一个函数来实现的，单步步过该函数达不到调试目的，步进该函数更加容易陷入到函数的细节实现中。<br>对于调试cgibin，可以通过<code>catch exec</code>命令，来捕获执行新进程的事件。当进程使用execute重新执行一个程序时，gdb会中断程序的运行，到ld加载器start函数中。除此之外，还可以使用例如<code>catch exec /bin/ls</code>来指定需要捕获的具体进程加载程序事件。</p>
+<p>综上所述，调试通过fork+execute调用的程序，可以使用如下步骤：</p>
+<ol>
+<li>在fork的时候，执行gdb命令：<code>set follow-fork-mode child</code>，使得gdb开始调试子进程。</li>
+<li>同时，可以执行gdb命令：<code>set detach-on-fork off</code>，让在调试子进程的同时，父进程挂起。这样执行完子进程也可以返回到父进程中。</li>
+<li>执行gdb命令：<code>catch exec</code>，捕获子进程通过execute加载执行新程序的事件。</li>
+</ol>
+<h2 id="调试过程"><a href="#调试过程" class="headerlink" title="调试过程"></a>调试过程</h2><p>现在回归到具体的调试过程中。<br>当httpd执行到调用cgi的spawn函数中，此时准备执行fork函数，可以看到只有httpd一个进程，也就是父进程PID&#x3D;1444：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">pwndbg&gt; info inferiors</span><br><span class="line">  Num  Description       Executable</span><br><span class="line">* 1    process 1444      /home/utest/app/FirmAE/firmwares/_DIR850L_FW115KRb07.bin.extracted/squashfs-root/sbin/httpd</span><br></pre></td></tr></table></figure>
+<p>第一步需要保证在执行到spawn的时候，fork之后是进入了子进程，</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">  0x409d2c &lt;spawn+56&gt;     move   $s3, $a2</span><br><span class="line">► 0x409d30 &lt;spawn+60&gt;     jalr   $t9                           &lt;fork&gt;</span><br></pre></td></tr></table></figure>
+<p>此时，执行gdb命令：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">set follow-fork-mode child</span><br><span class="line">set detach-on-fork off</span><br></pre></td></tr></table></figure>
+<p><img src="/images/image-2023-0314-102612471.png" alt="undifined"><br>再查看进程信息，也可以确认此时gdb处于子进程中。此时也可以通过<code>inferiors Num</code>切换到父进程。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">pwndbg&gt; info inferiors</span><br><span class="line">  Num  Description       Executable</span><br><span class="line">  1    process 1444      /home/utest/app/FirmAE/firmwares/_DIR850L_FW115KRb07.bin.extracted/squashfs-root/sbin/httpd</span><br><span class="line">* 2    process 31740     /home/utest/app/FirmAE/firmwares/_DIR850L_FW115KRb07.bin.extracted/squashfs-root/sbin/httpd</span><br></pre></td></tr></table></figure>
+<p>继续在子进程中执行到execute函数，可以看到此时正准备加载执行<code>/htdocs/web/session.cgi</code>，该cgi实际上是一个链接到cgibin。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">  0x409e68 &lt;spawn+372&gt;    addiu  $a0, $zero, 5</span><br><span class="line">  0x409e6c &lt;spawn+376&gt;    lw     $t9, -0x7d7c($gp)</span><br><span class="line">  0x409e70 &lt;spawn+380&gt;    move   $a0, $s2</span><br><span class="line">► 0x409e74 &lt;spawn+384&gt;    jalr   $t9                           &lt;execve&gt;</span><br><span class="line">       path: 0x7ed330 ◂— &#x27;/htdocs/web/session.cgi&#x27;</span><br><span class="line">       argv: 0x4280f0 —▸ 0x7ed330 ◂— &#x27;/htdocs/web/session.cgi&#x27;</span><br><span class="line">       envp: 0x0</span><br></pre></td></tr></table></figure>
+<p>那么此时就应该执行gdb命令：<code>catch exec</code>，用来捕获子进程加载cgi的事件：<br><img src="/images/image-2023-0314-103640257.png" alt="undifined"><br>这个时候可以查看栈，来看httpd传递给cgi哪些环境变量（也就是需要处理的数据）：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">pwndbg&gt; stack 30</span><br><span class="line">00:0000│ fp sp 0x7fe2b4a0 ◂— 0x1</span><br><span class="line">01:0004│       0x7fe2b4a4 —▸ 0x7fe2bd23 ◂— &#x27;/htdocs/web/session.cgi&#x27;</span><br><span class="line">02:0008│       0x7fe2b4a8 ◂— 0x0</span><br><span class="line">03:000c│       0x7fe2b4ac —▸ 0x7fe2bd3b ◂— &#x27;HTTP_HOST=192.168.0.1&#x27;</span><br><span class="line">04:0010│       0x7fe2b4b0 —▸ 0x7fe2bd51 ◂— &#x27;HTTP_USER_AGENT=Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/110.0&#x27;</span><br><span class="line">05:0014│       0x7fe2b4b4 —▸ 0x7fe2bdb0 ◂— &#x27;HTTP_ACCEPT=*/*&#x27;</span><br><span class="line">06:0018│       0x7fe2b4b8 —▸ 0x7fe2bdc0 ◂— &#x27;HTTP_ACCEPT_LANGUAGE=en-US,en;q=0.5&#x27;</span><br><span class="line">07:001c│       0x7fe2b4bc —▸ 0x7fe2bde4 ◂— &#x27;HTTP_ACCEPT_ENCODING=gzip, deflate&#x27;</span><br><span class="line">08:0020│       0x7fe2b4c0 —▸ 0x7fe2be07 ◂— &#x27;HTTP_ORIGIN=http://192.168.0.1&#x27;</span><br><span class="line">09:0024│       0x7fe2b4c4 —▸ 0x7fe2be26 ◂— &#x27;HTTP_REFERER=http://192.168.0.1/index.php&#x27;</span><br><span class="line">0a:0028│       0x7fe2b4c8 —▸ 0x7fe2be50 ◂— &#x27;HTTP_COOKIE=uid=bjtsPYnEJz&#x27;</span><br><span class="line">0b:002c│       0x7fe2b4cc —▸ 0x7fe2be6b ◂— &#x27;GATEWAY_INTERFACE=CGI/1.1&#x27;</span><br><span class="line">0c:0030│       0x7fe2b4d0 —▸ 0x7fe2be85 ◂— &#x27;CONTENT_LENGTH=31&#x27;</span><br><span class="line">0d:0034│       0x7fe2b4d4 —▸ 0x7fe2be97 ◂— &#x27;CONTENT_TYPE=application/x-www-form-urlencoded&#x27;</span><br><span class="line">0e:0038│       0x7fe2b4d8 —▸ 0x7fe2bec6 ◂— &#x27;SCRIPT_FILENAME=/htdocs/web/session.cgi&#x27;</span><br><span class="line">0f:003c│       0x7fe2b4dc —▸ 0x7fe2beee ◂— &#x27;REQUEST_URI=/session.cgi&#x27;</span><br><span class="line">10:0040│       0x7fe2b4e0 —▸ 0x7fe2bf07 ◂— &#x27;REMOTE_ADDR=192.168.0.2&#x27;</span><br><span class="line">11:0044│       0x7fe2b4e4 —▸ 0x7fe2bf1f ◂— &#x27;REMOTE_PORT=45050&#x27;</span><br><span class="line">12:0048│       0x7fe2b4e8 —▸ 0x7fe2bf31 ◂— &#x27;REQUEST_METHOD=POST&#x27;</span><br><span class="line">13:004c│       0x7fe2b4ec —▸ 0x7fe2bf45 ◂— &#x27;SCRIPT_NAME=/session.cgi&#x27;</span><br><span class="line">14:0050│       0x7fe2b4f0 —▸ 0x7fe2bf5e ◂— &#x27;SERVER_NAME=192.168.0.1&#x27;</span><br><span class="line">15:0054│       0x7fe2b4f4 —▸ 0x7fe2bf76 ◂— &#x27;SERVER_ADDR=192.168.0.1&#x27;</span><br><span class="line">16:0058│       0x7fe2b4f8 —▸ 0x7fe2bf8e ◂— &#x27;SERVER_PORT=80&#x27;</span><br><span class="line">17:005c│       0x7fe2b4fc —▸ 0x7fe2bf9d ◂— &#x27;SERVER_SOFTWARE=Mathopd/1.6b9&#x27;</span><br><span class="line">18:0060│       0x7fe2b500 —▸ 0x7fe2bfbb ◂— &#x27;SERVER_ID=LAN-1&#x27;</span><br><span class="line">19:0064│       0x7fe2b504 —▸ 0x7fe2bfcb ◂— &#x27;SERVER_PROTOCOL=HTTP/1.1&#x27;</span><br><span class="line">1a:0068│       0x7fe2b508 ◂— 0x0</span><br></pre></td></tr></table></figure>
+<p>以前做毕设的时候，要实现对cgi的模糊测试，就是将AFL生产的数据通过设计的数据结构转换成环境变量到cgi 中去执行。</p>
+<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>如何调试httpd使用fork+execute执行的cgibin，本质上可以抽象为：如何调试通过fork+execute调用的程序，办法是：</p>
+<ol>
+<li>执行到fork函数，执行gdb命令：<code>set follow-fork-mode child</code>，使得gdb调试到子进程中。</li>
+<li>执行gdb命令：<code>set detach-on-fork off</code>，使得gdb在调试子进程的时候挂起父进程，这样也方便并行调试。</li>
+<li>执行到execute函数处，执行gdb命令：<code>catch exec</code>，捕获子进程通过execute调用执行cgi的事件。</li>
+</ol>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/03/09/gcc%E4%BC%98%E5%8C%96%E9%80%89%E9%A1%B9%E8%AF%B4%E6%98%8E/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1300,106 +1414,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2022/10/10/IDAPython-%E6%90%AD%E5%BB%BAVSCode%E7%BC%96%E8%BE%91%E7%8E%AF%E5%A2%83/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="菜">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2022/10/10/IDAPython-%E6%90%AD%E5%BB%BAVSCode%E7%BC%96%E8%BE%91%E7%8E%AF%E5%A2%83/" class="post-title-link" itemprop="url">IDAPython-搭建VSCode编辑环境</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2022-10-10 07:54:24" itemprop="dateCreated datePublished" datetime="2022-10-10T07:54:24+08:00">2022-10-10</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-11 13:47:50" itemprop="dateModified" datetime="2023-04-11T13:47:50+08:00">2023-04-11</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/" itemprop="url" rel="index"><span itemprop="name">工具党</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/IDAPython/" itemprop="url" rel="index"><span itemprop="name">IDAPython</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>写IDAPython的时候，需要解决的两个问题就是：</p>
-<ol>
-<li>如何脱离在IDA的python命令窗口进行编辑调试</li>
-<li>脱离之后，如何设置代码补全（easy）</li>
-</ol>
-<p>在本文中，将简单介绍使用VSCode + IDACode插件，实现脱离IDA的python命令窗口进行开发，并且通过设置python补全，达到良好的代码编辑体验。</p>
-<h2 id="环境说明"><a href="#环境说明" class="headerlink" title="环境说明"></a>环境说明</h2><ul>
-<li>Win10专业版</li>
-<li>IDA Pro 7.7，安装IDACode配套的插件</li>
-<li>VSCode，安装IDACode插件</li>
-<li>Python3.8.10</li>
-</ul>
-<h2 id="配置步骤"><a href="#配置步骤" class="headerlink" title="配置步骤"></a>配置步骤</h2><p>假设已经安装好了Python并且已经将Python的路径加入到了环境变量中。<br>接下来就是按照Github上官方的安装步骤进行配置</p>
-<h3 id="1-在IDA上安装IDACode调试需要的插件"><a href="#1-在IDA上安装IDACode调试需要的插件" class="headerlink" title="1. 在IDA上安装IDACode调试需要的插件"></a>1. 在IDA上安装IDACode调试需要的插件</h3><p>首先安装必要的python库，这是IDA中的IDACode插件需要的，此处安装也需要在IDA的Python中进行安装。<br>例如我的IDA中的Python是：<code>C:\Program Files\IDA_Pro_7.7\python38</code>，那么在命令行中打开该目录使用python安装库到IDA的python库目录site-packages中。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">python.exe -m pip install debugpy tornado --target ./Lib/site-packages # 如果慢使用下面的命令阿里源</span><br><span class="line">python.exe -m pip install debugpy tornado --target ./Lib/site-packages -i https://mirrors.aliyun.com/pypi/simple</span><br></pre></td></tr></table></figure>
-<p><img src="/images/Pastedimage20221011093011.png" alt="undifined"><br>将如下的文件从Github下载并放入到IDA的plugins文件夹中<br><img src="/images/Pastedimage20221010202706.png" alt="undifined"><br>然后打开IDA，看命令行窗口是否成功加载了插件，看是否有报错，如果有则想办法解决。如下就遇到说python路径不存在，提示是可以在idacode_utils&#x2F;settings.py中修改，那么修改为正确的路径<br><img src="/images/Pastedimage20221011093343.png" alt="undifined"><br><img src="/images/Pastedimage20221011093540.png" alt="undifined"><br>重新启动插件，已经成功加载<br><img src="/images/Pastedimage20221011093638.png" alt="undifined"></p>
-<h3 id="2-VSCode中安装IDACode插件"><a href="#2-VSCode中安装IDACode插件" class="headerlink" title="2. VSCode中安装IDACode插件"></a>2. VSCode中安装IDACode插件</h3><p>直接在VSCode的插件库中搜索IDACode，安装。然后开始创建一个简单的IDAPython脚本。<br><img src="/images/Pastedimage20221011093741.png" alt="undifined"></p>
-<p>首先在IDA中启用插件，开启IDACode server：Edit -&gt; Plugins -&gt; IDACode。如下，已经开始监听。<br><img src="/images/Pastedimage20221011094248.png" alt="undifined"><br>然后在VSCode中调出命令板：Ctrl + Shift + p，先选择Connect to IDA，然后选择一个路径用来暂存VSCode要发送到IDA中执行的脚本。<br><img src="/images/Pastedimage20221011094501.png" alt="undifined"><br><img src="/images/Pastedimage20221011094609.png" alt="undifined"><br>如下，可以在IDA的命令行窗口中看到，VSCode已经连接上。<br><img src="/images/Pastedimage20221011094743.png" alt="undifined"><br>有两种方式可以发送脚本到IDA中执行，一种是使用命令面板，另外一种更简单是Ctrl + s保存直接发送到IDA中执行。之前的示例脚本出了一点问题，重新编辑下。如下，可以看到，IDA中执行了脚本，到此，VSCode和IDA的联动设置完成。<br><img src="/images/Pastedimage20221011095556.png" alt="undifined"><br><img src="/images/Pastedimage20221011095530.png" alt="undifined"></p>
-<h3 id="3-设置pylance插件进行愉快代码补全"><a href="#3-设置pylance插件进行愉快代码补全" class="headerlink" title="3. 设置pylance插件进行愉快代码补全"></a>3. 设置pylance插件进行愉快代码补全</h3><p>如果想要愉快进行代码编写，补全是必不可少的。在VSCode中有一个强大的插件pylance，可以<br><img src="/images/Pastedimage20221011105306.png" alt="undifined"><br>将IDAPython库的路径添加到Extra Paths中，让pylance可以提取其中的信息进行补全。<br><img src="/images/Pastedimage20221011105718.png" alt="undifined"><br>此时就可以愉快进行代码的补全了，撒花~~~<br><img src="/images/Pastedimage20221011105624.png" alt="undifined"></p>
-<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
-<li><a target="_blank" rel="noopener" href="https://byteage.com/166.html">使用 VSCode 调试 IDAPython 脚本 - 字节时代</a></li>
-<li><a target="_blank" rel="noopener" href="https://github.com/ioncodes/idacode">GitHub - ioncodes&#x2F;idacode: An integration for IDA and VS Code which connects both to easily execute and debug IDAPython scripts.</a></li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1469,7 +1483,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">41</span>
+          <span class="site-state-item-count">42</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>

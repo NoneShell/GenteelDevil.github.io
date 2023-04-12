@@ -168,6 +168,106 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2022/10/10/IDAPython-%E6%90%AD%E5%BB%BAVSCode%E7%BC%96%E8%BE%91%E7%8E%AF%E5%A2%83/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="菜">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/10/10/IDAPython-%E6%90%AD%E5%BB%BAVSCode%E7%BC%96%E8%BE%91%E7%8E%AF%E5%A2%83/" class="post-title-link" itemprop="url">IDAPython-搭建VSCode编辑环境</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2022-10-10 07:54:24" itemprop="dateCreated datePublished" datetime="2022-10-10T07:54:24+08:00">2022-10-10</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-04-11 13:47:50" itemprop="dateModified" datetime="2023-04-11T13:47:50+08:00">2023-04-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/" itemprop="url" rel="index"><span itemprop="name">工具党</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/IDAPython/" itemprop="url" rel="index"><span itemprop="name">IDAPython</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>写IDAPython的时候，需要解决的两个问题就是：</p>
+<ol>
+<li>如何脱离在IDA的python命令窗口进行编辑调试</li>
+<li>脱离之后，如何设置代码补全（easy）</li>
+</ol>
+<p>在本文中，将简单介绍使用VSCode + IDACode插件，实现脱离IDA的python命令窗口进行开发，并且通过设置python补全，达到良好的代码编辑体验。</p>
+<h2 id="环境说明"><a href="#环境说明" class="headerlink" title="环境说明"></a>环境说明</h2><ul>
+<li>Win10专业版</li>
+<li>IDA Pro 7.7，安装IDACode配套的插件</li>
+<li>VSCode，安装IDACode插件</li>
+<li>Python3.8.10</li>
+</ul>
+<h2 id="配置步骤"><a href="#配置步骤" class="headerlink" title="配置步骤"></a>配置步骤</h2><p>假设已经安装好了Python并且已经将Python的路径加入到了环境变量中。<br>接下来就是按照Github上官方的安装步骤进行配置</p>
+<h3 id="1-在IDA上安装IDACode调试需要的插件"><a href="#1-在IDA上安装IDACode调试需要的插件" class="headerlink" title="1. 在IDA上安装IDACode调试需要的插件"></a>1. 在IDA上安装IDACode调试需要的插件</h3><p>首先安装必要的python库，这是IDA中的IDACode插件需要的，此处安装也需要在IDA的Python中进行安装。<br>例如我的IDA中的Python是：<code>C:\Program Files\IDA_Pro_7.7\python38</code>，那么在命令行中打开该目录使用python安装库到IDA的python库目录site-packages中。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">python.exe -m pip install debugpy tornado --target ./Lib/site-packages # 如果慢使用下面的命令阿里源</span><br><span class="line">python.exe -m pip install debugpy tornado --target ./Lib/site-packages -i https://mirrors.aliyun.com/pypi/simple</span><br></pre></td></tr></table></figure>
+<p><img src="/images/Pastedimage20221011093011.png" alt="undifined"><br>将如下的文件从Github下载并放入到IDA的plugins文件夹中<br><img src="/images/Pastedimage20221010202706.png" alt="undifined"><br>然后打开IDA，看命令行窗口是否成功加载了插件，看是否有报错，如果有则想办法解决。如下就遇到说python路径不存在，提示是可以在idacode_utils&#x2F;settings.py中修改，那么修改为正确的路径<br><img src="/images/Pastedimage20221011093343.png" alt="undifined"><br><img src="/images/Pastedimage20221011093540.png" alt="undifined"><br>重新启动插件，已经成功加载<br><img src="/images/Pastedimage20221011093638.png" alt="undifined"></p>
+<h3 id="2-VSCode中安装IDACode插件"><a href="#2-VSCode中安装IDACode插件" class="headerlink" title="2. VSCode中安装IDACode插件"></a>2. VSCode中安装IDACode插件</h3><p>直接在VSCode的插件库中搜索IDACode，安装。然后开始创建一个简单的IDAPython脚本。<br><img src="/images/Pastedimage20221011093741.png" alt="undifined"></p>
+<p>首先在IDA中启用插件，开启IDACode server：Edit -&gt; Plugins -&gt; IDACode。如下，已经开始监听。<br><img src="/images/Pastedimage20221011094248.png" alt="undifined"><br>然后在VSCode中调出命令板：Ctrl + Shift + p，先选择Connect to IDA，然后选择一个路径用来暂存VSCode要发送到IDA中执行的脚本。<br><img src="/images/Pastedimage20221011094501.png" alt="undifined"><br><img src="/images/Pastedimage20221011094609.png" alt="undifined"><br>如下，可以在IDA的命令行窗口中看到，VSCode已经连接上。<br><img src="/images/Pastedimage20221011094743.png" alt="undifined"><br>有两种方式可以发送脚本到IDA中执行，一种是使用命令面板，另外一种更简单是Ctrl + s保存直接发送到IDA中执行。之前的示例脚本出了一点问题，重新编辑下。如下，可以看到，IDA中执行了脚本，到此，VSCode和IDA的联动设置完成。<br><img src="/images/Pastedimage20221011095556.png" alt="undifined"><br><img src="/images/Pastedimage20221011095530.png" alt="undifined"></p>
+<h3 id="3-设置pylance插件进行愉快代码补全"><a href="#3-设置pylance插件进行愉快代码补全" class="headerlink" title="3. 设置pylance插件进行愉快代码补全"></a>3. 设置pylance插件进行愉快代码补全</h3><p>如果想要愉快进行代码编写，补全是必不可少的。在VSCode中有一个强大的插件pylance，可以<br><img src="/images/Pastedimage20221011105306.png" alt="undifined"><br>将IDAPython库的路径添加到Extra Paths中，让pylance可以提取其中的信息进行补全。<br><img src="/images/Pastedimage20221011105718.png" alt="undifined"><br>此时就可以愉快进行代码的补全了，撒花~~~<br><img src="/images/Pastedimage20221011105624.png" alt="undifined"></p>
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://byteage.com/166.html">使用 VSCode 调试 IDAPython 脚本 - 字节时代</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/ioncodes/idacode">GitHub - ioncodes&#x2F;idacode: An integration for IDA and VS Code which connects both to easily execute and debug IDAPython scripts.</a></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2022/09/20/%E5%A6%82%E4%BD%95%E6%90%AD%E5%BB%BA%E4%B8%80%E4%B8%AA%E5%8F%AF%E6%AD%A3%E5%B8%B8%E4%BD%BF%E7%94%A8%E7%9A%84mipsel%E8%99%9A%E6%8B%9F%E6%9C%BA/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -335,7 +435,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">41</span>
+          <span class="site-state-item-count">42</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
