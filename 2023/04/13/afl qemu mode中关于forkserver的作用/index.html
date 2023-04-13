@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"oneshell.top","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":true,"nav":{"gitalk":{"order":-2}},"activeClass":"gitalk"},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="afl qemu-mode 中关于 forkserver 作用之前在看 afl 源码，粗略看了大概，没有对判断逻辑仔细查看。我原本理解的 afl 创建目标程序进程的方式为：afl-fuzz 父进程先通过 init_forkserver 创建一个 forkserver 子进程，然后对于每次新产生的变异数据，都在 forkserver 进程中通过 fork 创建子进程，通过之前 dup2 函数将变异数">
+<meta property="og:type" content="article">
+<meta property="og:title" content="afl qemu mode中关于forkserver的作用">
+<meta property="og:url" content="https://oneshell.top/2023/04/13/afl%20qemu%20mode%E4%B8%AD%E5%85%B3%E4%BA%8Eforkserver%E7%9A%84%E4%BD%9C%E7%94%A8/index.html">
+<meta property="og:site_name" content="OneShell">
+<meta property="og:description" content="afl qemu-mode 中关于 forkserver 作用之前在看 afl 源码，粗略看了大概，没有对判断逻辑仔细查看。我原本理解的 afl 创建目标程序进程的方式为：afl-fuzz 父进程先通过 init_forkserver 创建一个 forkserver 子进程，然后对于每次新产生的变异数据，都在 forkserver 进程中通过 fork 创建子进程，通过之前 dup2 函数将变异数">
+<meta property="og:locale">
+<meta property="article:published_time" content="2023-04-13T01:53:28.000Z">
+<meta property="article:modified_time" content="2023-04-13T01:55:20.800Z">
+<meta property="article:author" content="OneShell">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://oneshell.top/2023/04/13/afl%20qemu%20mode%E4%B8%AD%E5%85%B3%E4%BA%8Eforkserver%E7%9A%84%E4%BD%9C%E7%94%A8/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>afl qemu mode中关于forkserver的作用 | OneShell</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">OneShell</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">I fight for a brighter tomorrow</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+        <li class="menu-item menu-item-schedule">
+
+    <a href="/schedule/" rel="section"><i class="fa fa-calendar fa-fw"></i>Schedule</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/13/afl%20qemu%20mode%E4%B8%AD%E5%85%B3%E4%BA%8Eforkserver%E7%9A%84%E4%BD%9C%E7%94%A8/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="菜">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          afl qemu mode中关于forkserver的作用
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-04-13 09:53:28 / Modified: 09:55:20" itemprop="dateCreated datePublished" datetime="2023-04-13T09:53:28+08:00">2023-04-13</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/" itemprop="url" rel="index"><span itemprop="name">工具党</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/AFL/" itemprop="url" rel="index"><span itemprop="name">AFL</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="afl-qemu-mode-中关于-forkserver-作用"><a href="#afl-qemu-mode-中关于-forkserver-作用" class="headerlink" title="afl qemu-mode 中关于 forkserver 作用"></a>afl qemu-mode 中关于 forkserver 作用</h1><p>之前在看 afl 源码，粗略看了大概，没有对判断逻辑仔细查看。我原本理解的 afl 创建目标程序进程的方式为：afl-fuzz 父进程先通过 init_forkserver 创建一个 forkserver 子进程，然后对于每次新产生的变异数据，都在 forkserver 进程中通过 fork 创建子进程，通过之前 dup2 函数将变异数据传递到目标程序进程的标准输入，再 execv 加载目标程序，进行执行。</p>
+<p>在 runtarget 函数中，只有当如下标志被设置了，才会使用上面描述的每次 fork 一个子进程，再 execve 这种每次需要额外花费进程生命周期（创建-&gt;执行-&gt;销毁）的方式：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (dumb_mode == <span class="number">1</span> || no_forkserver) </span><br></pre></td></tr></table></figure>
+
+<p>afl 采用的 forkserver 技术，实际上是只进行一次 execve 函数执行，之后对于目标程序进程，是通过写时拷贝技术从已经停止的目标程序进程直接拷贝进程镜像，这样就节约了大量的性能。</p>
+<p>最近在实现对于 cgi 的 fuzz，并且也还没有看过 afl-gcc 插桩的原理，此处就以 afl 的 qemu-mode 为例（似乎更加简介明了介绍 forkserver，源码编译的话，是汇编代码），简单介绍一下 afl 中 forkserver 的作用以及实现机制。</p>
+<h2 id="afl-qemu-mode-中的-forkserver"><a href="#afl-qemu-mode-中的-forkserver" class="headerlink" title="afl qemu-mode 中的 forkserver"></a>afl qemu-mode 中的 forkserver</h2><p>首先简单说明一下 qemu 的基本执行流程，当 qemu 执行一个程序的时候，需要将 elf 进行加载，从被执行程序的入口点开始对基本块进行翻译。为了提升效率，qemu 会将翻译出来的基本块 TB 存放在 cache 中，当 qemu 执行一个基本块的时候首先判断基本块是否在 cache 中，如果在 cache 则命中直接执行基本块 TB，否则翻译再执行。</p>
+<p>afl 的 qemu mode 在编译的时候对 qemu 的源码进行了修改 patch。首先在 elf 加载的时候在 elf 入口点、代码段的 start 和 end 三个地方修改，获得相关地址；然后在 cpu 执行也就是基本块翻译执行的地方进行了修改，也就是进行了与覆盖率统计和 forkserver 相关的插桩。详细的介绍可以看下我的这篇文章：<a href="https://oneshell.top/2022/01/03/afl%20qemu%E6%A8%A1%E5%BC%8F%E7%AE%80%E4%BB%8B/">afl qemu 模式简介</a></p>
+<p>afl 的 qemu 模式，在每次执行一个基本块的时候，会调用宏定义 AFL_QEMU_CPU_SNIPPET2 来与 afl-fuzz 进程通信。这也就是在 qemu 实现对于目标程序插桩的原理。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> AFL_QEMU_CPU_SNIPPET2 do &#123; \</span></span><br><span class="line"><span class="meta">    <span class="keyword">if</span>(itb-&gt;pc == afl_entry_point) &#123; \	</span></span><br><span class="line">      afl_setup(); \</span><br><span class="line">      afl_forkserver(cpu); \</span><br><span class="line">    &#125; \</span><br><span class="line">    afl_maybe_log(itb-&gt;pc); \</span><br><span class="line">  &#125; <span class="keyword">while</span> (<span class="number">0</span>)</span><br></pre></td></tr></table></figure>
+
+<p>如果当前执行的基本块是 afl_entry_point，也就是目标程序的入口点，就通过 afl_setup 函数初始化管道和共享内存，然后初始化 forkserver。然后通过 afl-maybe-log 往共享内存中设置覆盖率通信相关信息。此处主要是看一下 forkserver 是如何进行设置的。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* Fork server logic, invoked once we hit _start. */</span></span><br><span class="line"><span class="comment">// forkserver，会在程序的_start入口处激活一次</span></span><br><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">afl_forkserver</span><span class="params">(CPUState *cpu)</span> &#123;</span><br><span class="line"></span><br><span class="line">  <span class="type">static</span> <span class="type">unsigned</span> <span class="type">char</span> tmp[<span class="number">4</span>];</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (!afl_area_ptr) <span class="keyword">return</span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/* Tell the parent that we&#x27;re alive. If the parent doesn&#x27;t want</span></span><br><span class="line"><span class="comment">     to talk, assume that we&#x27;re not running in forkserver mode. */</span></span><br><span class="line">  <span class="comment">// 通过状态管道向afl-fuzz主进程说明，forkserver已经启动</span></span><br><span class="line">  <span class="comment">// 如果写入失败，默认没有使用forkserver模式，return结束</span></span><br><span class="line">  <span class="keyword">if</span> (write(FORKSRV_FD + <span class="number">1</span>, tmp, <span class="number">4</span>) != <span class="number">4</span>) <span class="keyword">return</span>;</span><br><span class="line">  <span class="comment">// 获取自身的进程号</span></span><br><span class="line">  afl_forksrv_pid = getpid();</span><br><span class="line"></span><br><span class="line">  <span class="comment">/* All right, let&#x27;s await orders... */</span></span><br><span class="line">  <span class="comment">// forkserver的主循环，也是在这个地方一直执行目标程序</span></span><br><span class="line">  <span class="keyword">while</span> (<span class="number">1</span>) &#123;</span><br><span class="line"></span><br><span class="line">    <span class="type">pid_t</span> child_pid;</span><br><span class="line">    <span class="type">int</span> status, t_fd[<span class="number">2</span>];</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Whoops, parent dead? */</span></span><br><span class="line">    <span class="comment">// 从afl-fuzz进程的控制管道读取控制信息，如果读取失败，说明afl-fuzz主进程已经结束</span></span><br><span class="line">    <span class="keyword">if</span> (read(FORKSRV_FD, tmp, <span class="number">4</span>) != <span class="number">4</span>) <span class="built_in">exit</span>(<span class="number">2</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Establish a channel with child to grab translation commands. We&#x27;ll</span></span><br><span class="line"><span class="comment">       read from t_fd[0], child will write to TSL_FD. */</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (pipe(t_fd) || dup2(t_fd[<span class="number">1</span>], TSL_FD) &lt; <span class="number">0</span>) <span class="built_in">exit</span>(<span class="number">3</span>);</span><br><span class="line">    close(t_fd[<span class="number">1</span>]);</span><br><span class="line"></span><br><span class="line">    child_pid = fork();</span><br><span class="line">    <span class="keyword">if</span> (child_pid &lt; <span class="number">0</span>) <span class="built_in">exit</span>(<span class="number">4</span>);</span><br><span class="line">    <span class="comment">// 进入子进程，</span></span><br><span class="line">    <span class="keyword">if</span> (!child_pid) &#123;</span><br><span class="line"></span><br><span class="line">      <span class="comment">/* Child process. Close descriptors and run free. */</span></span><br><span class="line">	  <span class="comment">// 关闭无关的管道描述符</span></span><br><span class="line">      afl_fork_child = <span class="number">1</span>;</span><br><span class="line">      close(FORKSRV_FD);</span><br><span class="line">      close(FORKSRV_FD + <span class="number">1</span>);</span><br><span class="line">      close(t_fd[<span class="number">0</span>]);</span><br><span class="line">      <span class="keyword">return</span>;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">	<span class="comment">// 进入forkserver进程</span></span><br><span class="line">    <span class="comment">/* Parent. */</span></span><br><span class="line"></span><br><span class="line">    close(TSL_FD);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (write(FORKSRV_FD + <span class="number">1</span>, &amp;child_pid, <span class="number">4</span>) != <span class="number">4</span>) <span class="built_in">exit</span>(<span class="number">5</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Collect translation requests until child dies and closes the pipe. */</span></span><br><span class="line"></span><br><span class="line">    afl_wait_tsl(cpu, t_fd[<span class="number">0</span>]);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Get and relay exit status to parent. */</span></span><br><span class="line">    <span class="comment">// 获取目标程序进程的结束信息，并通过状态管道写回到afl-fuzz主进程中</span></span><br><span class="line">    <span class="keyword">if</span> (waitpid(child_pid, &amp;status, <span class="number">0</span>) &lt; <span class="number">0</span>) <span class="built_in">exit</span>(<span class="number">6</span>);</span><br><span class="line">    <span class="keyword">if</span> (write(FORKSRV_FD + <span class="number">1</span>, &amp;status, <span class="number">4</span>) != <span class="number">4</span>) <span class="built_in">exit</span>(<span class="number">7</span>);</span><br><span class="line"></span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>forkserver 的代码主要流程就是：</p>
+<ol>
+<li>首先通过状态管道发送数据给 afl-fuzz 主进程，说明 forkserver 创建成功，然后进入 while(1) 循环。在循环中 forkserver 会 read 阻塞在控制管道，等待 alf-fuzz 主进程发送消息。</li>
+<li>从控制管道接受到 afl-fuzz 主进程发送的数据后，forkserver fork 出新的子进程，此时的子进程也就是新的目标程序进程，会关闭与afl-fuzz通信的管道，返回继续向下执行目标程序进程在 qemu 中的代码。此时父进程 forkserver 则将新 fork 出来的目标程序进程 pid 通过状态管道发送给afl-fuzz</li>
+<li>之后 forkserver 进程进入 afl_wait_tsl，不断循环处理目标程序进程翻译基本块的请求。</li>
+<li>最后当目标程序进程执行完毕后，forkserver 获取结束信息，将结束信息通过控制管道发送给 afl-fuzz 用于判断处理 crash。</li>
+</ol>
+<h2 id="相关函数解析"><a href="#相关函数解析" class="headerlink" title="相关函数解析"></a>相关函数解析</h2><p>如上是 qemu mode 中 forkserver 的基本流程，如下对中间涉及到的函数进行简单说明：</p>
+<h3 id="static-void-afl-setup-void"><a href="#static-void-afl-setup-void" class="headerlink" title="static void afl-setup(void)"></a>static void afl-setup(void)</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* Set up SHM region and initialize other stuff. */</span></span><br><span class="line"><span class="comment">// 设置共享内存和相关初始化</span></span><br><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">afl_setup</span><span class="params">(<span class="type">void</span>)</span> &#123;</span><br><span class="line">  <span class="comment">// 从环境变量SHM_ENV_VAR中获取共享内存ID</span></span><br><span class="line">  <span class="type">char</span> *id_str = getenv(SHM_ENV_VAR),</span><br><span class="line">       *inst_r = getenv(<span class="string">&quot;AFL_INST_RATIO&quot;</span>);</span><br><span class="line"></span><br><span class="line">  <span class="type">int</span> shm_id;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (inst_r) &#123;</span><br><span class="line"></span><br><span class="line">    <span class="type">unsigned</span> <span class="type">int</span> r;</span><br><span class="line"></span><br><span class="line">    r = atoi(inst_r);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (r &gt; <span class="number">100</span>) r = <span class="number">100</span>;</span><br><span class="line">    <span class="keyword">if</span> (!r) r = <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">    afl_inst_rms = MAP_SIZE * r / <span class="number">100</span>;</span><br><span class="line"></span><br><span class="line">  &#125;</span><br><span class="line">  </span><br><span class="line">  <span class="keyword">if</span> (id_str) &#123;</span><br><span class="line">    <span class="comment">// 获取共享内存ID</span></span><br><span class="line">    shm_id = atoi(id_str);</span><br><span class="line">    <span class="comment">// 获取共享内存指针</span></span><br><span class="line">    afl_area_ptr = shmat(shm_id, <span class="literal">NULL</span>, <span class="number">0</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (afl_area_ptr == (<span class="type">void</span>*)<span class="number">-1</span>) <span class="built_in">exit</span>(<span class="number">1</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* With AFL_INST_RATIO set to a low value, we want to touch the bitmap</span></span><br><span class="line"><span class="comment">       so that the parent doesn&#x27;t give up on us. */</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (inst_r) afl_area_ptr[<span class="number">0</span>] = <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (getenv(<span class="string">&quot;AFL_INST_LIBS&quot;</span>)) &#123;</span><br><span class="line"></span><br><span class="line">    afl_start_code = <span class="number">0</span>;</span><br><span class="line">    afl_end_code   = (abi_ulong)<span class="number">-1</span>;</span><br><span class="line"></span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/* pthread_atfork() seems somewhat broken in util/rcu.c, and I&#x27;m</span></span><br><span class="line"><span class="comment">     not entirely sure what is the cause. This disables that</span></span><br><span class="line"><span class="comment">     behaviour, and seems to work alright? */</span></span><br><span class="line">  <span class="comment">// 线程安全相关？</span></span><br><span class="line">  rcu_disable_atfork();</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>在 afl_setup 函数中，最主要的就是从相关环境变量获取到共享内存的指针，用于之后进行覆盖率信息统计。</p>
+<h3 id="static-void-afl-wait-tsl-CPUState-cpu-int-fd"><a href="#static-void-afl-wait-tsl-CPUState-cpu-int-fd" class="headerlink" title="static void afl_wait_tsl(CPUState *cpu, int fd)"></a>static void afl_wait_tsl(CPUState *cpu, int fd)</h3><p>首先通过分析 qemu mode 的 patch 可知，qemu 在翻译每一个基本块之后，都会执行宏 AFL_QEMU_CPU_SNIPPET1，</p>
+<figure class="highlight diff"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@@ -365,6 +369,7 @@</span></span><br><span class="line">             if (!tb) &#123;</span><br><span class="line">                 /* if no translated code available, then translate it now */</span><br><span class="line">                 tb = tb_gen_code(cpu, pc, cs_base, flags, 0);</span><br><span class="line"><span class="addition">+                AFL_QEMU_CPU_SNIPPET1;</span></span><br><span class="line">             &#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> AFL_QEMU_CPU_SNIPPET1 do &#123; \</span></span><br><span class="line"><span class="meta">    afl_request_tsl(pc, cs_base, flags); \</span></span><br><span class="line"><span class="meta">  &#125; while (0)</span></span><br></pre></td></tr></table></figure>
+
+<p>在宏中主要是执行函数 afl_request_tsl，代码如下，基本流程就是：目标程序进程如果需要翻译一个新的基本块，将基本块信息发送给forkserver，让其加入到基本块 cache 中。这样 forkserver 下次 fork 出来一个新的目标程序进程的时候，就可从 cache 中不用再次翻译基本块，提高性能。该函数是在 forkserver fork 出来的目标程序进程中执行。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* This code is invoked whenever QEMU decides that it doesn&#x27;t have a</span></span><br><span class="line"><span class="comment">   translation of a particular block and needs to compute it. When this happens,</span></span><br><span class="line"><span class="comment">   we tell the parent to mirror the operation, so that the next fork() has a</span></span><br><span class="line"><span class="comment">   cached copy. */</span></span><br><span class="line"><span class="comment">// 此代码只有当qemu翻译一个新的基本块tb时才会执行，并会将其加入到forkserver中，使得下一次fork目标程序进程有cache备份</span></span><br><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">afl_request_tsl</span><span class="params">(target_ulong pc, target_ulong cb, <span class="type">uint64_t</span> flags)</span> &#123;</span><br><span class="line"></span><br><span class="line">  <span class="class"><span class="keyword">struct</span> <span class="title">afl_tsl</span> <span class="title">t</span>;</span></span><br><span class="line">  </span><br><span class="line">  <span class="keyword">if</span> (!afl_fork_child) <span class="keyword">return</span>;</span><br><span class="line"></span><br><span class="line">  t.pc      = pc;</span><br><span class="line">  t.cs_base = cb;</span><br><span class="line">  t.flags   = flags;</span><br><span class="line">  <span class="comment">// 通过管道发送给forkserver，加入到基本块tb cache中</span></span><br><span class="line">  <span class="keyword">if</span> (write(TSL_FD, &amp;t, <span class="keyword">sizeof</span>(<span class="keyword">struct</span> afl_tsl)) != <span class="keyword">sizeof</span>(<span class="keyword">struct</span> afl_tsl))</span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>再次就是 afl_wait_tsl 函数，该函数在 forkserver 中执行。代码的流程是，forkserver 执行该函数进入死循环不断接受来自目标程序进程的基本块翻译情况，接收到信息说明目标程序进程翻译了一个新的基本块，那么 forkserver 就在自身的 cache 中搜索该基本块。如果该基本块不在 cache 中，则将该基本块加入到 cache，这样下一次 forkserver fork 新进程就可以使用该缓存，避免重复翻译，提高性能。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* This is the other side of the same channel. Since timeouts are handled by</span></span><br><span class="line"><span class="comment">   afl-fuzz simply killing the child, we can just wait until the pipe breaks. */</span></span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">afl_wait_tsl</span><span class="params">(CPUState *cpu, <span class="type">int</span> fd)</span> &#123;</span><br><span class="line"></span><br><span class="line">  <span class="class"><span class="keyword">struct</span> <span class="title">afl_tsl</span> <span class="title">t</span>;</span></span><br><span class="line">  TranslationBlock *tb;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">while</span> (<span class="number">1</span>) &#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Broken pipe means it&#x27;s time to return to the fork server routine. */</span></span><br><span class="line">	<span class="comment">// 循环接受来自fork出来的子进程的基本块翻译请求</span></span><br><span class="line">    <span class="keyword">if</span> (read(fd, &amp;t, <span class="keyword">sizeof</span>(<span class="keyword">struct</span> afl_tsl)) != <span class="keyword">sizeof</span>(<span class="keyword">struct</span> afl_tsl))</span><br><span class="line">      <span class="keyword">break</span>;</span><br><span class="line">	<span class="comment">// 从forkserver的基本块缓存中搜索fork出来的目标进程的基本块</span></span><br><span class="line">    tb = tb_htable_lookup(cpu, t.pc, t.cs_base, t.flags);</span><br><span class="line">	<span class="comment">// 如果forkserver的基本块缓存中没有搜索到，则翻译基本块并加入到forkserver的缓存中</span></span><br><span class="line">    <span class="keyword">if</span>(!tb) &#123;</span><br><span class="line">      mmap_lock();</span><br><span class="line">      tb_lock();</span><br><span class="line">      tb_gen_code(cpu, t.pc, t.cs_base, t.flags, <span class="number">0</span>);</span><br><span class="line">      mmap_unlock();</span><br><span class="line">      tb_unlock();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  close(fd);</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>总结这篇文章的原因是自己一直没有理解到 forkserver 是如何执行的，毕设涉及到 qemu mode，也需要稍微了解下其中的原理。其实 afl 的 qemu mode 从原理进行分析还是挺简单的，直接分析 patch 文件，看在 qemu 的哪些源码处进行了修改。然后再简单看一下是如何在 qemu 的翻译基本块前后进行相关判断和插桩的。代码量并不多，看完之后对 afl 有了更深的了解，也理解到了 forkserver 在 qemu 模式中是如何启动的，以及通过将每次新翻译的基本块加入到 forkserver 的 cache 中实现性能优化。</p>
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://www.cnblogs.com/hac425/p/11614235.html">[hac425师傅] 基于qemu和unicorn的Fuzz技术分析</a></li>
+<li><a href="https://oneshell.top/2022/01/03/afl%20qemu%E6%A8%A1%E5%BC%8F%E7%AE%80%E4%BB%8B/">[OneShell] afl-qemu模式简介</a></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/04/13/afl%20qemu%20mode%E7%AE%80%E4%BB%8B/" rel="prev" title="afl qemu mode简介">
+      <i class="fa fa-chevron-left"></i> afl qemu mode简介
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#afl-qemu-mode-%E4%B8%AD%E5%85%B3%E4%BA%8E-forkserver-%E4%BD%9C%E7%94%A8"><span class="nav-number">1.</span> <span class="nav-text">afl qemu-mode 中关于 forkserver 作用</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#afl-qemu-mode-%E4%B8%AD%E7%9A%84-forkserver"><span class="nav-number">1.1.</span> <span class="nav-text">afl qemu-mode 中的 forkserver</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%9B%B8%E5%85%B3%E5%87%BD%E6%95%B0%E8%A7%A3%E6%9E%90"><span class="nav-number">1.2.</span> <span class="nav-text">相关函数解析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#static-void-afl-setup-void"><span class="nav-number">1.2.1.</span> <span class="nav-text">static void afl-setup(void)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#static-void-afl-wait-tsl-CPUState-cpu-int-fd"><span class="nav-number">1.2.2.</span> <span class="nav-text">static void afl_wait_tsl(CPUState *cpu, int fd)</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B0%8F%E7%BB%93"><span class="nav-number">1.3.</span> <span class="nav-text">小结</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E9%93%BE%E6%8E%A5"><span class="nav-number">1.4.</span> <span class="nav-text">参考链接</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">OneShell</p>
+  <div class="site-description" itemprop="description">菜</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">46</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">15</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">OneShell</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : 'd364449d44c374dab007',
+      clientSecret: 'bb821aa84a81e3bd904d059c6e9ec7eb0e1cab4f',
+      repo        : 'BlogComments',
+      owner       : 'NoneShell',
+      admin       : ['NoneShell'],
+      id          : '07ee548cf7a436141c6d6065bca914c9',
+        language: 'zh-CN',
+      distractionFreeMode: true
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>
