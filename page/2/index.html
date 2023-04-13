@@ -168,6 +168,129 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/12/CVE-2016-11021%20dlink%20DCS-930L%E8%BF%9C%E7%A8%8B%E4%BB%A3%E7%A0%81%E6%89%A7%E8%A1%8C/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="菜">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/12/CVE-2016-11021%20dlink%20DCS-930L%E8%BF%9C%E7%A8%8B%E4%BB%A3%E7%A0%81%E6%89%A7%E8%A1%8C/" class="post-title-link" itemprop="url">CVE-2016-11021 dlink DCS-930L远程代码执行</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-04-12 06:36:00 / Modified: 18:39:04" itemprop="dateCreated datePublished" datetime="2023-04-12T06:36:00+08:00">2023-04-12</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/" itemprop="url" rel="index"><span itemprop="name">漏洞复现</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/IoT/" itemprop="url" rel="index"><span itemprop="name">IoT</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>D-Link DCS-930L 的一个认证远程代码执行漏洞。漏洞存在于固件版本 2.0.1 且在版本 2.12 被修复。漏洞发生在路由器的后端服务器 alphapd 中，允许经过登录认证的用户通过向 &#x2F;setSystemCommand 发送 POST 请求包执行命令。</p>
+<h2 id="漏洞分析"><a href="#漏洞分析" class="headerlink" title="漏洞分析"></a>漏洞分析</h2><p>通过分析 exploit.db 上的 exp，根据关键字符串 SystemCommand 可以大概得到如下的函数调用关系：</p>
+<p>函数 sub_421D30 根据 uri 中的 &#x2F;setSystemCommand 调用函数 sub_41E264。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">sub_421D30</span><span class="params">()</span></span><br><span class="line">  ...</span><br><span class="line">  <span class="title function_">sub_409D24</span><span class="params">(<span class="string">&quot;setSystemCommand&quot;</span>, sub_41E264)</span>;</span><br><span class="line">  ...</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure>
+
+<p>在函数 sub_41E264 中，通过调用函数 sub_409340 从 POST 数据中解析出 SystemCommand 字段的值作为执行命令，然后传递到函数 sub_438A10 执行传入的命令。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> __fastcall <span class="title function_">sub_41E264</span><span class="params">(<span class="type">int</span> a1)</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="type">const</span> <span class="type">char</span> *v3; <span class="comment">// $s0</span></span><br><span class="line">  ...</span><br><span class="line">  v3 = (<span class="type">const</span> <span class="type">char</span> *)sub_409340(a1, (<span class="type">int</span>)<span class="string">&quot;SystemCommand&quot;</span>, (<span class="type">int</span>)<span class="string">&quot;&quot;</span>);</span><br><span class="line">  sub_400320(<span class="number">1</span>, <span class="string">&quot;DoCommaon=%s\n&quot;</span>, v3); <span class="comment">// 日志记录</span></span><br><span class="line">  sub_438A10((<span class="type">int</span>)v3); <span class="comment">// 命令执行</span></span><br><span class="line">  <span class="keyword">return</span> sub_405528(a1, <span class="number">0</span>, (<span class="type">int</span>)<span class="string">&quot;ReplySuccessPage&quot;</span>, (<span class="type">int</span>)<span class="string">&quot;ReplyErrorPage&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>那么真正执行命令的函数是 sub_438A10，通过这个函数传入的参数也大概可以猜到这是用来命令执行的。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> __fastcall <span class="title function_">sub_438A10</span><span class="params">(<span class="type">int</span> a1)</span></span><br><span class="line">&#123;</span><br><span class="line">  ...</span><br><span class="line">        sub_43C0C0((<span class="type">int</span>)<span class="string">&quot;/bin/sh&quot;</span>, (<span class="type">int</span>)<span class="string">&quot;sh&quot;</span>, <span class="string">&quot;-c&quot;</span>, a1, <span class="number">0</span>);<span class="comment">// 这个函数应该是执行命令注入</span></span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>再理清一下函数调用链，就是：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">start -&gt; sub_400B4C -&gt; sub_409DE4 -&gt; sub_421D30 -&gt; sub_41E264 -&gt; sub_438A10 -&gt; sub_43C0C0</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>start：启动函数</li>
+<li>sub_400B4C：初始化操作，例如检查 nvram，设置 HTTP 服务端口等</li>
+<li>sub_409DE4：调用 sub_421D30</li>
+<li>sub_421D30：根据访问 uri 的不同设置响应的回调函数</li>
+<li>sub_41E264：解析 POST 包中的 SystemCommand 字段获取需要执行的命令</li>
+<li>sub_438A10：调用命令执行函数 sub_43C0C0</li>
+<li>sub_43C0C0：命令执行</li>
+</ul>
+<p>通过遍历固件中的所有 htm 文件，搜索字符串 setSystemCommand，可以定位到存在漏洞的页面</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">kali @ kali <span class="keyword">in</span> ~/firmware/dcs-930l/2.01.03/cpio-root [22:10:04]</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">find . -name <span class="string">&quot;*htm&quot;</span> | xargs grep <span class="string">&quot;setSystemCommand&quot;</span></span></span><br><span class="line">./etc_ro/web/docmd.htm:&lt;FORM ACTION=&quot;/setSystemCommand&quot; METHOD=&quot;POST&quot;&gt;</span><br></pre></td></tr></table></figure>
+
+<h2 id="环境搭建"><a href="#环境搭建" class="headerlink" title="环境搭建"></a>环境搭建</h2><h3 id="使用-qemu-mipsel-static"><a href="#使用-qemu-mipsel-static" class="headerlink" title="使用 qemu-mipsel-static"></a>使用 qemu-mipsel-static</h3><p><strong>解决报错：cannot open pid file</strong></p>
+<p>打开固件根目录，</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo chroot . ./qemu-mipsel-static ./bin/alphapd</span><br></pre></td></tr></table></figure>
+
+<p>在 IDA 中搜索报错字符串，因为没有 &#x2F;var&#x2F;run&#x2F;alphapd.pid 文件的存在，在根目录中创建该文件</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">mkdir ./var/run</span><br><span class="line">touch ./var/run/alphapd.pid</span><br></pre></td></tr></table></figure>
+
+<p><strong>解决报错：waiting for nvram_daemon</strong></p>
+<p>在 IDA 中搜索报错字符串，同样因为没有 &#x2F;var&#x2F;run&#x2F;nvramd.pid 文件，在固件根目录中创建</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">touch ./var/run/nvramd.pid</span><br></pre></td></tr></table></figure>
+
+<p><strong>创建需要的设备</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">touch ./dev/nvram</span><br><span class="line">touch ./dev/urandom</span><br><span class="line">touch ./dev/random</span><br></pre></td></tr></table></figure>
+
+<p><strong>解决报错：Can’t get lan ip from sysinfo! 和 failed to convert  to binary ip dataalphapd: Shutdown!</strong></p>
+<p>这个报错是启动 http 服务的关键，需要对程序进行 patch，patch 的地方如下：</p>
+<p><img src="/images/image-2023-0412-183655453.png" alt="undifined"></p>
+<p>然后可以启动 http 服务了，但是依旧会报错。第一个报错应该是 qemu 没有实现对应的系统调用，第二个可以不用管，如果只是启动 http 而不需要 https 的话，可以忽略。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">ioctl: Function not implemented</span><br><span class="line">failed to read certificates in websSSLOpen</span><br></pre></td></tr></table></figure>
+
+<h2 id="漏洞利用"><a href="#漏洞利用" class="headerlink" title="漏洞利用"></a>漏洞利用</h2><p>此处无需太多的调试，直接通过定位的漏洞页面 0.0.0.0:80&#x2F;docmd.htm，看能否命令执行</p>
+<p>成功命令执行<br><img src="/images/image-2023-0412-183731931.png" alt="undifined"><br><img src="/images/image-2023-0412-183737658.png" alt="undifined"></p>
+<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>漏洞比较简单，可以想想如何进行的漏洞挖掘工作。</p>
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://www.exploit-db.com/exploits/39437">[exploit-db.com] D-Link DCS-930L - (Authenticated) Remote Command Execution (Metasploit)</a></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/12/CVE-2016-1554%20Netgear%20wnap320%20AP%E4%BB%BB%E6%84%8F%E5%91%BD%E4%BB%A4%E6%89%A7%E8%A1%8C/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1131,138 +1254,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/06/IDAPython-%E5%9F%BA%E6%9C%AC%E5%9D%97%E7%B2%92%E5%BA%A6/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="菜">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/04/06/IDAPython-%E5%9F%BA%E6%9C%AC%E5%9D%97%E7%B2%92%E5%BA%A6/" class="post-title-link" itemprop="url">IDAPython-基本块粒度</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-04-06 03:43:34" itemprop="dateCreated datePublished" datetime="2023-04-06T03:43:34+08:00">2023-04-06</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-11 13:47:11" itemprop="dateModified" datetime="2023-04-11T13:47:11+08:00">2023-04-11</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/" itemprop="url" rel="index"><span itemprop="name">工具党</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/IDAPython/" itemprop="url" rel="index"><span itemprop="name">IDAPython</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>指令粒度介绍完毕之后，该从基本块粒度进行说明了。所涉及到的API速查表格如下：</p>
-<table>
-<thead>
-<tr>
-<th>模块</th>
-<th>API</th>
-<th>功能</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>idaapi</td>
-<td>get_func(ea)</td>
-<td>获取地址ea所在函数</td>
-</tr>
-<tr>
-<td>idaapi</td>
-<td>FlowChart(f&#x3D;None, bounds&#x3D;None, flags&#x3D;0)</td>
-<td>获取函数f或者地址范围bounds的所有基本块集合</td>
-</tr>
-</tbody></table>
-<h2 id="基本块简介"><a href="#基本块简介" class="headerlink" title="基本块简介"></a>基本块简介</h2><p>先简单说一下基本块的概念，基本块（Basic Block）是一段可以被顺序执行的指令集，一般被视为程序的基本组成单元。一个程序的控制流就是由基本块组成的有向图。在一个基本块的执行过程中，它通常是由前驱基本块（predecessor）执行到当前基本块，然后当前基本块执行完毕后到后继基本块（successor）。<br>因此，大概也可以知道基本块的重要组成了：</p>
-<ol>
-<li>起始地址：基本块的第一条指令</li>
-<li>结束地址：基本块的最后一条指令</li>
-<li>指令集：基本块中所有的指令，也是要执行的指令集</li>
-<li>转移指令：用于跳转到下一个基本块</li>
-</ol>
-<p>基本块具有一个特性，那就是如果传递进行的寄存器值、使用到的内存值是一样的，那么在基本块执行完毕的寄存器集的值、内存值也是一样的。这个特性可以用于对基本块级别的仿真模拟，例如判断最后的跳转是否会被采纳。基本块在模糊测试中也被用于记录执行路径，例如AFL就是在基本块的起始地址进行了插桩，如果测试值使得基本块执行到了新的路径，那么就说明这个测试值潜力更大。<br>基本块的概念说完了，在IDA反汇编的Graph disassemble view中（空格切换，233）可以看到函数的基本块。如下就是在IDA中显示的两个基本块：<br><img src="/images/image-2023-0406-155933823.png" alt="undifined"><br>这两个基本块的作用是通过<code>strcmp</code>函数判断传入到cgibin的环境变量，选择使用哪一个接口函数来处理数据。<br>基本块1：调用phpcgi</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">.text:00402E1C</span><br><span class="line">.text:00402E1C loc_402E1C:</span><br><span class="line">.text:00402E1C la      $t9, strcmp</span><br><span class="line">.text:00402E20 move    $a0, $s0         # s1</span><br><span class="line">.text:00402E24 sw      $a2, 0x20+var_8($sp)</span><br><span class="line">.text:00402E28 jalr    $t9 ; strcmp</span><br><span class="line">.text:00402E2C li      $a1, aPhpcgi     # &quot;phpcgi&quot;</span><br><span class="line">.text:00402E30 lw      $gp, 0x20+var_10($sp)</span><br><span class="line">.text:00402E34 lw      $a2, 0x20+var_8($sp)</span><br><span class="line">.text:00402E38 bnez    $v0, loc_402E4C</span><br><span class="line">.text:00402E3C lui     $a1, 0x42  # &#x27;B&#x27;</span><br></pre></td></tr></table></figure>
-<p>基本块2：调用dlapn.cgi</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">.text:00402E4C</span><br><span class="line">.text:00402E4C loc_402E4C:</span><br><span class="line">.text:00402E4C la      $t9, strcmp</span><br><span class="line">.text:00402E50 move    $a0, $s0         # s1</span><br><span class="line">.text:00402E54 sw      $a2, 0x20+var_8($sp)</span><br><span class="line">.text:00402E58 jalr    $t9 ; strcmp</span><br><span class="line">.text:00402E5C li      $a1, aDlapnCgi   # &quot;dlapn.cgi&quot;</span><br><span class="line">.text:00402E60 lw      $gp, 0x20+var_10($sp)</span><br><span class="line">.text:00402E64 lw      $a2, 0x20+var_8($sp)</span><br><span class="line">.text:00402E68 bnez    $v0, loc_402E7C</span><br><span class="line">.text:00402E6C lui     $a1, 0x42  # &#x27;B&#x27;</span><br></pre></td></tr></table></figure>
-<h2 id="基本块操作"><a href="#基本块操作" class="headerlink" title="基本块操作"></a>基本块操作</h2><p>在IDAPython中，对基本块的操作通常是先根据一个指令地址得到指令所在的函数，然后获取到函数由基本块组成的控制流图，再遍历图中的所有基本块。如果要知道目标指令是在函数的哪一个基本块，遍历基本块然后判断。<br>如下的代码是遍历地址<code>ea</code>所在函数的所有基本块，然后判断<code>ea</code>在哪一个基本块。</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> idaapi</span><br><span class="line"><span class="keyword">import</span> ida_gdl</span><br><span class="line"></span><br><span class="line">ea = <span class="number">0x00402E4C</span></span><br><span class="line">func = idaapi.get_func(ea)</span><br><span class="line">func_control_flow = idaapi.FlowChart(func, flags=idaapi.FC_PREDS)</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> basic_block <span class="keyword">in</span> func_control_flow:</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;ID: %i, Start: 0x%x, End: 0x%x&quot;</span> % (basic_block.<span class="built_in">id</span>, basic_block.start_ea, basic_block.end_ea))</span><br><span class="line">    <span class="keyword">if</span> basic_block.start_ea &lt;= ea &lt; basic_block.end_ea:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;    ea at Here&quot;</span>)</span><br><span class="line">        <span class="keyword">break</span></span><br><span class="line">    succs_blocks = basic_block.succs()</span><br><span class="line">    <span class="keyword">for</span> addr <span class="keyword">in</span> succs_blocks:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;     Successor: 0x%x&quot;</span> % addr.start_ea)</span><br><span class="line">    pre_sblocks = basic_block.preds()</span><br><span class="line">    <span class="keyword">for</span> addr <span class="keyword">in</span> pre_sblocks:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;     Predecessor: 0x%x&quot;</span> % addr.end_ea)</span><br><span class="line">    <span class="keyword">if</span> ida_gdl.is_ret_block(basic_block.<span class="built_in">type</span>):</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;     Return Block&quot;</span>)</span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br><span class="line"><span class="string">ID: 0, Start: 0x402da0, End: 0x402e10</span></span><br><span class="line"><span class="string">     Successor: 0x402e10</span></span><br><span class="line"><span class="string">     Successor: 0x402e1c</span></span><br><span class="line"><span class="string">ID: 1, Start: 0x402e10, End: 0x402e1c</span></span><br><span class="line"><span class="string">     Successor: 0x4032e0</span></span><br><span class="line"><span class="string">     Predecessor: 0x402e10</span></span><br><span class="line"><span class="string">ID: 2, Start: 0x402e1c, End: 0x402e40</span></span><br><span class="line"><span class="string">     Successor: 0x402e40</span></span><br><span class="line"><span class="string">     Successor: 0x402e4c</span></span><br><span class="line"><span class="string">     Predecessor: 0x402e10</span></span><br><span class="line"><span class="string">ID: 3, Start: 0x402e40, End: 0x402e4c</span></span><br><span class="line"><span class="string">     Successor: 0x4032e0</span></span><br><span class="line"><span class="string">     Predecessor: 0x402e40</span></span><br><span class="line"><span class="string">ID: 4, Start: 0x402e4c, End: 0x402e70</span></span><br><span class="line"><span class="string">    ea at Here</span></span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br></pre></td></tr></table></figure>
-<p>我之前写过一个判断MIPS命令注入的代码，大概就是，先定位对<code>system</code>代码作为<code>ea</code>，然后获取到<code>ea</code>所在的基本块，再通过广度优先搜索得到基本块的所有前驱，直到在前驱基本块中得到所有的参数（MIPS是通过<code>a0</code>、<code>a1</code>、<code>a2</code>、<code>a3</code>寄存器进行传参），后续看能不能把代码整理出来。<br>调用<code>idaapi.FlowChart()</code>实际上是调用的<code>ida_gdl.FlowChart(f=None, bounds=None, flags=0)</code>，传参如下：</p>
-<ul>
-<li><code>f</code>：通过<code>get_func(ea)</code>获取</li>
-<li><code>bounds</code>：如果<code>f</code>参数不指定则在<code>bounds</code> tuple类型<code>(start, end)</code>范围获取基本块集合</li>
-<li><code>flags</code>：<code>FC_XXX</code>标准位，具体可以在<a target="_blank" rel="noopener" href="https://hex-rays.com/products/ida/support/idapython_docs/ida_gdl.html">此处</a>查询<br>对于每一个基本块，都有如下的一些属性：</li>
-<li><code>id</code>：基本块的ID</li>
-<li><code>start_ea</code>：基本块的起始地址</li>
-<li><code>end_ea</code>：基本块的结束地址</li>
-<li><code>type</code>：基本块类型，如下依次数值从0～7<ul>
-<li><code>fcb_normal</code>：正常的基本块</li>
-<li><code>fcb_indjump</code>：基本块以间接跳转结束</li>
-<li><code>fcb_ret</code>：返回基本块，估计是函数<code>ret</code>结束时的基本块</li>
-<li><code>fcb_cndret</code>：条件返回的基本块</li>
-<li><code>fcb_noret</code>：基本块不返回</li>
-<li><code>fcb_enoret</code>：不属于函数的基本块，且不返回</li>
-<li><code>fcb_extern</code>：外部的基本块（没有理解到含义）</li>
-<li><code>fcb_error</code>：跳过不执行的基本块（不知道是否这样）</li>
-</ul>
-</li>
-<li><code>preds()</code>：获取当前基本块的所有前驱基本块集合</li>
-<li><code>succs()</code>：获取当前基本块的所有后继基本块集合</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1332,7 +1323,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">46</span>
+          <span class="site-state-item-count">47</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
