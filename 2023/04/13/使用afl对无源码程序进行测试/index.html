@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"oneshell.top","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":true,"nav":{"gitalk":{"order":-2}},"activeClass":"gitalk"},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="使用 afl 对无源码的程序进行 fuzz有源码的情况下，可以使用 afl 相关的编译器进行编译插桩，然后进行 fuzz；如果是无源码的情况下，就需要使用 afl 的 qemu mode 进行 fuzz。这个地方我使用的是 AFLPlusPlus，之前已经大概看过 afl 的源码，afl++ 源码的结构更加清晰，因此后面都是在使用 afl++ 作为 fuzz 工具。 待 fuzz 程序和函数劫持">
+<meta property="og:type" content="article">
+<meta property="og:title" content="使用afl对无源码程序进行测试">
+<meta property="og:url" content="https://oneshell.top/2023/04/13/%E4%BD%BF%E7%94%A8afl%E5%AF%B9%E6%97%A0%E6%BA%90%E7%A0%81%E7%A8%8B%E5%BA%8F%E8%BF%9B%E8%A1%8C%E6%B5%8B%E8%AF%95/index.html">
+<meta property="og:site_name" content="OneShell">
+<meta property="og:description" content="使用 afl 对无源码的程序进行 fuzz有源码的情况下，可以使用 afl 相关的编译器进行编译插桩，然后进行 fuzz；如果是无源码的情况下，就需要使用 afl 的 qemu mode 进行 fuzz。这个地方我使用的是 AFLPlusPlus，之前已经大概看过 afl 的源码，afl++ 源码的结构更加清晰，因此后面都是在使用 afl++ 作为 fuzz 工具。 待 fuzz 程序和函数劫持">
+<meta property="og:locale">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-0413-100152606.png">
+<meta property="article:published_time" content="2023-04-13T02:01:10.000Z">
+<meta property="article:modified_time" content="2023-04-13T02:03:06.415Z">
+<meta property="article:author" content="OneShell">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://oneshell.top/images/image-2023-0413-100152606.png">
+
+<link rel="canonical" href="https://oneshell.top/2023/04/13/%E4%BD%BF%E7%94%A8afl%E5%AF%B9%E6%97%A0%E6%BA%90%E7%A0%81%E7%A8%8B%E5%BA%8F%E8%BF%9B%E8%A1%8C%E6%B5%8B%E8%AF%95/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>使用afl对无源码程序进行测试 | OneShell</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">OneShell</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">I fight for a brighter tomorrow</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+        <li class="menu-item menu-item-schedule">
+
+    <a href="/schedule/" rel="section"><i class="fa fa-calendar fa-fw"></i>Schedule</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/13/%E4%BD%BF%E7%94%A8afl%E5%AF%B9%E6%97%A0%E6%BA%90%E7%A0%81%E7%A8%8B%E5%BA%8F%E8%BF%9B%E8%A1%8C%E6%B5%8B%E8%AF%95/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="ToT">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          使用afl对无源码程序进行测试
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-04-13 10:01:10 / Modified: 10:03:06" itemprop="dateCreated datePublished" datetime="2023-04-13T10:01:10+08:00">2023-04-13</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/" itemprop="url" rel="index"><span itemprop="name">工具党</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/AFL/" itemprop="url" rel="index"><span itemprop="name">AFL</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="使用-afl-对无源码的程序进行-fuzz"><a href="#使用-afl-对无源码的程序进行-fuzz" class="headerlink" title="使用 afl 对无源码的程序进行 fuzz"></a>使用 afl 对无源码的程序进行 fuzz</h1><p>有源码的情况下，可以使用 afl 相关的编译器进行编译插桩，然后进行 fuzz；如果是无源码的情况下，就需要使用 afl 的 qemu mode 进行 fuzz。这个地方我使用的是 <a target="_blank" rel="noopener" href="https://github.com/AFLplusplus/AFLplusplus">AFLPlusPlus</a>，之前已经大概看过 afl 的源码，afl++ 源码的结构更加清晰，因此后面都是在使用 afl++ 作为 fuzz 工具。</p>
+<h2 id="待-fuzz-程序和函数劫持-so"><a href="#待-fuzz-程序和函数劫持-so" class="headerlink" title="待 fuzz 程序和函数劫持 so"></a>待 fuzz 程序和函数劫持 so</h2><p>手上有的程序是 x64 的一个简易 cgi，源码如下，是从环境变量中读取数据存放在 buffer 中，当前的目标就是对其中的一个环境变量进行模糊测试，使用 hook 对 REQUEST_METHOD 赋予给定值 GET，然后对 QUERY_STRING 环境变量从标准输入中读取。具体的 hook 实现过程可以参考<a target="_blank" rel="noopener" href="https://genteeldevil.github.io/2021/12/29/%E5%A6%82%E4%BD%95%E5%8A%AB%E6%8C%81%E4%B8%80%E4%B8%AAcgi%E7%9A%84getenv%E5%87%BD%E6%95%B0/">如何劫持一个 cgi 的 getenv 函数</a>。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// cgi_nolen.c</span></span><br><span class="line"><span class="comment">// gcc cgi_nolen.c -o cgi_nolen</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;string.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdlib.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;unistd.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span>** argv)</span> &#123;</span><br><span class="line">    <span class="type">char</span>* method = getenv(<span class="string">&quot;REQUEST_METHOD&quot;</span>);</span><br><span class="line">    <span class="type">char</span>* url;</span><br><span class="line">    <span class="type">char</span> buffer[<span class="number">256</span>];</span><br><span class="line">    <span class="built_in">memset</span>(buffer, <span class="string">&#x27;\0&#x27;</span>, <span class="keyword">sizeof</span>(buffer));</span><br><span class="line">    <span class="keyword">if</span> (!method) &#123;</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;[!] no init env!\n&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 两条路径：</span></span><br><span class="line">    <span class="comment">// GET-&gt;URL 两个环境变量导致的缓冲区溢出</span></span><br><span class="line">    <span class="comment">// POST-&gt;STDIN 一个环境变量+标准输入导致的缓冲区溢出</span></span><br><span class="line">    <span class="keyword">if</span> (!<span class="built_in">strcmp</span>(method, <span class="string">&quot;GET&quot;</span>)) &#123;</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;[+] this is get method\n&quot;</span>);</span><br><span class="line">        url = getenv(<span class="string">&quot;QUERY_STRING&quot;</span>);</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;[+] get query string %s\n&quot;</span>, url);</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;[*] copy url to buffer\n&quot;</span>);</span><br><span class="line">        <span class="built_in">strcpy</span>(buffer, url);</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;[+] buffer is %s\n&quot;</span>, buffer);</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (!<span class="built_in">strcmp</span>(method, <span class="string">&quot;POST&quot;</span>)) &#123;</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;[+] this is post method\n&quot;</span>);</span><br><span class="line">        <span class="comment">// 这个地方存在缓冲区溢出</span></span><br><span class="line">        gets(buffer);</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;[+] get stdin: %s\n&quot;</span>, buffer);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>hook 代码如下：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// hook.c</span></span><br><span class="line"><span class="comment">// gcc -D_GUN_SOURCE -shared -fPIC -o hook_getenv.so hook.c -ldl</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> _GNU_SOURCE  <span class="comment">// 使用RELD_NEXT</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;string.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;dlfcn.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="type">char</span> *(*original_getenv_func)(<span class="type">const</span> <span class="type">char</span> *) = <span class="literal">NULL</span>;</span><br><span class="line"><span class="comment">// 定义全局变量buffer来存储STDIN中读取的数据</span></span><br><span class="line"><span class="type">char</span> buffer[<span class="number">1024</span>];</span><br><span class="line"></span><br><span class="line"><span class="type">char</span> *<span class="title function_">getenv</span><span class="params">(<span class="type">const</span> <span class="type">char</span> *name)</span> &#123;</span><br><span class="line">  <span class="built_in">memset</span>(buffer, <span class="string">&#x27;\0&#x27;</span>, <span class="keyword">sizeof</span>(buffer));</span><br><span class="line">  <span class="comment">// 这个地方还需要考虑变异出来的数据的长度和大小</span></span><br><span class="line">  <span class="keyword">if</span> (!original_getenv_func) original_getenv_func = dlsym(RTLD_NEXT, <span class="string">&quot;getenv&quot;</span>);</span><br><span class="line">  <span class="comment">// 这个地方需要定义一个缓冲区才行，用来从stdin中读取数据</span></span><br><span class="line">  <span class="type">char</span> *result = original_getenv_func(name);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">&quot;[hook] hook env %s, origin = %s\n&quot;</span>, name, result);</span><br><span class="line">  <span class="keyword">if</span> (!<span class="built_in">strncmp</span>(name, <span class="string">&quot;REQUEST_METHOD&quot;</span>, <span class="number">14</span>)) &#123;</span><br><span class="line">    <span class="built_in">strncpy</span>(buffer, <span class="string">&quot;GET\0&quot;</span>, <span class="built_in">strlen</span>(<span class="string">&quot;GET\0&quot;</span>));</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;[hook] changing to %s\n&quot;</span>, buffer);</span><br><span class="line">    <span class="keyword">return</span> buffer;</span><br><span class="line">  &#125; <span class="keyword">else</span> <span class="keyword">if</span> (!<span class="built_in">strncmp</span>(name, <span class="string">&quot;QUERY_STRING&quot;</span>, <span class="number">12</span>)) &#123;</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;[hook] hook env URL,change to STDIN\n&quot;</span>);</span><br><span class="line">    gets(buffer);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;[hook] from STDIN %s\n&quot;</span>, buffer);</span><br><span class="line">    <span class="keyword">return</span> buffer;</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="编译-qemu-mode"><a href="#编译-qemu-mode" class="headerlink" title="编译 qemu-mode"></a>编译 qemu-mode</h2><p>要使用 qemu-mode，首先要编译和待 fuzz 程序架构一致的 afl-qemu-trace。打开 qemu-mode 文件夹，准备编译。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">CPU_TARGET=x86_64 ./build_qemu_support.sh</span><br><span class="line">cd ..</span><br><span class="line">sudo make install</span><br></pre></td></tr></table></figure>
+
+<p>如果要 fuzz 其他架构的程序，那么对应把 CPU_TARGET 进行设定即可，例如 arm、i386 等等。</p>
+<h2 id="设置-QEMU-的-so-劫持"><a href="#设置-QEMU-的-so-劫持" class="headerlink" title="设置 QEMU 的 so 劫持"></a>设置 QEMU 的 so 劫持</h2><p>正常情况下如果要劫持一个程序的某些函数，使用环境变量 LD_PRELOAD 即可。afl 的 qemu mode 本质上也是使用的 qemu，如果要劫持待 fuzz 程序的函数，需要在启动 afl 的时候使用环境变量 QEMU_SET_ENV 设置程序在 QEMU 运行下的环境变量。那么 fuzz 的启动命令如下：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">QEMU_SET_ENV=LD_PRELOAD=&quot;./hook_getenv.so&quot; REQUEST_METHOD=GET afl-fuzz -i input -o output -m none -Q ./cgi_nolen </span><br></pre></td></tr></table></figure>
+
+<p>可以对上面的启动命令做解释：</p>
+<ul>
+<li><code>QEMU_SET_ENV=LD_PRELOAD=&quot;./hook_getenv.so&quot;</code> 设置待 fuuz 程序的环境变量，设置劫持</li>
+<li><code>REQUEST_METHOD=GET</code> 相当于是将 afl-fuzz 和待 fuzz 程序的 REQUEST_METHOD 值都设置成了 POST，因为在 fuzz 的时候使用 fork 创建的子进程继承了 afl-fuzz 的环境变量。</li>
+<li><code>afl-fuzz -i input -o output -m none -Q ./cgi_nolen</code> 从 input 文件夹读取种子，fuzz 结果存放在 output 文件夹，无内存限制，使用 QEMU 模式。</li>
+</ul>
+<p>跑了 11 分钟，出来了 5000 多个 crash，其中的两个是 unique crash。</p>
+<p><img src="/images/image-2023-0413-100152606.png" alt="undifined"></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/04/13/afl%E5%91%BD%E4%BB%A4%E5%8F%82%E6%95%B0%E8%AF%B4%E6%98%8E/" rel="prev" title="afl命令参数说明">
+      <i class="fa fa-chevron-left"></i> afl命令参数说明
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2023/04/13/%5Bafl-training%5D%20quickstart/" rel="next" title="[afl-training] quickstart">
+      [afl-training] quickstart <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8-afl-%E5%AF%B9%E6%97%A0%E6%BA%90%E7%A0%81%E7%9A%84%E7%A8%8B%E5%BA%8F%E8%BF%9B%E8%A1%8C-fuzz"><span class="nav-number">1.</span> <span class="nav-text">使用 afl 对无源码的程序进行 fuzz</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BE%85-fuzz-%E7%A8%8B%E5%BA%8F%E5%92%8C%E5%87%BD%E6%95%B0%E5%8A%AB%E6%8C%81-so"><span class="nav-number">1.1.</span> <span class="nav-text">待 fuzz 程序和函数劫持 so</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BC%96%E8%AF%91-qemu-mode"><span class="nav-number">1.2.</span> <span class="nav-text">编译 qemu-mode</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%BE%E7%BD%AE-QEMU-%E7%9A%84-so-%E5%8A%AB%E6%8C%81"><span class="nav-number">1.3.</span> <span class="nav-text">设置 QEMU 的 so 劫持</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">OneShell</p>
+  <div class="site-description" itemprop="description">ToT</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">52</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">15</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">OneShell</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : 'd364449d44c374dab007',
+      clientSecret: 'bb821aa84a81e3bd904d059c6e9ec7eb0e1cab4f',
+      repo        : 'BlogComments',
+      owner       : 'NoneShell',
+      admin       : ['NoneShell'],
+      id          : '51b7f775f9e8940fae5e8220594f5f26',
+        language: 'zh-CN',
+      distractionFreeMode: true
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>

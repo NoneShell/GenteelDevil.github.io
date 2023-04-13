@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"oneshell.top","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":true,"nav":{"gitalk":{"order":-2}},"activeClass":"gitalk"},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="[afl-training] quickstartafl-trainning 是之前在安全客上发现的关于 AFL 实战的学习资料，之前一直想通过 AFL 来进行实战，苦于网上的都是一些基础的使用教程，发现这个资料的时候欣喜万分。 在这个 AFL workshop 中，主要包含了以下的一些内容：  quickstart：一个简单的例子，通过 afl 编译程序然后使用 afl-fuzz 来 fuzz，">
+<meta property="og:type" content="article">
+<meta property="og:title" content="[afl-training] quickstart">
+<meta property="og:url" content="https://oneshell.top/2023/04/13/[afl-training]%20quickstart/index.html">
+<meta property="og:site_name" content="OneShell">
+<meta property="og:description" content="[afl-training] quickstartafl-trainning 是之前在安全客上发现的关于 AFL 实战的学习资料，之前一直想通过 AFL 来进行实战，苦于网上的都是一些基础的使用教程，发现这个资料的时候欣喜万分。 在这个 AFL workshop 中，主要包含了以下的一些内容：  quickstart：一个简单的例子，通过 afl 编译程序然后使用 afl-fuzz 来 fuzz，">
+<meta property="og:locale">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-0413-100605033.png">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-0413-100622630.png">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-0413-100640530.png">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-0413-100655331.png">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-0413-100709554.png">
+<meta property="article:published_time" content="2023-04-13T02:05:10.000Z">
+<meta property="article:modified_time" content="2023-04-13T02:26:52.021Z">
+<meta property="article:author" content="OneShell">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://oneshell.top/images/image-2023-0413-100605033.png">
+
+<link rel="canonical" href="https://oneshell.top/2023/04/13/[afl-training]%20quickstart/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>[afl-training] quickstart | OneShell</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">OneShell</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">I fight for a brighter tomorrow</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+        <li class="menu-item menu-item-schedule">
+
+    <a href="/schedule/" rel="section"><i class="fa fa-calendar fa-fw"></i>Schedule</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/13/[afl-training]%20quickstart/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="ToT">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          [afl-training] quickstart
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-04-13 10:05:10 / Modified: 10:26:52" itemprop="dateCreated datePublished" datetime="2023-04-13T10:05:10+08:00">2023-04-13</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/" itemprop="url" rel="index"><span itemprop="name">工具党</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/AFL/" itemprop="url" rel="index"><span itemprop="name">AFL</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="afl-training-quickstart"><a href="#afl-training-quickstart" class="headerlink" title="[afl-training] quickstart"></a>[afl-training] quickstart</h1><p>afl-trainning 是之前在安全客上发现的关于 AFL 实战的学习资料，之前一直想通过 AFL 来进行实战，苦于网上的都是一些基础的使用教程，发现这个资料的时候欣喜万分。</p>
+<p>在这个 AFL workshop 中，主要包含了以下的一些内容：</p>
+<ul>
+<li>quickstart：一个简单的例子，通过 afl 编译程序然后使用 afl-fuzz 来 fuzz，新手入门必看，也就是这一篇文章</li>
+<li>harness：</li>
+<li>challenges：几个使用 fuzz 可以挖掘出来的经典漏洞<ul>
+<li>libxml2：CVE-2015-8317</li>
+<li>heartbleed：openssl 的心脏滴血漏洞 CVE-2014-0160</li>
+<li>sendmail：CVE-1999-0206, CVE-2003-0161</li>
+<li>ntpq：CVE-2009-0159</li>
+<li>date：CVE-2017-7476</li>
+<li>cyber-grand-challenge</li>
+<li>sendmail&#x2F;1305</li>
+</ul>
+</li>
+</ul>
+<p>教程是可以使用 docker 的形式创建学习环境的，我这个地方就没有使用了，直接在 git 目录中进行学习。</p>
+<h2 id="编译"><a href="#编译" class="headerlink" title="编译"></a>编译</h2><p>trainning 中使用的是 AFLplusplus，我此处使用的就是 AFL，因为之前在看 AFL 的源码。</p>
+<p>首先进入 quickstart 目录，然后使用 afl-clang 对程序源码进行编译</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">cd quickstart</span><br><span class="line">CC=afl-clang AFL_HARDEN=1 make</span><br></pre></td></tr></table></figure>
+
+<p>编译出来的程序是读取 STDIN 标准输入进行处理，可直接运行程序，如果敲下回车不输入数据会显示程序帮助信息，也可以直接从 inputs 提供的种子文件进行运行。</p>
+<p><img src="/images/image-2023-0413-100605033.png" alt="undifined"></p>
+<h2 id="Fuzzing"><a href="#Fuzzing" class="headerlink" title="Fuzzing"></a>Fuzzing</h2><p>使用如下的命令直接进行 fuzz，下图是 fuzz 出来的结果，运行了 44 分钟之后跑出了 9 个 crash</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">afl-fuzz -i inputs -o out ./vulnerable</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/image-2023-0413-100622630.png" alt="undifined"></p>
+<h2 id="问题总结"><a href="#问题总结" class="headerlink" title="问题总结"></a>问题总结</h2><ul>
+<li><p>AFL 是如何使用 afl-clang 进行插桩的？</p>
+<p>首先需要知道正常使用 gcc 进行编译和使用 alf-clang 进行编译，产生的可执行文件在二进制上的差别。安全相关，因此先使用 checksec 查看 afl-clang 编译出来的可执行文件开启了哪些防御措施，然后使用 gcc 开启对应的防御参数重新进行编译</p>
+</li>
+</ul>
+<p><img src="/images/image-2023-0413-100640530.png" alt="undifined"></p>
+<p>  那么使用 gcc 进行编译的命令如下，FORTIFY 选项没有编译出来</p>
+  <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">gcc -no-pie -fstack-protector-all -z noexecstack -O2 -D_FORTIFY_SOURCE=1 -o vulnerable_gcc vulnerable.c</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/image-2023-0413-100655331.png" alt="undifined"></p>
+<p>  然后使用 bindiff 工具进行查看，可以看到 afl-clang 编译出来的可执行文件中，在每一个基本块中，都加入了 afl_maybe_log 函数，通过在 AFL 源码目录中搜索该函数，可以定位到是在 afl-as.h 文件中，在源码中是以一串静态字符串形式存储的汇编代码，此处以 64 位为例，源码部分如下。</p>
+<p><img src="/images/image-2023-0413-100709554.png" alt="undifined"></p>
+  <figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">const</span> u8* trampoline_fmt_64 =</span><br><span class="line"></span><br><span class="line">  <span class="string">&quot;\n&quot;</span></span><br><span class="line">  <span class="string">&quot;/* --- AFL TRAMPOLINE (64-BIT) --- */\n&quot;</span></span><br><span class="line">  <span class="string">&quot;\n&quot;</span></span><br><span class="line">  <span class="string">&quot;.align 4\n&quot;</span></span><br><span class="line">  <span class="string">&quot;\n&quot;</span></span><br><span class="line">  <span class="string">&quot;leaq -(128+24)(%%rsp), %%rsp\n&quot;</span></span><br><span class="line">  <span class="string">&quot;movq %%rdx,  0(%%rsp)\n&quot;</span></span><br><span class="line">  <span class="string">&quot;movq %%rcx,  8(%%rsp)\n&quot;</span></span><br><span class="line">  <span class="string">&quot;movq %%rax, 16(%%rsp)\n&quot;</span></span><br><span class="line">  <span class="string">&quot;movq $0x%08x, %%rcx\n&quot;</span></span><br><span class="line">  <span class="string">&quot;call __afl_maybe_log\n&quot;</span></span><br><span class="line">  <span class="string">&quot;movq 16(%%rsp), %%rax\n&quot;</span></span><br><span class="line">  <span class="string">&quot;movq  8(%%rsp), %%rcx\n&quot;</span></span><br><span class="line">  <span class="string">&quot;movq  0(%%rsp), %%rdx\n&quot;</span></span><br><span class="line">  <span class="string">&quot;leaq (128+24)(%%rsp), %%rsp\n&quot;</span></span><br><span class="line">  <span class="string">&quot;\n&quot;</span></span><br><span class="line">  <span class="string">&quot;/* --- END --- */\n&quot;</span></span><br><span class="line">  <span class="string">&quot;\n&quot;</span>;</span><br></pre></td></tr></table></figure>
+
+<p>  将源代码编译成二进制文件的基本流程是：源代码 -&gt; 汇编代码 -&gt; 二进制代码，将汇编代码编译成二进制的工具就是汇编器 assembler。Linux 常用的汇编器是 as，当完成了 AFL 的编译后，在目录下也会存在一个 as 文件，并且作为符号链接指向 afl-as。因此，此处的代码插桩实现应该是使用的 afl-as，在将源代码编译成汇编代码的过程中，将如上的 afl_maybe_log 函数插入到分支处，也就是在基本块中进行插桩。如上的插桩代码就是 x64 下正常调用一个函数的流程：开辟栈空间，调用 afl_maybe_log 函数，执行完毕函数之后恢复栈平衡。afl_maybe_log 函数也就是插桩具体要执行的内容。此处不多分析 afl_maybe_log 函数的源码，函数位于 afl-as.c 中，就简单说一下函数的实现功能：通过共享内存对基本块的执行情况进行保存。</p>
+<p>  对于插桩分析得比较不错的可以参考看雪的这篇文章：<a target="_blank" rel="noopener" href="https://bbs.pediy.com/thread-265973.htm">[原创]AFL编译插桩部分源码分析</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/04/13/%E4%BD%BF%E7%94%A8afl%E5%AF%B9%E6%97%A0%E6%BA%90%E7%A0%81%E7%A8%8B%E5%BA%8F%E8%BF%9B%E8%A1%8C%E6%B5%8B%E8%AF%95/" rel="prev" title="使用afl对无源码程序进行测试">
+      <i class="fa fa-chevron-left"></i> 使用afl对无源码程序进行测试
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2023/04/13/%5B%5Bafl-training%5D%20libxml2/" rel="next" title="[[afl-training] libxml2">
+      [[afl-training] libxml2 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#afl-training-quickstart"><span class="nav-number">1.</span> <span class="nav-text">[afl-training] quickstart</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BC%96%E8%AF%91"><span class="nav-number">1.1.</span> <span class="nav-text">编译</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Fuzzing"><span class="nav-number">1.2.</span> <span class="nav-text">Fuzzing</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%97%AE%E9%A2%98%E6%80%BB%E7%BB%93"><span class="nav-number">1.3.</span> <span class="nav-text">问题总结</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">OneShell</p>
+  <div class="site-description" itemprop="description">ToT</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">52</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">15</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">OneShell</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : 'd364449d44c374dab007',
+      clientSecret: 'bb821aa84a81e3bd904d059c6e9ec7eb0e1cab4f',
+      repo        : 'BlogComments',
+      owner       : 'NoneShell',
+      admin       : ['NoneShell'],
+      id          : '437a8f8b84eadb3a9c2449c6b179805d',
+        language: 'zh-CN',
+      distractionFreeMode: true
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>
