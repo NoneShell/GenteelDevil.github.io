@@ -193,7 +193,7 @@
               <span class="post-meta-item-text">Posted on</span>
               
 
-              <time title="Created: 2023-09-20 10:10:47 / Modified: 11:19:45" itemprop="dateCreated datePublished" datetime="2023-09-20T10:10:47+08:00">2023-09-20</time>
+              <time title="Created: 2023-09-20 10:10:47 / Modified: 11:27:02" itemprop="dateCreated datePublished" datetime="2023-09-20T10:10:47+08:00">2023-09-20</time>
             </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -201,7 +201,11 @@
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/pwnable-kr/" itemprop="url" rel="index"><span itemprop="name">pwnable.kr</span></a>
                 </span>
             </span>
 
@@ -277,7 +281,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2023/09/19/%5Bpwanble.kr%5D%20input/" class="post-title-link" itemprop="url">[pwanble.kr] input</a>
+            <a href="/2023/09/19/%5Bpwanble.kr%5D%20input/" class="post-title-link" itemprop="url">[pwnable.kr] input</a>
         </h2>
 
         <div class="post-meta">
@@ -294,7 +298,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-09-20 11:18:43" itemprop="dateModified" datetime="2023-09-20T11:18:43+08:00">2023-09-20</time>
+                <time title="Modified: 2023-09-20 11:29:52" itemprop="dateModified" datetime="2023-09-20T11:29:52+08:00">2023-09-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -302,7 +306,11 @@
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/pwnable-kr/" itemprop="url" rel="index"><span itemprop="name">pwnable.kr</span></a>
                 </span>
             </span>
 
@@ -428,7 +436,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-09-20 11:17:37" itemprop="dateModified" datetime="2023-09-20T11:17:37+08:00">2023-09-20</time>
+                <time title="Modified: 2023-09-20 11:27:40" itemprop="dateModified" datetime="2023-09-20T11:27:40+08:00">2023-09-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -436,7 +444,11 @@
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/pwnable-kr/" itemprop="url" rel="index"><span itemprop="name">pwnable.kr</span></a>
                 </span>
             </span>
 
@@ -466,6 +478,7 @@
 <h2 id="知识点"><a href="#知识点" class="headerlink" title="知识点"></a>知识点</h2><p>Linux下使用rand函数会返回一个随机值，范围从0到RAND_MAX。在使用的时候必须提前使用srand设置好随机数种子seed，如果没有设置seed，rand在调用的时候会自动设置seed为1，此时rand函数产生的随机数值就会一样。日常使用中，通常使用getpid或者time的返回值来作为seed。pwnable这道题目中就是因为没有设置seed，导致rand产生的随机数可以被获取。使用相同的种子调用rand函数，会产生相同的随机数序列。</p>
 <p>如下是一个正确的随机数序列生成代码：</p>
 <figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdlib.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;time.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="type">int</span> i, n;</span><br><span class="line">    srand(time(<span class="number">0</span>)); <span class="comment">// 设置随机数种子为当前时间</span></span><br><span class="line"></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;请输入要生成的随机数个数：&quot;</span>);</span><br><span class="line">    <span class="built_in">scanf</span>(<span class="string">&quot;%d&quot;</span>, &amp;n);</span><br><span class="line"></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;随机数序列：&quot;</span>);</span><br><span class="line">    <span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; n; i++) &#123;</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;%d &quot;</span>, rand());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
       
     </div>
 
@@ -515,7 +528,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-09-20 11:16:14" itemprop="dateModified" datetime="2023-09-20T11:16:14+08:00">2023-09-20</time>
+                <time title="Modified: 2023-09-20 11:27:16" itemprop="dateModified" datetime="2023-09-20T11:27:16+08:00">2023-09-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -523,7 +536,11 @@
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/pwnable-kr/" itemprop="url" rel="index"><span itemprop="name">pwnable.kr</span></a>
                 </span>
             </span>
 
@@ -570,6 +587,7 @@
 <h2 id="知识点小结"><a href="#知识点小结" class="headerlink" title="知识点小结"></a>知识点小结</h2><p>全局偏移表（GOT，global offset table）的作用是将位置独立的地址重定向到绝对地址；函数连接表（PLT，procedure linkage table）的作用是将位置独立的函数调用重定向到绝对地址。</p>
 <p>调用函数fflush的时候，实际上并不是直接到flush的代码去执行，而是根据fflush查询到plt表中，jmp跳转到ds:off_804A004，也就是到got.plt表中，此时这个表中已经填充好了fflush函数的绝对地址。</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">.plt:08048430 ; int fflush(FILE *stream)</span><br><span class="line">.plt:08048430 _fflush         proc near               ; CODE XREF: login+2F↓p</span><br><span class="line">.plt:08048430</span><br><span class="line">.plt:08048430 stream          = dword ptr  4</span><br><span class="line">.plt:08048430</span><br><span class="line">.plt:08048430                 jmp     ds:off_804A004</span><br><span class="line">.plt:08048430 _fflush         endp</span><br><span class="line"></span><br><span class="line">.got.plt:0804A000 off_804A000     dd offset printf        ; DATA XREF: _printf↑r</span><br><span class="line">.got.plt:0804A004 off_804A004     dd offset fflush        ; DATA XREF: _fflush↑r</span><br><span class="line">.got.plt:0804A008 off_804A008     dd offset __stack_chk_fail</span><br><span class="line">.got.plt:0804A008                                         ; DATA XREF: ___stack_chk_fail↑r</span><br><span class="line">.got.plt:0804A00C off_804A00C     dd offset puts          ; DATA XREF: _puts↑r</span><br><span class="line">.got.plt:0804A010 off_804A010     dd offset system        ; DATA XREF: _system↑r</span><br><span class="line">.got.plt:0804A014 off_804A014     dd offset __gmon_start__</span><br><span class="line">.got.plt:0804A014                                         ; DATA XREF: ___gmon_start__↑r</span><br></pre></td></tr></table></figure>
+
       
     </div>
 
@@ -619,7 +637,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-09-20 11:10:58" itemprop="dateModified" datetime="2023-09-20T11:10:58+08:00">2023-09-20</time>
+                <time title="Modified: 2023-09-20 11:29:52" itemprop="dateModified" datetime="2023-09-20T11:29:52+08:00">2023-09-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -627,7 +645,11 @@
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/pwnable-kr/" itemprop="url" rel="index"><span itemprop="name">pwnable.kr</span></a>
                 </span>
             </span>
 
@@ -697,7 +719,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2023/09/14/%5Bpwnable%5D%20collision/" class="post-title-link" itemprop="url">[pwnable] collision</a>
+            <a href="/2023/09/14/%5Bpwnable%5D%20collision/" class="post-title-link" itemprop="url">[pwnable.kr] collision</a>
         </h2>
 
         <div class="post-meta">
@@ -714,7 +736,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-09-20 11:08:53" itemprop="dateModified" datetime="2023-09-20T11:08:53+08:00">2023-09-20</time>
+                <time title="Modified: 2023-09-20 11:29:52" itemprop="dateModified" datetime="2023-09-20T11:29:52+08:00">2023-09-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -722,7 +744,11 @@
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/pwnable-kr/" itemprop="url" rel="index"><span itemprop="name">pwnable.kr</span></a>
                 </span>
             </span>
 
@@ -788,7 +814,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2023/09/14/%5Bpwnable%5D%20bof/" class="post-title-link" itemprop="url">[pwnable] bof</a>
+            <a href="/2023/09/14/%5Bpwnable%5D%20bof/" class="post-title-link" itemprop="url">[pwnable.kr] bof</a>
         </h2>
 
         <div class="post-meta">
@@ -805,7 +831,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-09-20 11:05:18" itemprop="dateModified" datetime="2023-09-20T11:05:18+08:00">2023-09-20</time>
+                <time title="Modified: 2023-09-20 11:29:52" itemprop="dateModified" datetime="2023-09-20T11:29:52+08:00">2023-09-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -813,7 +839,11 @@
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/pwnable-kr/" itemprop="url" rel="index"><span itemprop="name">pwnable.kr</span></a>
                 </span>
             </span>
 
@@ -907,7 +937,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2023/09/13/%5Bpwnable%5D%20%5Bfd%5D/" class="post-title-link" itemprop="url">[pwnable] [fd]</a>
+            <a href="/2023/09/13/%5Bpwnable%5D%20%5Bfd%5D/" class="post-title-link" itemprop="url">[pwnable.kr] fd</a>
         </h2>
 
         <div class="post-meta">
@@ -916,17 +946,27 @@
                 <i class="far fa-calendar"></i>
               </span>
               <span class="post-meta-item-text">Posted on</span>
-              
 
-              <time title="Created: 2023-09-13 10:03:00 / Modified: 22:35:01" itemprop="dateCreated datePublished" datetime="2023-09-13T10:03:00+08:00">2023-09-13</time>
+              <time title="Created: 2023-09-13 10:03:00" itemprop="dateCreated datePublished" datetime="2023-09-13T10:03:00+08:00">2023-09-13</time>
             </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-09-20 11:29:52" itemprop="dateModified" datetime="2023-09-20T11:29:52+08:00">2023-09-20</time>
+              </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
                 <i class="far fa-folder"></i>
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/pwnable-kr/" itemprop="url" rel="index"><span itemprop="name">pwnable.kr</span></a>
                 </span>
             </span>
 
@@ -1333,7 +1373,7 @@
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">15</span>
+        <span class="site-state-item-count">16</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">

@@ -28,7 +28,7 @@
 <meta property="og:description" content="1234Daddy told me about cool MD5 hash collision today.I wanna do something like that too!ssh col@pwnable.kr -p2222 (pw:guest)  登录上，一开始我是没有意识到这个代码里面有什么错误，输入用户名之后，继续输入passcode1。我输入了338150，然后直接报错segment">
 <meta property="og:locale">
 <meta property="article:published_time" content="2023-09-15T18:51:44.000Z">
-<meta property="article:modified_time" content="2023-09-20T03:16:14.157Z">
+<meta property="article:modified_time" content="2023-09-20T03:27:16.752Z">
 <meta property="article:author" content="OneShell">
 <meta name="twitter:card" content="summary">
 
@@ -201,7 +201,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-09-20 11:16:14" itemprop="dateModified" datetime="2023-09-20T11:16:14+08:00">2023-09-20</time>
+                <time title="Modified: 2023-09-20 11:27:16" itemprop="dateModified" datetime="2023-09-20T11:27:16+08:00">2023-09-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -209,7 +209,11 @@
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/pwnable-kr/" itemprop="url" rel="index"><span itemprop="name">pwnable.kr</span></a>
                 </span>
             </span>
 
@@ -256,6 +260,7 @@
 <h2 id="知识点小结"><a href="#知识点小结" class="headerlink" title="知识点小结"></a>知识点小结</h2><p>全局偏移表（GOT，global offset table）的作用是将位置独立的地址重定向到绝对地址；函数连接表（PLT，procedure linkage table）的作用是将位置独立的函数调用重定向到绝对地址。</p>
 <p>调用函数fflush的时候，实际上并不是直接到flush的代码去执行，而是根据fflush查询到plt表中，jmp跳转到ds:off_804A004，也就是到got.plt表中，此时这个表中已经填充好了fflush函数的绝对地址。</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">.plt:08048430 ; int fflush(FILE *stream)</span><br><span class="line">.plt:08048430 _fflush         proc near               ; CODE XREF: login+2F↓p</span><br><span class="line">.plt:08048430</span><br><span class="line">.plt:08048430 stream          = dword ptr  4</span><br><span class="line">.plt:08048430</span><br><span class="line">.plt:08048430                 jmp     ds:off_804A004</span><br><span class="line">.plt:08048430 _fflush         endp</span><br><span class="line"></span><br><span class="line">.got.plt:0804A000 off_804A000     dd offset printf        ; DATA XREF: _printf↑r</span><br><span class="line">.got.plt:0804A004 off_804A004     dd offset fflush        ; DATA XREF: _fflush↑r</span><br><span class="line">.got.plt:0804A008 off_804A008     dd offset __stack_chk_fail</span><br><span class="line">.got.plt:0804A008                                         ; DATA XREF: ___stack_chk_fail↑r</span><br><span class="line">.got.plt:0804A00C off_804A00C     dd offset puts          ; DATA XREF: _puts↑r</span><br><span class="line">.got.plt:0804A010 off_804A010     dd offset system        ; DATA XREF: _system↑r</span><br><span class="line">.got.plt:0804A014 off_804A014     dd offset __gmon_start__</span><br><span class="line">.got.plt:0804A014                                         ; DATA XREF: ___gmon_start__↑r</span><br></pre></td></tr></table></figure>
+
     </div>
 
     
@@ -357,7 +362,7 @@
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">15</span>
+        <span class="site-state-item-count">16</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
