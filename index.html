@@ -168,6 +168,294 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/11/20/IoT%E5%B8%B8%E8%A7%81webserver%E5%88%86%E6%9E%90%E5%8F%8A%E6%BC%8F%E6%B4%9E%E6%8C%96%E6%8E%98%E6%80%9D%E8%B7%AF%E6%B5%85%E6%9E%90%EF%BC%9AGoAhead%E7%AF%87/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="ToT">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/11/20/IoT%E5%B8%B8%E8%A7%81webserver%E5%88%86%E6%9E%90%E5%8F%8A%E6%BC%8F%E6%B4%9E%E6%8C%96%E6%8E%98%E6%80%9D%E8%B7%AF%E6%B5%85%E6%9E%90%EF%BC%9AGoAhead%E7%AF%87/" class="post-title-link" itemprop="url">IoT小设备常见webserver分析及漏洞挖掘思路浅析：GoAhead篇</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-11-20 10:36:55" itemprop="dateCreated datePublished" datetime="2023-11-20T10:36:55+08:00">2023-11-20</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-12-09 22:20:48" itemprop="dateModified" datetime="2023-12-09T22:20:48+08:00">2023-12-09</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Topics/" itemprop="url" rel="index"><span itemprop="name">Topics</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Topics/IoT-Server/" itemprop="url" rel="index"><span itemprop="name">IoT Server</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h2><p>GoAhead是一个轻量化、适用于嵌入式设备的Web服务器，采用C语言编写，代码量不大，具有高度的可移植性和扩展性。GoAhead支持多进程、多线程，能够处理大量的并发连接，支持SSL&#x2F;TLS加密和基本的身份认证，支持CGI、ASP。</p>
+<p>GoAhead由Embedthis Software LLC开发，早年间是完全开源的，可以直接在Github上下载到源码。但是在2022年的时候，似乎转换成商业定制，官方在Github删除了代码库，因此在Github上无法下载，但是在Gitee上还有镜像库。</p>
+<p>地址：<a target="_blank" rel="noopener" href="https://gitee.com/mirrors/GoAhead">GoAhead: GoAhead WebServer 采用开放源代码方式，任何人都可以下载、评估并修改代码，目的是为了使GoAhead WebServer成为市场上最领先的嵌入式Web服务器</a></p>
+<p>本文不会完全分析GoAhead的代码实现、架构，而是聚焦于安全研究较为关注、通常由开发者实现的数据包处理部分。文章的大概阐述思路如下：</p>
+<ol>
+<li>首先结合源码说明GoAhead的数据包处理特性，主要涉及鉴权、路由处理</li>
+<li>结合漏洞简述基于GoAhead的server漏洞挖掘思路</li>
+</ol>
+<h2 id="源码简单分析请求处理"><a href="#源码简单分析请求处理" class="headerlink" title="源码简单分析请求处理"></a>源码简单分析请求处理</h2><p>GoAhead会对数据包按照优先级进行顺序处理，也会根据数据包的路由调用不同的回调函数进行处理。先说说数据包优先级：</p>
+<ul>
+<li>优先级为1注册的回调函数：所有数据包都需要首先经过该回调函数进行处理，此处也通常被用来做数据包鉴权、请求路径合法性判断、未授权访问路径定义等等；优先级为0注</li>
+<li>优先级为0注册的回调函数：通常用来定义认证后可访问到的接口逻辑实现</li>
+<li>优先级为2注册的回调函数：没有回调函数匹配的数据包</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">websUrlHandlerDefine</span><span class="params">(<span class="type">char_t</span> *urlPrefix, <span class="type">char_t</span> *webDir, <span class="type">int</span> arg,</span></span><br><span class="line"><span class="params">		<span class="type">int</span> (*handler)(<span class="type">webs_t</span> wp, <span class="type">char_t</span> *urlPrefix, <span class="type">char_t</span> *webdir, <span class="type">int</span> arg, </span></span><br><span class="line"><span class="params">		<span class="type">char_t</span> *url, <span class="type">char_t</span> *path, <span class="type">char_t</span> *query), <span class="type">int</span> flags)</span></span><br></pre></td></tr></table></figure>
+<p>比较重要的参数：</p>
+<ul>
+<li><code>char_t *urlPrefix</code>：指定URL的前缀，也就是需要处理的URL开头部分</li>
+<li><code>int (*handler)</code>：URL对应的回调函数</li>
+<li><code>int flags</code>：URL处理优先级标志，有如下的两个选择：<ul>
+<li><code>#define WEBS_HANDLER_FIRST	0x1</code>：所有的数据包都会通过该回调函数进行处理</li>
+<li><code>#define WEBS_HANDLER_LAST	0x2</code>：没有回调函数匹配的数据包会通过该回调函数进行处理</li>
+</ul>
+</li>
+</ul>
+<p>如下是一个真实设备的反编译代码，可以看到GoAhead是通过注册一个flags&#x3D;WEBS_HANDLER_FIRST&#x3D;1的回调函数websAuthHandler来判断数据包是否通过认证的，这意味着所有的数据包都会通过函数websAuthHandler进行处理，验证数据包发送者的权限。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">websUrlHandlerDefine(&amp;byte_4AA6CC, <span class="number">0</span>, <span class="number">0</span>, websAuthHandler, <span class="number">1</span>);</span><br><span class="line">websUrlHandlerDefine(<span class="string">&quot;/goform&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, websFormHandler, <span class="number">0</span>);</span><br><span class="line">websUrlHandlerDefine(<span class="string">&quot;/cgi-bin&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, websCgiHandler, <span class="number">0</span>);</span><br><span class="line">websUrlHandlerDefine(<span class="string">&quot;/reboot.asp&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, sub_464028, <span class="number">0</span>);</span><br><span class="line">websUrlHandlerDefine(<span class="string">&quot;/reboot&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, sub_464028, <span class="number">0</span>);</span><br><span class="line">websUrlHandlerDefine(<span class="string">&quot;/exception_log&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, sub_462850, <span class="number">0</span>);</span><br><span class="line">websUrlHandlerDefine(<span class="string">&quot;/nat_log&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, sub_4628F8, <span class="number">0</span>);</span><br><span class="line">websUrlHandlerDefine(<span class="string">&quot;/attributes_log&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, sub_4628F8, <span class="number">0</span>);</span><br><span class="line">websUrlHandlerDefine(<span class="string">&quot;/dhcpcliinfo&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, sub_4628F8, <span class="number">0</span>);</span><br><span class="line">websUrlHandlerDefine(<span class="string">&quot;/auto_ch&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, sub_4628F8, <span class="number">0</span>);</span><br><span class="line">websUrlHandlerDefine(<span class="string">&quot;/auto_5G_ch&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, sub_4628F8, <span class="number">0</span>);</span><br></pre></td></tr></table></figure>
+
+<p>例如对一个请求的完整处理过程：使用POST请求访问&#x2F;goform&#x2F;websLogin，</p>
+<ol>
+<li>首先数据包会进入函数webAuthHandler：请求路径鉴权、请求路径合法性判断等<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">websUrlHandlerDefine(&amp;byte_4AA6CC, <span class="number">0</span>, <span class="number">0</span>, websAuthHandler, <span class="number">1</span>);</span><br></pre></td></tr></table></figure></li>
+<li>根据一层路径<code>/goform</code>，匹配回调函数websFormHandler：<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">websUrlHandlerDefine(<span class="string">&quot;/goform&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, websFormHandler, <span class="number">0</span>);</span><br></pre></td></tr></table></figure></li>
+<li>根据二层路径<code>/websLogin</code>，匹配回调函数websLogin：<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">websFormDefine((<span class="type">int</span>)<span class="string">&quot;websLogin&quot;</span>, (<span class="type">int</span>)websLogin);</span><br></pre></td></tr></table></figure></li>
+</ol>
+<p>因此，对于GoAhead作为server的设备来说，如果想挖到认证前的RCE的话，可以主要从优先级为0的登录处理回调函数入手，找到绕过认证的方法，或者看回调函数是否存在缓冲区溢出等能够劫持控制流的漏洞。</p>
+<h2 id="漏洞挖掘思路"><a href="#漏洞挖掘思路" class="headerlink" title="漏洞挖掘思路"></a>漏洞挖掘思路</h2><h3 id="历史版本漏洞"><a href="#历史版本漏洞" class="headerlink" title="历史版本漏洞"></a>历史版本漏洞</h3><p>版本号的确定：搜索字符串GoAhead-Webs，可以确定版本，从而判断是否受到历史漏洞的影响<br><img src="/images/image-2023-0823-141851247.png" alt="undifined"></p>
+<table>
+<thead>
+<tr>
+<th>漏洞编号</th>
+<th>影响版本</th>
+<th>漏洞概述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CVE-2017-17562</td>
+<td>&lt; 3.6.5</td>
+<td>初始化CGI时，在HTTPD请求参数中，使用特殊的参数名LD_PRELOAD劫持libc库，进而远程命令执行</td>
+</tr>
+<tr>
+<td>CVE-2021-42342</td>
+<td>4.x、5.x~5.1.5</td>
+<td>对上述的一个绕过</td>
+</tr>
+</tbody></table>
+<p>如上的两个漏洞如果要达成认证前RCE，需要&#x2F;cgi-bin&#x2F;一层路径可以未授权访问</p>
+<h3 id="漏洞案例1：发生在websSecurityHandler中的认证绕过"><a href="#漏洞案例1：发生在websSecurityHandler中的认证绕过" class="headerlink" title="漏洞案例1：发生在websSecurityHandler中的认证绕过"></a>漏洞案例1：发生在websSecurityHandler中的认证绕过</h3><p>CVE-2020-15633</p>
+<blockquote>
+</blockquote>
+<p>该漏洞是发生在LAN口的一个登录认证绕过漏洞，影响设备DIR-867、DIR-878、DIR-882，固件版本1.20B10_BETA。漏洞产生的原因是在处理HNAP请求的过程中，验证用户登录逻辑时处理不当，使用strstr函数来检查无需验证权限的接口，导致可以构造特定URI来绕过身份认证，从而访问敏感接口。</p>
+<p>设备采用lighttpd作为webserver，根据配置会将HNAP请求转发到程序&#x2F;bin&#x2F;prog.cgi进行处理，prog.cgi是基于GoAhead开发。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">fastcgi.server = ( </span><br><span class="line">	&quot;/HNAP1/&quot; =&gt; </span><br><span class="line">	((</span><br><span class="line">		&quot;socket&quot; =&gt; &quot;/var/prog.fcgi.socket-0&quot;,</span><br><span class="line">		&quot;check-local&quot; =&gt; &quot;enable&quot;,</span><br><span class="line">		&quot;bin-path&quot; =&gt; &quot;/bin/prog.cgi&quot;,</span><br><span class="line">		&quot;idle-timeout&quot; =&gt; 10,</span><br><span class="line">		&quot;min-procs&quot; =&gt; 1,</span><br><span class="line">		&quot;max-procs&quot; =&gt; 1</span><br><span class="line">	)), </span><br><span class="line">	......</span><br></pre></td></tr></table></figure>
+
+<p>漏洞触发过程的函数调用如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">sub_423ECC -&gt; 0</span><br><span class="line">sub_4249EC -&gt; 0</span><br><span class="line">websSecurityHandler -&gt; 0</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li>在函数sub_423ECC中，会使用函数strstr比较环境变量REQUEST_URI（也就是请求路径）中是否含有字符串列表actions_list中的字符串，然后触发到return 0。<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> ( a1[<span class="number">57</span>] &amp;&amp; <span class="built_in">strstr</span>(a1[<span class="number">57</span>], &amp;actions_list[<span class="number">32</span> * index]) )<span class="comment">// REQUEST_URI</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">if</span> ( <span class="built_in">strcmp</span>(&amp;actions_list[<span class="number">32</span> * index], <span class="string">&quot;/HNAP1/&quot;</span>) || !a1[<span class="number">50</span>] || <span class="built_in">strcmp</span>(a1[<span class="number">50</span>], <span class="string">&quot;POST&quot;</span>) )</span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li>然后返回到函数sub_4249EC，触发该函数继续返回0；</li>
+<li>再返回到函数websSecurityHandler中，使得该认证函数返回0，达到认证绕过；<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">websUrlHandlerDefine(<span class="string">&quot;/&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, websSecurityHandler, <span class="number">1</span>);</span><br></pre></td></tr></table></figure></li>
+</ol>
+<h3 id="其他认证后的接口（大多存在）"><a href="#其他认证后的接口（大多存在）" class="headerlink" title="其他认证后的接口（大多存在）"></a>其他认证后的接口（大多存在）</h3><p>大多基于GoAhead开发的server都存在认证后的漏洞，例如缓冲区溢出、命令执行等等。</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://andisec.com/cve-2021-43474%EF%BC%9Ad-link-dir-823g%E5%91%BD%E4%BB%A4%E6%B3%A8%E5%85%A5%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90.html">CVE-2021-43474：D-Link DIR-823G命令注入漏洞分析 – OT网络安全领军者-北京安帝科技有限公司</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.iotsec-zone.com/article/119#314poc">Tenda AC15 CVE-2020-10987漏洞分析 - IOTsec-Zone</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.z1r0.top/2022/07/28/D-Link-Dir-816-A2%E8%B7%AF%E7%94%B1%E5%99%A8%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90/">D-Link Dir-816 A2路由器漏洞分析</a></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/11/20/IoT%E5%B0%8F%E8%AE%BE%E5%A4%87%E4%B8%AD%E5%B8%B8%E8%A7%81%E7%9A%84webserver%E5%88%86%E6%9E%90%E5%8F%8A%E6%BC%8F%E6%B4%9E%E6%8C%96%E6%8E%98%E6%80%9D%E8%B7%AF%E6%B5%85%E6%9E%90%EF%BC%9Amini_httpd%E7%AF%87/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="ToT">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/11/20/IoT%E5%B0%8F%E8%AE%BE%E5%A4%87%E4%B8%AD%E5%B8%B8%E8%A7%81%E7%9A%84webserver%E5%88%86%E6%9E%90%E5%8F%8A%E6%BC%8F%E6%B4%9E%E6%8C%96%E6%8E%98%E6%80%9D%E8%B7%AF%E6%B5%85%E6%9E%90%EF%BC%9Amini_httpd%E7%AF%87/" class="post-title-link" itemprop="url">IoT小设备常见webserver分析及漏洞挖掘思路浅析：mini_httpd篇</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-11-20 03:38:03" itemprop="dateCreated datePublished" datetime="2023-11-20T03:38:03+08:00">2023-11-20</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-12-09 22:21:24" itemprop="dateModified" datetime="2023-12-09T22:21:24+08:00">2023-12-09</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h2><p>mini_httpd是一个小型的HTTP服务器，它的代码非常小巧，仅有几千行代码，因此它适用于嵌入式设备和低功耗系统。它是由Jef Poskanzer开发的，可以在多种操作系统上运行，包括Linux、FreeBSD、Solaris、Windows等。mini_httpd支持动态内容的生成，包括CGI、SSI以及FastCGI，同时它也支持虚拟主机和基本的身份验证。mini_httpd的主要特点是快速、轻量级、安全和易于使用。</p>
+<p>mini_httpd的代码下载地址：<a target="_blank" rel="noopener" href="https://acme.com/software/mini_httpd/">mini_httpd</a></p>
+<h2 id="数据包处理逻辑"><a href="#数据包处理逻辑" class="headerlink" title="数据包处理逻辑"></a>数据包处理逻辑</h2><p>mini_httpd收到一个数据请求包后会fork创建一个子进程来进行处理，这种方式如果在高并发场景会在进程创建、销毁过程中消耗大量的资源，但是在并发量低的嵌入式设备已经够用了。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* Fork a sub-process to handle the connection. */</span></span><br><span class="line">r = fork();</span><br><span class="line">   ...</span><br><span class="line"><span class="keyword">if</span> ( r == <span class="number">0</span> )</span><br><span class="line">    &#123;</span><br><span class="line">    <span class="comment">/* Child process. */</span></span><br><span class="line">       ...</span><br><span class="line">    handle_request();       <span class="comment">// 数据包处理逻辑</span></span><br><span class="line">    &#125;</span><br><span class="line">   ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>子进程中主要是通过handle_request函数来对数据进行处理的，主要是先解析请求行、再解析请求头。</p>
+<ul>
+<li>读取请求的第一行，获取到请求行，然后从行中解析到请求方法protocol、请求路径path和查询参数query</li>
+<li>随后解析header，主要实现是通过while循环继续逐行解析header中的字段，包括Authorization、Content-Length、Content-Type、Cookie、User-Agent等等常见的字段</li>
+</ul>
+<p>如下是handle_request函数中读取请求行，获取到请求method_str、path、query、protocol。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* Parse the first line of the request. */</span></span><br><span class="line">method_str = get_request_line();</span><br><span class="line"><span class="keyword">if</span> ( method_str == (<span class="type">char</span>*) <span class="number">0</span> )</span><br><span class="line">	send_error( <span class="number">400</span>, <span class="string">&quot;Bad Request&quot;</span>, <span class="string">&quot;&quot;</span>, <span class="string">&quot;Can&#x27;t parse request.&quot;</span> );</span><br><span class="line">path = <span class="built_in">strpbrk</span>( method_str, <span class="string">&quot; \t\012\015&quot;</span> );</span><br><span class="line"><span class="keyword">if</span> ( path == (<span class="type">char</span>*) <span class="number">0</span> )</span><br><span class="line">	send_error( <span class="number">400</span>, <span class="string">&quot;Bad Request&quot;</span>, <span class="string">&quot;&quot;</span>, <span class="string">&quot;Can&#x27;t parse request.&quot;</span> );</span><br><span class="line">*path++ = <span class="string">&#x27;\0&#x27;</span>;</span><br><span class="line">path += <span class="built_in">strspn</span>( path, <span class="string">&quot; \t\012\015&quot;</span> );</span><br><span class="line">protocol = <span class="built_in">strpbrk</span>( path, <span class="string">&quot; \t\012\015&quot;</span> );</span><br><span class="line"><span class="keyword">if</span> ( protocol == (<span class="type">char</span>*) <span class="number">0</span> )</span><br><span class="line">	send_error( <span class="number">400</span>, <span class="string">&quot;Bad Request&quot;</span>, <span class="string">&quot;&quot;</span>, <span class="string">&quot;Can&#x27;t parse request.&quot;</span> );</span><br><span class="line">*protocol++ = <span class="string">&#x27;\0&#x27;</span>;</span><br><span class="line">protocol += <span class="built_in">strspn</span>( protocol, <span class="string">&quot; \t\012\015&quot;</span> );</span><br><span class="line">query = <span class="built_in">strchr</span>( path, <span class="string">&#x27;?&#x27;</span> );</span><br><span class="line"><span class="keyword">if</span> ( query == (<span class="type">char</span>*) <span class="number">0</span> )</span><br><span class="line">	query = <span class="string">&quot;&quot;</span>;</span><br><span class="line"><span class="keyword">else</span></span><br><span class="line">	*query++ = <span class="string">&#x27;\0&#x27;</span>;</span><br></pre></td></tr></table></figure>
+
+<p>然后是while循环处理header，获取字段。在源码中包括：Authorization、Content-Length、Content-Type、Cookie、Host、If-Modified-Since、Referer、Referrer、User-Agent这些字段。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">   <span class="comment">/* Parse the rest of the request headers. */</span></span><br><span class="line">   <span class="keyword">while</span> ( ( line = get_request_line() ) != (<span class="type">char</span>*) <span class="number">0</span> )</span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">if</span> ( line[<span class="number">0</span>] == <span class="string">&#x27;\0&#x27;</span> )</span><br><span class="line">    <span class="keyword">break</span>;</span><br><span class="line"><span class="keyword">else</span> <span class="keyword">if</span> ( strncasecmp( line, <span class="string">&quot;Authorization:&quot;</span>, <span class="number">14</span> ) == <span class="number">0</span> )</span><br><span class="line">    &#123;</span><br><span class="line">       ...</span><br><span class="line">    &#125;</span><br><span class="line"><span class="keyword">else</span> <span class="keyword">if</span> ( strncasecmp( line, <span class="string">&quot;Content-Length:&quot;</span>, <span class="number">15</span> ) == <span class="number">0</span> )</span><br><span class="line">    &#123;</span><br><span class="line">       ...</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>获取到了如上的重要字段后，就开始对数据包的合法性进行判断，例如：</p>
+<ul>
+<li>请求方法method是否合理：GET、HEAD、POST、PUT、DELETE、TRACE</li>
+<li>请求路径path必须以反斜杠<code>/</code>开头、对path进行目录穿越相关字符进行处理、检查文件是否存在</li>
+<li>然后根据path是文件夹或文件，分别调用do_dir和do_file进行处理，二者最终都会进行权限检查函数auth_check</li>
+</ul>
+<p>在权限检查函数auth_check中，输入为请求的path转换的实际路径file所在的文件夹dirname，如果权限检查通过，则继续直接随后的数据包处理流程；如果权限检查是否，则通过send_authenticate函数返回401，然后结束当前连接的生命周期。</p>
+<p>权限检查的流程则是：</p>
+<ol>
+<li>如果dirname中没有.htpasswd文件，那么直接认证通过。就相当于是在需要授权访问的文件夹中添加该文件，不需要授权访问的文件夹中没有该文件</li>
+<li>源码中采用的校验方式是BASIC认证，请求包中带上username和base64编码的password，然后和.htpasswd文件中保存的账号信息进行对比，如果比较通过则直接返回。</li>
+</ol>
+<h2 id="漏洞挖掘思路"><a href="#漏洞挖掘思路" class="headerlink" title="漏洞挖掘思路"></a>漏洞挖掘思路</h2><p>因此，平常漏洞挖掘中比较关心的登录认证流程就非常清晰：main -&gt; handle_request -&gt; do_file&#x2F;do_dir -&gt; auth_check。一般情况下，厂商会根据自己的业务逻辑修改相关的函数，但是根据源码我们还是能通过一些字符串特征来定位到关键函数，例如：</p>
+<ul>
+<li>通过搜索index相关的页面字符串，可以定位到handle_request<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">.data:0041E030 index_names:    .word aSetupCgi          # DATA XREF: handle_request+38↑o</span><br><span class="line">.data:0041E030                                          # &quot;setup.cgi&quot;</span><br><span class="line">.data:0041E034                 .word aIndexHtml         # &quot;index.html&quot;</span><br><span class="line">.data:0041E038                 .word aIndexHtm          # &quot;index.htm&quot;</span><br><span class="line">.data:0041E03C                 .word aIndexXhtml        # &quot;index.xhtml&quot;</span><br><span class="line">.data:0041E040                 .word aIndexXht          # &quot;index.xht&quot;</span><br><span class="line">.data:0041E044                 .word aDefaultHtm        # &quot;Default.htm&quot;</span><br></pre></td></tr></table></figure></li>
+<li>函数handle_request中的逻辑是由开发者定义，因此可能发生缓冲区溢出、命令注入等常见漏洞形式</li>
+<li>通过搜索字符串.htpasswd可以直接定位到do_file、auth_check函数。do_file函数中会检查请求文件是否为.htpasswd，auth_check函数则是需要读取账号信息、调用字符串比较函数等</li>
+</ul>
+<h2 id="经典案例"><a href="#经典案例" class="headerlink" title="经典案例"></a>经典案例</h2><h3 id="案例1：发生在auth-check中的认证绕过"><a href="#案例1：发生在auth-check中的认证绕过" class="headerlink" title="案例1：发生在auth_check中的认证绕过"></a>案例1：发生在auth_check中的认证绕过</h3><blockquote>
+<p>发生在netgear wac104设备、固件版本1.0.4.15之前的身份认证绕过漏洞，漏洞产生的原因是在鉴权过程中，使用了strstr来判断：如果请求uri中包含currentsetting.htm，设置无需认证标志。因此攻击者可以在需要鉴权的uri中包含currentsetting.htm标志，从而达到认证绕过的目的。</p>
+</blockquote>
+<p>通过之前的源代码梳理，也明白了mini_httpd的登录认证流程，那么可以通过搜索字符串的技巧直接定位到auth_check函数。auth_check函数开头有一段导致后续认证绕过的逻辑，其中有一个g_bypass_flag&#x3D;1时可以直接通过认证。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> ( g_bypass_flag == <span class="number">1</span> )</span><br><span class="line">&#123;</span><br><span class="line">  <span class="keyword">if</span> ( !sub_4062C0() )</span><br><span class="line">  &#123;</span><br><span class="line">    system(<span class="string">&quot;/bin/echo genie from wan, drop request &gt; /dev/console&quot;</span>);</span><br><span class="line">    <span class="built_in">exit</span>(<span class="number">0</span>);</span><br><span class="line">  &#125;</span><br><span class="line">  result = system(<span class="string">&quot;/bin/echo genie from lan, ok &gt; /dev/console&quot;</span>);</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">else</span> &#123; </span><br><span class="line">......</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>查看变量g_bypass_flag的交叉引用，赋值的地方一共包含如下的三处：</p>
+<ol>
+<li>当请求path中包含currentsetting.htm的时候<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> ( <span class="built_in">strstr</span>(v86, <span class="string">&quot;currentsetting.htm&quot;</span>) )</span><br><span class="line">  g_bypass_flag = <span class="number">1</span>;</span><br></pre></td></tr></table></figure></li>
+<li>SOAPAction相关，设计的初衷应该是可以访问任意SOAP的xml。<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">else</span></span><br><span class="line">&#123;</span><br><span class="line">  v26 = strncasecmp(v34, <span class="string">&quot;Accept-Language:&quot;</span>, <span class="number">16</span>);</span><br><span class="line">  v27 = v34;</span><br><span class="line">  <span class="keyword">if</span> ( v26 )</span><br><span class="line">  &#123;</span><br><span class="line">    v30 = v34 + <span class="number">11</span>;</span><br><span class="line">    <span class="keyword">if</span> ( !strncasecmp(v27, <span class="string">&quot;SOAPAction:&quot;</span>, <span class="number">11</span>) )</span><br><span class="line">    &#123;</span><br><span class="line">      v31 = <span class="built_in">strspn</span>(v30, <span class="string">&quot; \t&quot;</span>);</span><br><span class="line">      v32 = strcasestr(&amp;v30[v31], <span class="string">&quot;urn:NETGEAR-ROUTER:service:&quot;</span>);</span><br><span class="line">      ......</span><br><span class="line">      <span class="keyword">if</span> ( v32 )</span><br><span class="line">      &#123;</span><br><span class="line">        ......</span><br><span class="line">        g_bypass_flag = <span class="number">1</span>;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure></li>
+<li>请求path中包含setupwizard.cgi，但是随后的处理逻辑会调用exit退出，因此无法利用。这个可能是当设备首次启动、开始安装向导触发的。<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> ( <span class="built_in">strstr</span>((<span class="type">const</span> <span class="type">char</span> *)g_path, <span class="string">&quot;setupwizard.cgi&quot;</span>) )</span><br><span class="line">  g_bypass_flag = <span class="number">1</span>;</span><br></pre></td></tr></table></figure></li>
+</ol>
+<p>再次返回到mini_httpd的源代码中，结合固件中的反汇编</p>
+<ul>
+<li>首先通过查找method后的第一个空格、换行、制表符的方式，获取到path。但是随后没有对path中是否包含%00进行判断。<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">v10 = <span class="built_in">strpbrk</span>(v8, <span class="string">&quot; \t\n\r&quot;</span>);</span><br><span class="line">g_path = v10;</span><br></pre></td></tr></table></figure></li>
+<li>获取到的path在内存中大概是：<code>uri\0currentsetting.htm</code>，这导致，strstr函数返回一个非空值，就设置了g_bypass_flag，从而通过了auth_check<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">......</span><br><span class="line">v86 = (<span class="type">const</span> <span class="type">char</span> *)g_path;</span><br><span class="line">......</span><br><span class="line"><span class="keyword">if</span> ( <span class="built_in">strstr</span>(v86, <span class="string">&quot;currentsetting.htm&quot;</span>) )</span><br><span class="line">  g_bypass_flag = <span class="number">1</span>;</span><br><span class="line">......</span><br></pre></td></tr></table></figure></li>
+</ul>
+<h3 id="案例2：发生在函数handle-request"><a href="#案例2：发生在函数handle-request" class="headerlink" title="案例2：发生在函数handle_request"></a>案例2：发生在函数handle_request</h3><p>CVE-2021-34979</p>
+<blockquote>
+<p>发生在NETGEAR R6260，固件版本V1.1.0.78_1.0.1中，处理<code>SOAPAction</code>标头由于未判断全局数组<code>spapServiceName</code>的边界，导致越界写。写入的数据会以环境变量的形式传递到setupwizard.cgi中，进而造成缓冲区溢出。</p>
+</blockquote>
+<p>越界写：发生在处理数据包的函数<code>handle_request</code>中，未判断边界</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">else</span> <span class="keyword">if</span> (strncasecmp(line, <span class="string">&quot;SOAPAction:&quot;</span>, <span class="number">11</span>) == <span class="number">0</span>)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="type">char</span> *pTemp = <span class="literal">NULL</span>;</span><br><span class="line">    cp = &amp;line[<span class="number">11</span>];</span><br><span class="line">    cp += <span class="built_in">strspn</span>(cp, <span class="string">&quot; \t&quot;</span>);</span><br><span class="line">    pTemp = strcasestr(cp, <span class="string">&quot;urn:NETGEAR-ROUTER:service:&quot;</span>);</span><br><span class="line">    <span class="keyword">if</span> (pTemp != <span class="literal">NULL</span>)</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="type">int</span> i = <span class="number">0</span>;</span><br><span class="line">        pTemp += <span class="built_in">strlen</span>(<span class="string">&quot;urn:NETGEAR-ROUTER:service:&quot;</span>);</span><br><span class="line">        <span class="keyword">while</span> (*pTemp != <span class="string">&#x27;:&#x27;</span> &amp;&amp; *pTemp != <span class="string">&#x27;\0&#x27;</span>)</span><br><span class="line">        &#123;</span><br><span class="line">            soapServiceName[i++] = *pTemp;              <span class="comment">// &lt;-- Out-Of-Bounds Write</span></span><br><span class="line">            pTemp++;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>后续调用setupwizard.cgi时，环境变量会传入，并且造成缓冲区溢出。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">bool</span> <span class="title function_">check_soap_login_record</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">    ... </span><br><span class="line">    v1 = getenv(<span class="string">&quot;SOAP_LOGIN_TOKEN&quot;</span>);</span><br><span class="line">    ...</span><br><span class="line">    <span class="keyword">if</span> ( !v3 )</span><br><span class="line">    &#123;</span><br><span class="line">    ...</span><br><span class="line">        <span class="built_in">strcat</span>((<span class="type">char</span> *)v25, v1);</span><br><span class="line">    ...</span><br></pre></td></tr></table></figure>
+
+<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>mini_httpd主要容易发生漏洞的地方就是在处理数据包的函数handle_request处，因为此处是开发者主要添加自己代码的地方，例如对header的处理、认证的自我实现方式等等。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/09/20/[pwnable.kr]%20leg/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1023,280 +1311,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/09/12/CVE-2020-15633%EF%BC%9Astrstr%E5%AF%BC%E8%87%B4%E7%9A%84%E7%99%BB%E5%BD%95%E8%AE%A4%E8%AF%81%E7%BB%95%E8%BF%87/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="ToT">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/09/12/CVE-2020-15633%EF%BC%9Astrstr%E5%AF%BC%E8%87%B4%E7%9A%84%E7%99%BB%E5%BD%95%E8%AE%A4%E8%AF%81%E7%BB%95%E8%BF%87/" class="post-title-link" itemprop="url">CVE-2020-15633 dir-878中strstr导致的登录认证绕过</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-09-12 05:27:30" itemprop="dateCreated datePublished" datetime="2023-09-12T05:27:30+08:00">2023-09-12</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-09-13 10:04:35" itemprop="dateModified" datetime="2023-09-13T10:04:35+08:00">2023-09-13</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/" itemprop="url" rel="index"><span itemprop="name">漏洞复现</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/IoT/" itemprop="url" rel="index"><span itemprop="name">IoT</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="漏洞基本信息"><a href="#漏洞基本信息" class="headerlink" title="漏洞基本信息"></a>漏洞基本信息</h2><p>该漏洞是发生在LAN口的一个登录认证绕过漏洞，影响设备DIR-867、DIR-878、DIR-882，固件版本1.20B10_BETA。漏洞产生的原因是在处理HNAP请求的过程中，验证用户登录逻辑时处理不当，使用strstr函数来检查无需验证权限的接口，导致可以构造特定URI来绕过身份认证，从而访问敏感接口。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">This vulnerability allows network-adjacent attackers to bypass authentication on affected installations of D-Link DIR-867, DIR-878, and DIR-882 routers with firmware 1.20B10_BETA. Authentication is not required to exploit this vulnerability. The specific flaw exists within the handling of HNAP requests. The issue results from incorrect string matching logic when accessing protected pages. An attacker can leverage this vulnerability to escalate privileges and execute code in the context of the router. Was ZDI-CAN-10835.</span><br></pre></td></tr></table></figure>
-
-<h2 id="漏洞分析"><a href="#漏洞分析" class="headerlink" title="漏洞分析"></a>漏洞分析</h2><p>分析该漏洞使用了设备DIR-878，固件版本1.20B05，固件下载链接：<a target="_blank" rel="noopener" href="http://files.dlink.com.au/products/DIR-878/REV_A/Firmware/">files.dlink.com.au - &#x2F;products&#x2F;DIR-878&#x2F;REV_A&#x2F;Firmware&#x2F;</a></p>
-<h3 id="固件获取及解密"><a href="#固件获取及解密" class="headerlink" title="固件获取及解密"></a>固件获取及解密</h3><p>该固件是存在加密的，没有办法使用binwalk直接进行解密。一般来说，总是存在最近的一个中间未加密版本固件，随后的一个版本升级才是加密固件，此时可以根据中间版本中的程序获取到固件的加解密逻辑。解密逻辑就是按照时间顺序，下载所有的固件，找到最后一个未加密的固件，并对其进行分析。</p>
-<p>根据设备DIR-878的历史固件描述来看，猜测该中间版本是如下的FW104B05 Middleware.bin，实际上也的确如此。<br><img src="/images/image-2023-0913-095050557.png" alt="undifined"></p>
-<p>使用binwalk解压后获取到文件系统，一般可以尝试搜索带有decrypt、encrypt这类的程序，如果找不到再继续全局搜索字符串decrypt、encrypt。这个地方直接全局搜索字符串就定位到了可能的固件解密程序：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ grep -r &quot;decrypt&quot; </span><br><span class="line">Binary file ./bin/imgdecrypt matches</span><br></pre></td></tr></table></figure>
-
-<p>光这样或许还不能确定程序&#x2F;bin&#x2F;imgdecrypt是负责固件解密的，进一步继续以该程序名搜索字符串，看哪些其他程序调用了它，以及调用的命令是什么：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">$ grep -r &quot;imgdecrypt&quot;</span><br><span class="line">Binary file ./bin/prog.cgi matches</span><br><span class="line"></span><br><span class="line">$ strings ./bin/prog.cgi | grep &quot;imgdecrypt&quot;</span><br><span class="line">/bin/imgdecrypt /tmp/firmware.img</span><br></pre></td></tr></table></figure>
-
-<p>这样基本上就可以确认，这个&#x2F;bin&#x2F;imgdecrypt是负责对固件进行解密的了，随后尝试使用qemu运行该程序对固件进行解密</p>
-<p>使用qemu-mipsel进行用户级的仿真即可，可以看到usage是直接对固件进行解密。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ sudo qemu-mipsel-static -L ./ ./bin/imgdecrypt</span><br><span class="line">./bin/imgdecrypt &lt;sourceFile&gt;</span><br></pre></td></tr></table></figure>
-
-<p>解密前无法使用binwalk查看到固件信息：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">$ binwalk -M ~/tmp/DIR_878_FW120B05.bin</span><br><span class="line"></span><br><span class="line">Scan Time:     2023-09-12 17:54:02</span><br><span class="line">Target File:   /home/oneshell/tmp/DIR_878_FW120B05.bin</span><br><span class="line">MD5 Checksum:  2f8e4eb7a3310da97cf9440caf084cd5</span><br><span class="line">Signatures:    411</span><br><span class="line"></span><br><span class="line">DECIMAL       HEXADECIMAL     DESCRIPTION</span><br><span class="line">--------------------------------------------------------------------------------</span><br></pre></td></tr></table></figure>
-
-<p>解密后可以使用binwalk查看到固件信息，注意解密后固件的权限是root账号所有，后续的查看、解压固件都需要使用root权限或者先修改固件权限。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">$ sudo qemu-mipsel-static -L ./ ./bin/imgdecrypt ~/tmp/DIR_878_FW120B05.bin</span><br><span class="line">key:C05FBF1936C99429CE2A0781F08D6AD8</span><br><span class="line"></span><br><span class="line">$ sudo binwalk -M ~/tmp/DIR_878_FW120B05.bin</span><br><span class="line"></span><br><span class="line">Scan Time:     2023-09-12 17:58:22</span><br><span class="line">Target File:   /home/oneshell/tmp/DIR_878_FW120B05.bin</span><br><span class="line">MD5 Checksum:  07d4fdc93ad1d270c06e1c924ee26b83</span><br><span class="line">Signatures:    411</span><br><span class="line"></span><br><span class="line">DECIMAL       HEXADECIMAL     DESCRIPTION</span><br><span class="line">--------------------------------------------------------------------------------</span><br><span class="line">0             0x0             uImage header, header size: 64 bytes, header CRC: 0x4934CFEF, created: 2019-05-16 07:14:42, image size: 11181071 bytes, Data Address: 0x81001000, Entry Point: 0x815FF440, data CRC: 0xA1B3FF3A, OS: Linux, CPU: MIPS, image type: OS Kernel Image, compression type: lzma, image name: &quot;Linux Kernel Image&quot;</span><br><span class="line">160           0xA0            LZMA compressed data, properties: 0x5D, dictionary size: 33554432 bytes, uncompressed size: 16562624 bytes</span><br></pre></td></tr></table></figure>
-
-<p>如上，固件已经被成功解密了。但是这种解密依赖于后续的加密方式都是相同的，如果在中间版本采用了新的加密方式，那么还需要依次去对中间版本的解密逻辑进行分析。</p>
-<h3 id="架构分析"><a href="#架构分析" class="headerlink" title="架构分析"></a>架构分析</h3><p>首先是通过分析启动项来确定webserver是什么，以及请求是怎么进行处理的。一般的方式是直接搜索常见的webserver程序名，例如lighttpd、goahead、boa、mini_httpd等等，找到相关的启动脚本或启动程序，然后一步步分析启动逻辑。此处也是这样分析到如下的启动逻辑。</p>
-<ol>
-<li><p>启动脚本&#x2F;etc_ro&#x2F;rcS执行程序init_system</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">init_system start</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>init_system调用lighttpd，在此之前还会启动nvram相关一些进程</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">do_system(&quot;lighttpd -f /etc_ro/lighttpd/lighttpd.conf -m /etc_ro/lighttpd/lib&quot;);</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>分析lighttpd配置文件。lighttpd给我的感觉类似于nginx，只负责对相关的流量进行转发，会定义相关的路由以及处理程序。根据配置文件，可以定位到发生在路由&#x2F;HNAP1&#x2F;的请求全部是由程序&#x2F;bin&#x2F;prog.cgi进行处理的。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">fastcgi.server = ( </span><br><span class="line">	&quot;/HNAP1/&quot; =&gt; </span><br><span class="line">	((</span><br><span class="line">		&quot;socket&quot; =&gt; &quot;/var/prog.fcgi.socket-0&quot;,</span><br><span class="line">		&quot;check-local&quot; =&gt; &quot;enable&quot;,</span><br><span class="line">		&quot;bin-path&quot; =&gt; &quot;/bin/prog.cgi&quot;,</span><br><span class="line">		&quot;idle-timeout&quot; =&gt; 10,</span><br><span class="line">		&quot;min-procs&quot; =&gt; 1,</span><br><span class="line">		&quot;max-procs&quot; =&gt; 1</span><br><span class="line">	)), </span><br><span class="line">	......</span><br></pre></td></tr></table></figure></li>
-</ol>
-<p>接下来就是去逆向程序&#x2F;bin&#x2F;prog.cgi，在逆向的过程中，发现该程序可能是基于goahead更改的，因为它的一些函数命名、调用方式和goahead源码非常类似，例如在地址00429B64处，就有类似于goahead中如何对请求路径进行处理的回调函数的定义：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">HandlersDefine</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">......</span><br><span class="line">  websSetDefaultDir(v1);</span><br><span class="line">  websSetHost(v2);</span><br><span class="line">  set_httpd_timeout();</span><br><span class="line">  websOpenServer();</span><br><span class="line">  trace(<span class="number">0</span>, <span class="string">&quot;websOpenServer \n&quot;</span>);</span><br><span class="line">  websUrlHandlerDefine(<span class="string">&quot;/&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, websSecurityHandler, <span class="number">1</span>);</span><br><span class="line">  websUrlHandlerDefine(<span class="string">&quot;/HNAP1/&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, websFormHandler, <span class="number">0</span>);</span><br><span class="line">  websUrlHandlerDefine(<span class="string">&quot;/cgi-bin&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, websCgiHandler, <span class="number">0</span>);</span><br><span class="line">  websUrlHandlerDefine(&amp;unk_4B4FFC, <span class="number">0</span>, <span class="number">0</span>, websDefaultHandler, <span class="number">2</span>);</span><br><span class="line">  trace(<span class="number">0</span>, <span class="string">&quot;websUrlHandlerDefine cgi-bin\n&quot;</span>);</span><br><span class="line">  ModuleInitUtils();</span><br><span class="line">  ModuleInitMangement();</span><br><span class="line">  ModuleInitNetwork();</span><br><span class="line">......</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>按照goahead的特性来看的话，它对于每一个请求都会先调用websSecurityHandler进行鉴权，只有当鉴权通过才会继续进入到随后相应的回调函数中进行处理。因此，对于goahead作为webserver的设备中，寻找认证绕过就要去仔细看websSecurityHandler这个函数。</p>
-<h3 id="漏洞触发"><a href="#漏洞触发" class="headerlink" title="漏洞触发"></a>漏洞触发</h3><p>这篇文章的目的是进行漏洞分析，而不是漏洞挖掘，因此很多逻辑都是先通过漏洞信息大概推理出调用流程，然后再正向整理出来这个流程。这个地方直接给出结论发生漏洞的地方在地址00423ECC处的函数。<br>在函数sub_423ECC中，会比较环境变量REQUEST_URI（也就是请求路径）中是否含有字符串列表actions_list中的字符串，然后触发到return 0。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> __fastcall <span class="title function_">sub_423ECC</span><span class="params">(_DWORD *a1)</span></span><br><span class="line">&#123;</span><br><span class="line">......</span><br><span class="line">  <span class="keyword">if</span> ( a1[<span class="number">57</span>] )</span><br><span class="line">  &#123;</span><br><span class="line">    <span class="keyword">for</span> ( index = <span class="number">0</span>; index &lt; <span class="number">0xB</span>; ++index )</span><br><span class="line">    &#123;</span><br><span class="line">      <span class="built_in">snprintf</span>(v3, <span class="number">1024</span>, <span class="string">&quot;%s%s&quot;</span>, <span class="string">&quot;http://purenetworks.com/HNAP1/&quot;</span>, &amp;actions_list[<span class="number">32</span> * index]);</span><br><span class="line">      <span class="built_in">snprintf</span>(soap_action, <span class="number">1024</span>, <span class="string">&quot;\&quot;%s%s\&quot;&quot;</span>, <span class="string">&quot;http://purenetworks.com/HNAP1/&quot;</span>, &amp;actions_list[<span class="number">32</span> * index]);</span><br><span class="line">      <span class="keyword">if</span> ( a1[<span class="number">57</span>] &amp;&amp; <span class="built_in">strstr</span>(a1[<span class="number">57</span>], &amp;actions_list[<span class="number">32</span> * index]) )<span class="comment">// REQUEST_URI</span></span><br><span class="line">      &#123;</span><br><span class="line">        <span class="keyword">if</span> ( <span class="built_in">strcmp</span>(&amp;actions_list[<span class="number">32</span> * index], <span class="string">&quot;/HNAP1/&quot;</span>) || !a1[<span class="number">50</span>] || <span class="built_in">strcmp</span>(a1[<span class="number">50</span>], <span class="string">&quot;POST&quot;</span>) )</span><br><span class="line">          <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">else</span> <span class="keyword">if</span> ( a1[<span class="number">53</span>] &amp;&amp; (!<span class="built_in">strcmp</span>(a1[<span class="number">53</span>], v3) || !<span class="built_in">strcmp</span>(a1[<span class="number">53</span>], soap_action)) )<span class="comment">// HTTP_SOAPACTION</span></span><br><span class="line">      &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">......</span><br></pre></td></tr></table></figure>
-
-<p>字符串列表的值如下：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">.data:004D01A0 actions_list:   .ascii &quot;GetCAPTCHAsetting&quot;&lt;0&gt;</span><br><span class="line">.data:004D01A0                                          # DATA XREF: sub_423ECC+D8↑o</span><br><span class="line">.data:004D01A0                                          # sub_423ECC+12C↑o ...</span><br><span class="line">.data:004D01B2                 .align 4</span><br><span class="line">.data:004D01C0 aGetdevicesetti_3:.ascii &quot;GetDeviceSettings&quot;&lt;0&gt;</span><br><span class="line">.data:004D01D2                 .align 4</span><br><span class="line">.data:004D01E0 aBlockedpageHtm:.ascii &quot;blockedPage.html&quot;&lt;0&gt;</span><br><span class="line">.data:004D01F1                 .align 4</span><br><span class="line">.data:004D0200 aMobileloginHtm:.ascii &quot;MobileLogin.html&quot;&lt;0&gt;</span><br><span class="line">.data:004D0211                 .align 4</span><br><span class="line">.data:004D0220 aLoginHtml:     .ascii &quot;Login.html&quot;&lt;0&gt;</span><br><span class="line">.data:004D022B                 .align 5</span><br><span class="line">.data:004D0240 aEulaHtml:      .ascii &quot;EULA.html&quot;&lt;0&gt;</span><br><span class="line">.data:004D024A                 .align 5</span><br><span class="line">.data:004D0260 aIndexHtml_2:   .ascii &quot;Index.html&quot;&lt;0&gt;</span><br><span class="line">.data:004D026B                 .align 5</span><br><span class="line">.data:004D0280 aWizardHtml:    .ascii &quot;Wizard.html&quot;&lt;0&gt;</span><br><span class="line">.data:004D028C                 .align 5</span><br><span class="line">.data:004D02A0 aHnap1_5:       .ascii &quot;/HNAP1/&quot;&lt;0&gt;</span><br><span class="line">.data:004D02A8                 .align 5</span><br><span class="line">.data:004D02C0 aEulaTermHtml:  .ascii &quot;EULA_Term.html&quot;&lt;0&gt;</span><br><span class="line">.data:004D02CF                 .align 5</span><br><span class="line">.data:004D02E0 aEulaPrivacyHtm:.ascii &quot;EULA_Privacy.html&quot;&lt;0&gt;</span><br><span class="line">.data:004D02F2                 .align 4</span><br></pre></td></tr></table></figure>
-
-<p>然后返回到函数sub_4249EC，触发该函数继续返回0；再返回到函数websSecurityHandler中，使得该认证函数返回0。认证过程的调用链整理出来如下：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">sub_423ECC -&gt; 0</span><br><span class="line">sub_4249EC -&gt; 0</span><br><span class="line">websSecurityHandler -&gt; 0</span><br></pre></td></tr></table></figure>
-
-<p>在goahead源码中，函数webSecurityHandler设置返回值为1时，都是和错误代码紧密相连的，如下是两个代码片段。变量nRet会在函数初始化时设置为0，当出现错误的时候，设置为1。因此，可以确定当函数webSecurityHandler函数返回0时，是代表认证通过。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">websStats.access++;</span><br><span class="line">websError(wp, <span class="number">404</span>, T(<span class="string">&quot;Page Not Found&quot;</span>));</span><br><span class="line">nRet = <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">websError(wp, <span class="number">401</span>, T(<span class="string">&quot;Access Denied\nUnknown User&quot;</span>));</span><br><span class="line">trace(<span class="number">3</span>, T(<span class="string">&quot;SEC: Unknown user &lt;%s&gt; attempted to access &lt;%s&gt;\n&quot;</span>), userid, path);</span><br><span class="line">nRet = <span class="number">1</span>;</span><br></pre></td></tr></table></figure>
-
-<p>综上所述，对于路由&#x2F;HNAP1&#x2F;，只需要在uri后添加?GetCAPTCHAsetting或者任意其他字符串列表的中字符串，就可以达到认证绕过访问该接口的目的：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">POST /HNAP1/?Login.html HTTP/1.1</span><br><span class="line">Host: 192.168.0.1</span><br><span class="line">Content-Length: 302</span><br><span class="line">Accept: */*</span><br><span class="line">X-Requested-With: XMLHttpRequest</span><br><span class="line">HNAP_AUTH: 00DAB25BFD3EBF8FAD03E60E5616BF44 1598580346156</span><br><span class="line">SOAPAction: &quot;http://purenetworks.com/HNAP1/GetIPv6Status&quot;</span><br><span class="line">User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.135 Safari/537.36</span><br><span class="line">Content-Type: text/xml; charset=UTF-8</span><br><span class="line">Origin: http://192.168.0.1</span><br><span class="line">Referer: http://192.168.0.1/Home.html</span><br><span class="line">Accept-Encoding: gzip, deflate</span><br><span class="line">Accept-Language: zh-CN,zh;q=0.9</span><br><span class="line">Cookie: uid=uFXfaJBA</span><br><span class="line">Connection: close</span><br><span class="line"></span><br><span class="line">&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;&lt;soap:Envelope xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot; xmlns:xsd=&quot;http://www.w3.org/2001/XMLSchema&quot; xmlns:soap=&quot;http://schemas.xmlsoap.org/soap/envelope/&quot;&gt;&lt;soap:Body&gt;&lt;GetIPv6Status xmlns=&quot;http://purenetworks.com/HNAP1/&quot; /&gt;&lt;/soap:Body&gt;&lt;/soap:Envelope&gt;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
-
-<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>在分析该漏洞的过程中，先通过寻找中间未加密固件的方式，对存在漏洞的加密固件进行了解密；然后通过启动项分析定位webserver，分析配置文件梳理路由请求逻辑得到处理程序prog.cgi；最后发现prog.cgi类似goahead，根据之前对goahead认证处理的了解定位到认证逻辑，并分析漏洞的认证绕过流程。</p>
-<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
-<li><a target="_blank" rel="noopener" href="https://wzt.ac.cn/2020/08/28/bypass_auth/">IoT 设备中身份验证绕过的一些漏洞(1) | CataLpa’s Site</a></li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/09/06/CVE-2021-35973%20netgear%20wac104%E7%99%BB%E5%BD%95%E8%AE%A4%E8%AF%81%E7%BB%95%E8%BF%87%E5%86%8D%E5%88%86%E6%9E%90/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="ToT">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/09/06/CVE-2021-35973%20netgear%20wac104%E7%99%BB%E5%BD%95%E8%AE%A4%E8%AF%81%E7%BB%95%E8%BF%87%E5%86%8D%E5%88%86%E6%9E%90/" class="post-title-link" itemprop="url">CVE-2021-35973 netgear wac104登录认证绕过再分析</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-09-06 05:39:55" itemprop="dateCreated datePublished" datetime="2023-09-06T05:39:55+08:00">2023-09-06</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-09-13 10:33:45" itemprop="dateModified" datetime="2023-09-13T10:33:45+08:00">2023-09-13</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/" itemprop="url" rel="index"><span itemprop="name">漏洞复现</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/IoT/" itemprop="url" rel="index"><span itemprop="name">IoT</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="漏洞描述"><a href="#漏洞描述" class="headerlink" title="漏洞描述"></a>漏洞描述</h2><p>CVE-2021-35973是发生在netgear wac104设备、固件版本1.0.4.15之前的身份认证绕过漏洞，漏洞产生的原因是在鉴权过程中，使用了strstr来判断：如果请求uri中包含currentsetting.htm，设置无需认证标志。因此攻击者可以在需要鉴权的uri中包含currentsetting.htm标志，从而达到认证绕过的目的。</p>
-<p>漏洞描述：<a target="_blank" rel="noopener" href="https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-35973">CVE - CVE-2021-35973</a></p>
-<h2 id="漏洞分析"><a href="#漏洞分析" class="headerlink" title="漏洞分析"></a>漏洞分析</h2><p>netgear系列的固件可以直接从官网下载，而且可以直接使用binwalk解压，固件下载链接如下：<br><a target="_blank" rel="noopener" href="https://www.netgear.com/support/product/wac104.aspx#download">WAC104 | Access Point | NETGEAR Support</a></p>
-<h3 id="webserver架构分析"><a href="#webserver架构分析" class="headerlink" title="webserver架构分析"></a>webserver架构分析</h3><p>在文件系统中直接搜索字符串httpd可以定位到启动脚本，因此猜测httpd是通过程序&#x2F;usr&#x2F;sbin&#x2F;rc启动的，而且一个是开放在WAN口，一个是开放在LAN口。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">/usr/sbin/rc httpd start</span><br><span class="line">/usr/sbin/rc remote_httpd start</span><br></pre></td></tr></table></figure>
-
-<p>对程序&#x2F;usr&#x2F;sbin&#x2F;rc进行逆向，搜索字符串httpd，寻找相关字符串的交叉引用，可以看到应该是采用了mini_httpd作为webserver。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">.data:00464610                 .word aUsrBinKillallR_0+0x18  # &quot;httpd&quot;</span><br><span class="line">.data:00464614                 .word mini_httpd_start</span><br><span class="line">.data:00464618                 .word mini_httpd_stop</span><br><span class="line">.data:0046461C                 .word httpd_init</span><br><span class="line">.data:00464620                 .word aRemoteHttpd   # &quot;remote_httpd&quot;</span><br><span class="line">.data:00464624                 .word mini_httpd_remote_start</span><br><span class="line">.data:00464628                 .word mini_httpd_remote_stop</span><br></pre></td></tr></table></figure>
-
-<p>该漏洞是WAN口、LAN口都存在，因此针对影响较大的WAN口的remote_httpd进行分析。根据如下的逆向逻辑，remote_httpd是链接到程序&#x2F;sbin&#x2F;mini_httpd，启动参数也很清晰，下一步对&#x2F;sbin&#x2F;mini_httpd进行分析。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> ( access(<span class="string">&quot;/var/remote_httpd&quot;</span>, <span class="number">0</span>) &lt; <span class="number">0</span> )</span><br><span class="line">  system(<span class="string">&quot;/bin/ln -sf /sbin/mini_httpd /var/remote_httpd&quot;</span>);</span><br><span class="line">nv_set_int(<span class="string">&quot;http&quot;</span>, <span class="string">&quot;remotemg_port&quot;</span>, <span class="number">0</span>, v3);</span><br><span class="line">v4 = (<span class="type">char</span> *)nvram_get(<span class="string">&quot;product_name&quot;</span>);</span><br><span class="line"><span class="keyword">if</span> ( !v4 )</span><br><span class="line">  v4 = <span class="string">&quot;&quot;</span>;</span><br><span class="line">v7 = v4;</span><br><span class="line">v5 = atoi(v1);</span><br><span class="line">SYSTEM(</span><br><span class="line">  <span class="string">&quot;/var/remote_httpd -p %d -P %d -d /www -S -E /etc/mini_httpd.pem -r \&quot;NETGEAR %s\&quot; -c &#x27;**.cgi&#x27; -t %d&amp;&quot;</span>,</span><br><span class="line">  v3,</span><br><span class="line">  v3,</span><br><span class="line">  v7,</span><br><span class="line">  <span class="number">60</span> * v5);</span><br></pre></td></tr></table></figure>
-<h3 id="mini-httpd请求包处理逻辑"><a href="#mini-httpd请求包处理逻辑" class="headerlink" title="mini_httpd请求包处理逻辑"></a>mini_httpd请求包处理逻辑</h3><p>根据以往对mini_httpd代码的了解，其处理请求包的逻辑主要是由handler_request函数负责，可以通过搜索index页面字符串定位到该函数。如下是mini_httpd源码中的handle_request函数和其中设置的index页面字符串列表。</p>
-<p><strong>定位到handle_request函数</strong>：搜索如下列表中的字符串</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">   <span class="type">const</span> <span class="type">char</span>* index_names[] = &#123;</span><br><span class="line"><span class="string">&quot;index.html&quot;</span>, <span class="string">&quot;index.htm&quot;</span>, <span class="string">&quot;index.xhtml&quot;</span>, <span class="string">&quot;index.xht&quot;</span>, <span class="string">&quot;Default.htm&quot;</span>,</span><br><span class="line"><span class="string">&quot;index.cgi&quot;</span> &#125;;</span><br></pre></td></tr></table></figure>
-
-<p>mini_httpd收到一个数据请求包后会fork创建一个子进程来进行处理，这种方式如果在高并发场景会在进程创建、销毁过程中消耗大量的资源，但是在并发量低的嵌入式设备已经够用了。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* Fork a sub-process to handle the connection. */</span></span><br><span class="line">r = fork();</span><br><span class="line"><span class="keyword">if</span> ( r &lt; <span class="number">0</span> )</span><br><span class="line">    &#123;</span><br><span class="line">    syslog( LOG_CRIT, <span class="string">&quot;fork - %m&quot;</span> );</span><br><span class="line">    perror( <span class="string">&quot;fork&quot;</span> );</span><br><span class="line">    <span class="built_in">exit</span>( <span class="number">1</span> );</span><br><span class="line">    &#125;</span><br><span class="line"><span class="keyword">if</span> ( r == <span class="number">0</span> )</span><br><span class="line">    &#123;</span><br><span class="line">    <span class="comment">/* Child process. */</span></span><br><span class="line">    client_addr = usa;</span><br><span class="line">    <span class="keyword">if</span> ( listen4_fd != <span class="number">-1</span> )</span><br><span class="line">	(<span class="type">void</span>) close( listen4_fd );</span><br><span class="line">    <span class="keyword">if</span> ( listen6_fd != <span class="number">-1</span> )</span><br><span class="line">	(<span class="type">void</span>) close( listen6_fd );</span><br><span class="line">    handle_request();       <span class="comment">// 数据包处理逻辑</span></span><br><span class="line">    &#125;</span><br><span class="line">(<span class="type">void</span>) close( conn_fd );</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>子进程中主要是通过handle_request函数来对数据进行处理的，主要是先解析请求行、再解析请求头。</p>
-<ul>
-<li>读取请求的第一行，获取到请求行，然后从行中解析到请求方法protocol、请求路径path和查询参数query</li>
-<li>随后解析header，主要实现是通过while循环继续逐行解析header中的字段，包括Authorization、Content-Length、Content-Type、Cookie、User-Agent等等常见的字段</li>
-</ul>
-<p>如下是handle_request函数中读取请求行，获取到请求method_str、path、query、protocol。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">   <span class="comment">/* Parse the first line of the request. */</span></span><br><span class="line">   method_str = get_request_line();</span><br><span class="line">   <span class="keyword">if</span> ( method_str == (<span class="type">char</span>*) <span class="number">0</span> )</span><br><span class="line">send_error( <span class="number">400</span>, <span class="string">&quot;Bad Request&quot;</span>, <span class="string">&quot;&quot;</span>, <span class="string">&quot;Can&#x27;t parse request.&quot;</span> );</span><br><span class="line">   path = <span class="built_in">strpbrk</span>( method_str, <span class="string">&quot; \t\012\015&quot;</span> );</span><br><span class="line">   <span class="keyword">if</span> ( path == (<span class="type">char</span>*) <span class="number">0</span> )</span><br><span class="line">send_error( <span class="number">400</span>, <span class="string">&quot;Bad Request&quot;</span>, <span class="string">&quot;&quot;</span>, <span class="string">&quot;Can&#x27;t parse request.&quot;</span> );</span><br><span class="line">   *path++ = <span class="string">&#x27;\0&#x27;</span>;</span><br><span class="line">   path += <span class="built_in">strspn</span>( path, <span class="string">&quot; \t\012\015&quot;</span> );</span><br><span class="line">   protocol = <span class="built_in">strpbrk</span>( path, <span class="string">&quot; \t\012\015&quot;</span> );</span><br><span class="line">   <span class="keyword">if</span> ( protocol == (<span class="type">char</span>*) <span class="number">0</span> )</span><br><span class="line">send_error( <span class="number">400</span>, <span class="string">&quot;Bad Request&quot;</span>, <span class="string">&quot;&quot;</span>, <span class="string">&quot;Can&#x27;t parse request.&quot;</span> );</span><br><span class="line">   *protocol++ = <span class="string">&#x27;\0&#x27;</span>;</span><br><span class="line">   protocol += <span class="built_in">strspn</span>( protocol, <span class="string">&quot; \t\012\015&quot;</span> );</span><br><span class="line">   query = <span class="built_in">strchr</span>( path, <span class="string">&#x27;?&#x27;</span> );</span><br><span class="line">   <span class="keyword">if</span> ( query == (<span class="type">char</span>*) <span class="number">0</span> )</span><br><span class="line">query = <span class="string">&quot;&quot;</span>;</span><br><span class="line">   <span class="keyword">else</span></span><br><span class="line">*query++ = <span class="string">&#x27;\0&#x27;</span>;</span><br></pre></td></tr></table></figure>
-
-<p>然后是while循环处理header，获取字段。在源码中包括：Authorization、Content-Length、Content-Type、Cookie、Host、If-Modified-Since、Referer、Referrer、User-Agent这些字段。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">   <span class="comment">/* Parse the rest of the request headers. */</span></span><br><span class="line">   <span class="keyword">while</span> ( ( line = get_request_line() ) != (<span class="type">char</span>*) <span class="number">0</span> )</span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">if</span> ( line[<span class="number">0</span>] == <span class="string">&#x27;\0&#x27;</span> )</span><br><span class="line">    <span class="keyword">break</span>;</span><br><span class="line"><span class="keyword">else</span> <span class="keyword">if</span> ( strncasecmp( line, <span class="string">&quot;Authorization:&quot;</span>, <span class="number">14</span> ) == <span class="number">0</span> )</span><br><span class="line">    &#123;</span><br><span class="line">    cp = &amp;line[<span class="number">14</span>];</span><br><span class="line">    cp += <span class="built_in">strspn</span>( cp, <span class="string">&quot; \t&quot;</span> );</span><br><span class="line">    authorization = cp;</span><br><span class="line">    &#125;</span><br><span class="line"><span class="keyword">else</span> <span class="keyword">if</span> ( strncasecmp( line, <span class="string">&quot;Content-Length:&quot;</span>, <span class="number">15</span> ) == <span class="number">0</span> )</span><br><span class="line">    &#123;</span><br><span class="line">    cp = &amp;line[<span class="number">15</span>];</span><br><span class="line">    cp += <span class="built_in">strspn</span>( cp, <span class="string">&quot; \t&quot;</span> );</span><br><span class="line">    content_length = atol( cp );</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
-
-<p>获取到了如上的重要字段后，就开始对数据包的合法性进行判断，例如：</p>
-<ul>
-<li>请求方法method是否合理：GET、HEAD、POST、PUT、DELETE、TRACE</li>
-<li>请求路径path必须以反斜杠<code>/</code>开头、对path进行目录穿越相关字符进行处理、检查文件是否存在</li>
-<li>然后根据path是文件夹或文件，分别调用do_dir和do_file进行处理，二者最终都会进行权限检查函数auth_check</li>
-</ul>
-<p>在权限检查函数auth_check中，输入为请求的path转换的实际路径file所在的文件夹dirname，如果权限检查通过，则继续直接随后的数据包处理流程；如果权限检查是否，则通过send_authenticate函数返回401，然后结束当前连接的生命周期。</p>
-<p>权限检查的流程则是：</p>
-<ol>
-<li>如果dirname中没有.htpasswd文件，那么直接认证通过。就相当于是在需要授权访问的文件夹中添加该文件，不需要授权访问的文件夹中没有该文件</li>
-<li>源码中采用的校验方式是BASIC认证，请求包中带上username和base64编码的password，然后和.htpasswd文件中保存的账号信息进行对比，如果比较通过则直接返回。</li>
-</ol>
-<p>因此，平常漏洞挖掘中比较关心的登录认证流程就非常清晰：main -&gt; handle_request -&gt; do_file&#x2F;do_dir -&gt; auth_check。一般情况下，厂商会根据自己的业务逻辑修改相关的函数，但是根据源码我们还是能通过一些字符串特征来定位到关键函数，例如：</p>
-<ul>
-<li>通过搜索index相关的页面字符串，可以定位到handle_request<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">.data:0041E030 index_names:    .word aSetupCgi          # DATA XREF: handle_request+38↑o</span><br><span class="line">.data:0041E030                                          # &quot;setup.cgi&quot;</span><br><span class="line">.data:0041E034                 .word aIndexHtml         # &quot;index.html&quot;</span><br><span class="line">.data:0041E038                 .word aIndexHtm          # &quot;index.htm&quot;</span><br><span class="line">.data:0041E03C                 .word aIndexXhtml        # &quot;index.xhtml&quot;</span><br><span class="line">.data:0041E040                 .word aIndexXht          # &quot;index.xht&quot;</span><br><span class="line">.data:0041E044                 .word aDefaultHtm        # &quot;Default.htm&quot;</span><br></pre></td></tr></table></figure></li>
-<li>通过搜索字符串.htpasswd可以直接定位到do_file、auth_check函数。do_file函数中会检查请求文件是否为.htpasswd，auth_check函数则是需要读取账号信息、调用字符串比较函数等</li>
-</ul>
-<p>可以看出，mini_httpd的登录认证处理流程还是比较简单的。</p>
-<h3 id="漏洞触发"><a href="#漏洞触发" class="headerlink" title="漏洞触发"></a>漏洞触发</h3><p>通过之前的源代码梳理，也明白了mini_httpd的登录认证流程，那么可以通过搜索字符串的技巧直接定位到auth_check函数。auth_check函数开头有一段导致后续认证绕过的逻辑，其中有一个g_bypass_flag&#x3D;1时可以直接通过认证。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> ( g_bypass_flag == <span class="number">1</span> )</span><br><span class="line">&#123;</span><br><span class="line">  <span class="keyword">if</span> ( !sub_4062C0() )</span><br><span class="line">  &#123;</span><br><span class="line">    system(<span class="string">&quot;/bin/echo genie from wan, drop request &gt; /dev/console&quot;</span>);</span><br><span class="line">    <span class="built_in">exit</span>(<span class="number">0</span>);</span><br><span class="line">  &#125;</span><br><span class="line">  result = system(<span class="string">&quot;/bin/echo genie from lan, ok &gt; /dev/console&quot;</span>);</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">else</span> &#123; </span><br><span class="line">......</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>查看变量g_bypass_flag的交叉引用，赋值的地方一共包含如下的三处：</p>
-<ol>
-<li>当请求path中包含currentsetting.htm的时候<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> ( <span class="built_in">strstr</span>(v86, <span class="string">&quot;currentsetting.htm&quot;</span>) )</span><br><span class="line">  g_bypass_flag = <span class="number">1</span>;</span><br></pre></td></tr></table></figure></li>
-<li>SOAPAction相关，设计的初衷应该是可以访问任意SOAP的xml。<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">else</span></span><br><span class="line">&#123;</span><br><span class="line">  v26 = strncasecmp(v34, <span class="string">&quot;Accept-Language:&quot;</span>, <span class="number">16</span>);</span><br><span class="line">  v27 = v34;</span><br><span class="line">  <span class="keyword">if</span> ( v26 )</span><br><span class="line">  &#123;</span><br><span class="line">    v30 = v34 + <span class="number">11</span>;</span><br><span class="line">    <span class="keyword">if</span> ( !strncasecmp(v27, <span class="string">&quot;SOAPAction:&quot;</span>, <span class="number">11</span>) )</span><br><span class="line">    &#123;</span><br><span class="line">      v31 = <span class="built_in">strspn</span>(v30, <span class="string">&quot; \t&quot;</span>);</span><br><span class="line">      v32 = strcasestr(&amp;v30[v31], <span class="string">&quot;urn:NETGEAR-ROUTER:service:&quot;</span>);</span><br><span class="line">      v33 = <span class="number">0</span>;</span><br><span class="line">      <span class="keyword">if</span> ( v32 )</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="keyword">while</span> ( <span class="number">1</span> )</span><br><span class="line">        &#123;</span><br><span class="line">          v11 = *(<span class="type">char</span> *)(v32 + v33 + <span class="number">27</span>);</span><br><span class="line">          <span class="keyword">if</span> ( v11 == <span class="string">&#x27;:&#x27;</span> )</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">          byte_420224[v33++] = v11;</span><br><span class="line">        &#125;</span><br><span class="line">        byte_420224[v33] = <span class="number">0</span>;</span><br><span class="line">        g_bypass_flag = <span class="number">1</span>;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure></li>
-<li>请求path中包含setupwizard.cgi，但是随后的处理逻辑会调用exit退出，因此无法利用。这个可能是当设备首次启动、开始安装向导触发的。<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> ( <span class="built_in">strstr</span>((<span class="type">const</span> <span class="type">char</span> *)g_path, <span class="string">&quot;setupwizard.cgi&quot;</span>) )</span><br><span class="line">  g_bypass_flag = <span class="number">1</span>;</span><br></pre></td></tr></table></figure></li>
-</ol>
-<p>再次返回到mini_httpd的源代码中，结合固件中的反汇编</p>
-<ul>
-<li>首先通过查找method后的第一个空格、换行、制表符的方式，获取到path。但是随后没有对path中是否包含%00进行判断。<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">v10 = <span class="built_in">strpbrk</span>(v8, <span class="string">&quot; \t\n\r&quot;</span>);</span><br><span class="line">g_path = v10;</span><br></pre></td></tr></table></figure></li>
-<li>获取到的path在内存中大概是：<code>uri\0currentsetting.htm</code>，这导致，strstr函数返回一个非空值，就设置了g_bypass_flag，从而通过了auth_check<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">......</span><br><span class="line">v86 = (<span class="type">const</span> <span class="type">char</span> *)g_path;</span><br><span class="line">......</span><br><span class="line"><span class="keyword">if</span> ( <span class="built_in">strstr</span>(v86, <span class="string">&quot;currentsetting.htm&quot;</span>) )</span><br><span class="line">  g_bypass_flag = <span class="number">1</span>;</span><br><span class="line">......</span><br></pre></td></tr></table></figure></li>
-</ul>
-<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>本文首先分析了mini_httpd中如何对请求包进行处理，登录认证的大致逻辑是什么；随后介绍了搜索字符串的方式在mini_httpd程序中快速定位到请求包处理函数handle_request和权限处理函数auth_check；最后反编译+结合源码的方式，分析了认证绕过的触发逻辑。</p>
-<p>这个漏洞实际上刚开始接触IoT漏洞的时候分析过，但是当时对漏洞的触发、利用逻辑虽然分析了，但是不是很有逻辑，后续回头看感觉分析得真烂。这次结合mini_httpd源码分析，也学习到了以后如何去寻找相关的认证绕过思路。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1366,14 +1380,14 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">64</span>
+          <span class="site-state-item-count">66</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-count">17</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">

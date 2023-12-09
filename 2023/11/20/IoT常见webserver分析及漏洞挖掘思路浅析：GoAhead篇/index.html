@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"oneshell.top","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":true,"nav":{"gitalk":{"order":-2}},"activeClass":"gitalk"},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="简介GoAhead是一个轻量化、适用于嵌入式设备的Web服务器，采用C语言编写，代码量不大，具有高度的可移植性和扩展性。GoAhead支持多进程、多线程，能够处理大量的并发连接，支持SSL&#x2F;TLS加密和基本的身份认证，支持CGI、ASP。 GoAhead由Embedthis Software LLC开发，早年间是完全开源的，可以直接在Github上下载到源码。但是在2022年的时候，似乎">
+<meta property="og:type" content="article">
+<meta property="og:title" content="IoT小设备常见webserver分析及漏洞挖掘思路浅析：GoAhead篇">
+<meta property="og:url" content="https://oneshell.top/2023/11/20/IoT%E5%B8%B8%E8%A7%81webserver%E5%88%86%E6%9E%90%E5%8F%8A%E6%BC%8F%E6%B4%9E%E6%8C%96%E6%8E%98%E6%80%9D%E8%B7%AF%E6%B5%85%E6%9E%90%EF%BC%9AGoAhead%E7%AF%87/index.html">
+<meta property="og:site_name" content="OneShell">
+<meta property="og:description" content="简介GoAhead是一个轻量化、适用于嵌入式设备的Web服务器，采用C语言编写，代码量不大，具有高度的可移植性和扩展性。GoAhead支持多进程、多线程，能够处理大量的并发连接，支持SSL&#x2F;TLS加密和基本的身份认证，支持CGI、ASP。 GoAhead由Embedthis Software LLC开发，早年间是完全开源的，可以直接在Github上下载到源码。但是在2022年的时候，似乎">
+<meta property="og:locale">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-0823-141851247.png">
+<meta property="article:published_time" content="2023-11-20T02:36:55.000Z">
+<meta property="article:modified_time" content="2023-12-09T14:20:48.932Z">
+<meta property="article:author" content="OneShell">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://oneshell.top/images/image-2023-0823-141851247.png">
+
+<link rel="canonical" href="https://oneshell.top/2023/11/20/IoT%E5%B8%B8%E8%A7%81webserver%E5%88%86%E6%9E%90%E5%8F%8A%E6%BC%8F%E6%B4%9E%E6%8C%96%E6%8E%98%E6%80%9D%E8%B7%AF%E6%B5%85%E6%9E%90%EF%BC%9AGoAhead%E7%AF%87/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>IoT小设备常见webserver分析及漏洞挖掘思路浅析：GoAhead篇 | OneShell</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">OneShell</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">I fight for a brighter tomorrow</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+        <li class="menu-item menu-item-schedule">
+
+    <a href="/schedule/" rel="section"><i class="fa fa-calendar fa-fw"></i>Schedule</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/11/20/IoT%E5%B8%B8%E8%A7%81webserver%E5%88%86%E6%9E%90%E5%8F%8A%E6%BC%8F%E6%B4%9E%E6%8C%96%E6%8E%98%E6%80%9D%E8%B7%AF%E6%B5%85%E6%9E%90%EF%BC%9AGoAhead%E7%AF%87/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="ToT">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          IoT小设备常见webserver分析及漏洞挖掘思路浅析：GoAhead篇
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-11-20 10:36:55" itemprop="dateCreated datePublished" datetime="2023-11-20T10:36:55+08:00">2023-11-20</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-12-09 22:20:48" itemprop="dateModified" datetime="2023-12-09T22:20:48+08:00">2023-12-09</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Topics/" itemprop="url" rel="index"><span itemprop="name">Topics</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Topics/IoT-Server/" itemprop="url" rel="index"><span itemprop="name">IoT Server</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h2><p>GoAhead是一个轻量化、适用于嵌入式设备的Web服务器，采用C语言编写，代码量不大，具有高度的可移植性和扩展性。GoAhead支持多进程、多线程，能够处理大量的并发连接，支持SSL&#x2F;TLS加密和基本的身份认证，支持CGI、ASP。</p>
+<p>GoAhead由Embedthis Software LLC开发，早年间是完全开源的，可以直接在Github上下载到源码。但是在2022年的时候，似乎转换成商业定制，官方在Github删除了代码库，因此在Github上无法下载，但是在Gitee上还有镜像库。</p>
+<p>地址：<a target="_blank" rel="noopener" href="https://gitee.com/mirrors/GoAhead">GoAhead: GoAhead WebServer 采用开放源代码方式，任何人都可以下载、评估并修改代码，目的是为了使GoAhead WebServer成为市场上最领先的嵌入式Web服务器</a></p>
+<p>本文不会完全分析GoAhead的代码实现、架构，而是聚焦于安全研究较为关注、通常由开发者实现的数据包处理部分。文章的大概阐述思路如下：</p>
+<ol>
+<li>首先结合源码说明GoAhead的数据包处理特性，主要涉及鉴权、路由处理</li>
+<li>结合漏洞简述基于GoAhead的server漏洞挖掘思路</li>
+</ol>
+<h2 id="源码简单分析请求处理"><a href="#源码简单分析请求处理" class="headerlink" title="源码简单分析请求处理"></a>源码简单分析请求处理</h2><p>GoAhead会对数据包按照优先级进行顺序处理，也会根据数据包的路由调用不同的回调函数进行处理。先说说数据包优先级：</p>
+<ul>
+<li>优先级为1注册的回调函数：所有数据包都需要首先经过该回调函数进行处理，此处也通常被用来做数据包鉴权、请求路径合法性判断、未授权访问路径定义等等；优先级为0注</li>
+<li>优先级为0注册的回调函数：通常用来定义认证后可访问到的接口逻辑实现</li>
+<li>优先级为2注册的回调函数：没有回调函数匹配的数据包</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">websUrlHandlerDefine</span><span class="params">(<span class="type">char_t</span> *urlPrefix, <span class="type">char_t</span> *webDir, <span class="type">int</span> arg,</span></span><br><span class="line"><span class="params">		<span class="type">int</span> (*handler)(<span class="type">webs_t</span> wp, <span class="type">char_t</span> *urlPrefix, <span class="type">char_t</span> *webdir, <span class="type">int</span> arg, </span></span><br><span class="line"><span class="params">		<span class="type">char_t</span> *url, <span class="type">char_t</span> *path, <span class="type">char_t</span> *query), <span class="type">int</span> flags)</span></span><br></pre></td></tr></table></figure>
+<p>比较重要的参数：</p>
+<ul>
+<li><code>char_t *urlPrefix</code>：指定URL的前缀，也就是需要处理的URL开头部分</li>
+<li><code>int (*handler)</code>：URL对应的回调函数</li>
+<li><code>int flags</code>：URL处理优先级标志，有如下的两个选择：<ul>
+<li><code>#define WEBS_HANDLER_FIRST	0x1</code>：所有的数据包都会通过该回调函数进行处理</li>
+<li><code>#define WEBS_HANDLER_LAST	0x2</code>：没有回调函数匹配的数据包会通过该回调函数进行处理</li>
+</ul>
+</li>
+</ul>
+<p>如下是一个真实设备的反编译代码，可以看到GoAhead是通过注册一个flags&#x3D;WEBS_HANDLER_FIRST&#x3D;1的回调函数websAuthHandler来判断数据包是否通过认证的，这意味着所有的数据包都会通过函数websAuthHandler进行处理，验证数据包发送者的权限。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">websUrlHandlerDefine(&amp;byte_4AA6CC, <span class="number">0</span>, <span class="number">0</span>, websAuthHandler, <span class="number">1</span>);</span><br><span class="line">websUrlHandlerDefine(<span class="string">&quot;/goform&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, websFormHandler, <span class="number">0</span>);</span><br><span class="line">websUrlHandlerDefine(<span class="string">&quot;/cgi-bin&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, websCgiHandler, <span class="number">0</span>);</span><br><span class="line">websUrlHandlerDefine(<span class="string">&quot;/reboot.asp&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, sub_464028, <span class="number">0</span>);</span><br><span class="line">websUrlHandlerDefine(<span class="string">&quot;/reboot&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, sub_464028, <span class="number">0</span>);</span><br><span class="line">websUrlHandlerDefine(<span class="string">&quot;/exception_log&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, sub_462850, <span class="number">0</span>);</span><br><span class="line">websUrlHandlerDefine(<span class="string">&quot;/nat_log&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, sub_4628F8, <span class="number">0</span>);</span><br><span class="line">websUrlHandlerDefine(<span class="string">&quot;/attributes_log&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, sub_4628F8, <span class="number">0</span>);</span><br><span class="line">websUrlHandlerDefine(<span class="string">&quot;/dhcpcliinfo&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, sub_4628F8, <span class="number">0</span>);</span><br><span class="line">websUrlHandlerDefine(<span class="string">&quot;/auto_ch&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, sub_4628F8, <span class="number">0</span>);</span><br><span class="line">websUrlHandlerDefine(<span class="string">&quot;/auto_5G_ch&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, sub_4628F8, <span class="number">0</span>);</span><br></pre></td></tr></table></figure>
+
+<p>例如对一个请求的完整处理过程：使用POST请求访问&#x2F;goform&#x2F;websLogin，</p>
+<ol>
+<li>首先数据包会进入函数webAuthHandler：请求路径鉴权、请求路径合法性判断等<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">websUrlHandlerDefine(&amp;byte_4AA6CC, <span class="number">0</span>, <span class="number">0</span>, websAuthHandler, <span class="number">1</span>);</span><br></pre></td></tr></table></figure></li>
+<li>根据一层路径<code>/goform</code>，匹配回调函数websFormHandler：<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">websUrlHandlerDefine(<span class="string">&quot;/goform&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, websFormHandler, <span class="number">0</span>);</span><br></pre></td></tr></table></figure></li>
+<li>根据二层路径<code>/websLogin</code>，匹配回调函数websLogin：<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">websFormDefine((<span class="type">int</span>)<span class="string">&quot;websLogin&quot;</span>, (<span class="type">int</span>)websLogin);</span><br></pre></td></tr></table></figure></li>
+</ol>
+<p>因此，对于GoAhead作为server的设备来说，如果想挖到认证前的RCE的话，可以主要从优先级为0的登录处理回调函数入手，找到绕过认证的方法，或者看回调函数是否存在缓冲区溢出等能够劫持控制流的漏洞。</p>
+<h2 id="漏洞挖掘思路"><a href="#漏洞挖掘思路" class="headerlink" title="漏洞挖掘思路"></a>漏洞挖掘思路</h2><h3 id="历史版本漏洞"><a href="#历史版本漏洞" class="headerlink" title="历史版本漏洞"></a>历史版本漏洞</h3><p>版本号的确定：搜索字符串GoAhead-Webs，可以确定版本，从而判断是否受到历史漏洞的影响<br><img src="/images/image-2023-0823-141851247.png" alt="undifined"></p>
+<table>
+<thead>
+<tr>
+<th>漏洞编号</th>
+<th>影响版本</th>
+<th>漏洞概述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CVE-2017-17562</td>
+<td>&lt; 3.6.5</td>
+<td>初始化CGI时，在HTTPD请求参数中，使用特殊的参数名LD_PRELOAD劫持libc库，进而远程命令执行</td>
+</tr>
+<tr>
+<td>CVE-2021-42342</td>
+<td>4.x、5.x~5.1.5</td>
+<td>对上述的一个绕过</td>
+</tr>
+</tbody></table>
+<p>如上的两个漏洞如果要达成认证前RCE，需要&#x2F;cgi-bin&#x2F;一层路径可以未授权访问</p>
+<h3 id="漏洞案例1：发生在websSecurityHandler中的认证绕过"><a href="#漏洞案例1：发生在websSecurityHandler中的认证绕过" class="headerlink" title="漏洞案例1：发生在websSecurityHandler中的认证绕过"></a>漏洞案例1：发生在websSecurityHandler中的认证绕过</h3><p>CVE-2020-15633</p>
+<blockquote>
+</blockquote>
+<p>该漏洞是发生在LAN口的一个登录认证绕过漏洞，影响设备DIR-867、DIR-878、DIR-882，固件版本1.20B10_BETA。漏洞产生的原因是在处理HNAP请求的过程中，验证用户登录逻辑时处理不当，使用strstr函数来检查无需验证权限的接口，导致可以构造特定URI来绕过身份认证，从而访问敏感接口。</p>
+<p>设备采用lighttpd作为webserver，根据配置会将HNAP请求转发到程序&#x2F;bin&#x2F;prog.cgi进行处理，prog.cgi是基于GoAhead开发。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">fastcgi.server = ( </span><br><span class="line">	&quot;/HNAP1/&quot; =&gt; </span><br><span class="line">	((</span><br><span class="line">		&quot;socket&quot; =&gt; &quot;/var/prog.fcgi.socket-0&quot;,</span><br><span class="line">		&quot;check-local&quot; =&gt; &quot;enable&quot;,</span><br><span class="line">		&quot;bin-path&quot; =&gt; &quot;/bin/prog.cgi&quot;,</span><br><span class="line">		&quot;idle-timeout&quot; =&gt; 10,</span><br><span class="line">		&quot;min-procs&quot; =&gt; 1,</span><br><span class="line">		&quot;max-procs&quot; =&gt; 1</span><br><span class="line">	)), </span><br><span class="line">	......</span><br></pre></td></tr></table></figure>
+
+<p>漏洞触发过程的函数调用如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">sub_423ECC -&gt; 0</span><br><span class="line">sub_4249EC -&gt; 0</span><br><span class="line">websSecurityHandler -&gt; 0</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li>在函数sub_423ECC中，会使用函数strstr比较环境变量REQUEST_URI（也就是请求路径）中是否含有字符串列表actions_list中的字符串，然后触发到return 0。<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> ( a1[<span class="number">57</span>] &amp;&amp; <span class="built_in">strstr</span>(a1[<span class="number">57</span>], &amp;actions_list[<span class="number">32</span> * index]) )<span class="comment">// REQUEST_URI</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">if</span> ( <span class="built_in">strcmp</span>(&amp;actions_list[<span class="number">32</span> * index], <span class="string">&quot;/HNAP1/&quot;</span>) || !a1[<span class="number">50</span>] || <span class="built_in">strcmp</span>(a1[<span class="number">50</span>], <span class="string">&quot;POST&quot;</span>) )</span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li>然后返回到函数sub_4249EC，触发该函数继续返回0；</li>
+<li>再返回到函数websSecurityHandler中，使得该认证函数返回0，达到认证绕过；<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">websUrlHandlerDefine(<span class="string">&quot;/&quot;</span>, <span class="number">0</span>, <span class="number">0</span>, websSecurityHandler, <span class="number">1</span>);</span><br></pre></td></tr></table></figure></li>
+</ol>
+<h3 id="其他认证后的接口（大多存在）"><a href="#其他认证后的接口（大多存在）" class="headerlink" title="其他认证后的接口（大多存在）"></a>其他认证后的接口（大多存在）</h3><p>大多基于GoAhead开发的server都存在认证后的漏洞，例如缓冲区溢出、命令执行等等。</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://andisec.com/cve-2021-43474%EF%BC%9Ad-link-dir-823g%E5%91%BD%E4%BB%A4%E6%B3%A8%E5%85%A5%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90.html">CVE-2021-43474：D-Link DIR-823G命令注入漏洞分析 – OT网络安全领军者-北京安帝科技有限公司</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.iotsec-zone.com/article/119#314poc">Tenda AC15 CVE-2020-10987漏洞分析 - IOTsec-Zone</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.z1r0.top/2022/07/28/D-Link-Dir-816-A2%E8%B7%AF%E7%94%B1%E5%99%A8%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90/">D-Link Dir-816 A2路由器漏洞分析</a></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/11/20/IoT%E5%B0%8F%E8%AE%BE%E5%A4%87%E4%B8%AD%E5%B8%B8%E8%A7%81%E7%9A%84webserver%E5%88%86%E6%9E%90%E5%8F%8A%E6%BC%8F%E6%B4%9E%E6%8C%96%E6%8E%98%E6%80%9D%E8%B7%AF%E6%B5%85%E6%9E%90%EF%BC%9Amini_httpd%E7%AF%87/" rel="prev" title="IoT小设备常见webserver分析及漏洞挖掘思路浅析：mini_httpd篇">
+      <i class="fa fa-chevron-left"></i> IoT小设备常见webserver分析及漏洞挖掘思路浅析：mini_httpd篇
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AE%80%E4%BB%8B"><span class="nav-number">1.</span> <span class="nav-text">简介</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%BA%90%E7%A0%81%E7%AE%80%E5%8D%95%E5%88%86%E6%9E%90%E8%AF%B7%E6%B1%82%E5%A4%84%E7%90%86"><span class="nav-number">2.</span> <span class="nav-text">源码简单分析请求处理</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%BC%8F%E6%B4%9E%E6%8C%96%E6%8E%98%E6%80%9D%E8%B7%AF"><span class="nav-number">3.</span> <span class="nav-text">漏洞挖掘思路</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8E%86%E5%8F%B2%E7%89%88%E6%9C%AC%E6%BC%8F%E6%B4%9E"><span class="nav-number">3.1.</span> <span class="nav-text">历史版本漏洞</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%BC%8F%E6%B4%9E%E6%A1%88%E4%BE%8B1%EF%BC%9A%E5%8F%91%E7%94%9F%E5%9C%A8websSecurityHandler%E4%B8%AD%E7%9A%84%E8%AE%A4%E8%AF%81%E7%BB%95%E8%BF%87"><span class="nav-number">3.2.</span> <span class="nav-text">漏洞案例1：发生在websSecurityHandler中的认证绕过</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%B6%E4%BB%96%E8%AE%A4%E8%AF%81%E5%90%8E%E7%9A%84%E6%8E%A5%E5%8F%A3%EF%BC%88%E5%A4%A7%E5%A4%9A%E5%AD%98%E5%9C%A8%EF%BC%89"><span class="nav-number">3.3.</span> <span class="nav-text">其他认证后的接口（大多存在）</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">OneShell</p>
+  <div class="site-description" itemprop="description">ToT</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">66</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">OneShell</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : 'd364449d44c374dab007',
+      clientSecret: 'bb821aa84a81e3bd904d059c6e9ec7eb0e1cab4f',
+      repo        : 'BlogComments',
+      owner       : 'NoneShell',
+      admin       : ['NoneShell'],
+      id          : 'cb3b80156ebd8bbbbd7078eb99e4b0ec',
+        language: 'zh-CN',
+      distractionFreeMode: true
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>
