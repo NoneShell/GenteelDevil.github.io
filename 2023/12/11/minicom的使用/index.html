@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"oneshell.top","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":true,"nav":{"gitalk":{"order":-2}},"activeClass":"gitalk"},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="minicom是在Linux、Unix上常用的一款串口通信工具，可以通过串口连接计算机和其他的嵌入式设备，是一款开源软件。在IoT安全研究中，使用Mac或者Linux的人员可以使用minicom作为串口调试工具。 1234# Macbrew install minicom# minicomsudo apt-get install mimicom  配置基本配置minicom在使用之前需要进行配置，">
+<meta property="og:type" content="article">
+<meta property="og:title" content="minicom的使用">
+<meta property="og:url" content="https://oneshell.top/2023/12/11/minicom%E7%9A%84%E4%BD%BF%E7%94%A8/index.html">
+<meta property="og:site_name" content="OneShell">
+<meta property="og:description" content="minicom是在Linux、Unix上常用的一款串口通信工具，可以通过串口连接计算机和其他的嵌入式设备，是一款开源软件。在IoT安全研究中，使用Mac或者Linux的人员可以使用minicom作为串口调试工具。 1234# Macbrew install minicom# minicomsudo apt-get install mimicom  配置基本配置minicom在使用之前需要进行配置，">
+<meta property="og:locale">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-1212-213117907.png">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-1212-213151243.png">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-1212-212220532.png">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-1213-124911602.png">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-1213-125356425.png">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-1213-125826490.png">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-1213-130309164.png">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-1213-130850249.png">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-1213-131257153.png">
+<meta property="article:published_time" content="2023-12-10T18:55:39.000Z">
+<meta property="article:modified_time" content="2023-12-13T06:23:27.747Z">
+<meta property="article:author" content="OneShell">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://oneshell.top/images/image-2023-1212-213117907.png">
+
+<link rel="canonical" href="https://oneshell.top/2023/12/11/minicom%E7%9A%84%E4%BD%BF%E7%94%A8/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>minicom的使用 | OneShell</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">OneShell</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">I fight for a brighter tomorrow</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+        <li class="menu-item menu-item-schedule">
+
+    <a href="/schedule/" rel="section"><i class="fa fa-calendar fa-fw"></i>Schedule</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/12/11/minicom%E7%9A%84%E4%BD%BF%E7%94%A8/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="ToT">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          minicom的使用
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-12-11 02:55:39" itemprop="dateCreated datePublished" datetime="2023-12-11T02:55:39+08:00">2023-12-11</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-12-13 14:23:27" itemprop="dateModified" datetime="2023-12-13T14:23:27+08:00">2023-12-13</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>minicom是在Linux、Unix上常用的一款串口通信工具，可以通过串口连接计算机和其他的嵌入式设备，是一款开源软件。在IoT安全研究中，使用Mac或者Linux的人员可以使用minicom作为串口调试工具。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"># Mac</span><br><span class="line">brew install minicom</span><br><span class="line"># minicom</span><br><span class="line">sudo apt-get install mimicom</span><br></pre></td></tr></table></figure>
+
+<h2 id="配置"><a href="#配置" class="headerlink" title="配置"></a>配置</h2><h3 id="基本配置"><a href="#基本配置" class="headerlink" title="基本配置"></a>基本配置</h3><p>minicom在使用之前需要进行配置，使用如下的命令进入配置模式。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo minicom -s</span><br></pre></td></tr></table></figure>
+
+<p>进入minicom的配置模式之后，使用方向键选择需要配置的部分，一般来说，最基本的配置就是设置Serial port setup，对串口通信的设备、波特率等进行配置。如下是进入配置模式的主页面。配置完成后，可以回到主界面，选择将配置信息作为默认配置Save setup as dfl，或者保存为特定设备名的配置文件。我个人比较喜欢后者，设置一次保存为配置文件，后续对该设备连接直接<code>sudo minocom 配置文件名</code>即可。<br><img src="/images/image-2023-1212-213117907.png" alt="undifined"></p>
+<p>以配置Serial port setup为例，最左边的大写字母可以快速跳转到对应的配置项，例如要配置串口通信设备，直接按下A便可配置Serial Device。具体的设备可以通过<code>ls /dev/*</code>查看连接到计算机的串口通信设备。配置完设备之后，回车，然后可以选择另外的配置选项，就不多赘述，例如直接按下E配置波特率。配置完所有必要的选项后，回车保存所有的设置，回到主配置页面。</p>
+<p><img src="/images/image-2023-1212-213151243.png" alt="undifined"></p>
+<p>回到主配置界面后：</p>
+<ul>
+<li>Save setup as dfl：将当前配置作为minicom的默认配置</li>
+<li>Save setup as..：将当前配置保存成配置文件，以后使用可以从配置文件中加载相应参数</li>
+<li>Exit：以当前的配置进行串口通信</li>
+<li>Exit from Minicom：退出minicom</li>
+</ul>
+<h3 id="配置启动权限"><a href="#配置启动权限" class="headerlink" title="配置启动权限"></a>配置启动权限</h3><p>minicom需要使用到串口设备&#x2F;dev&#x2F;xxx，所以需要使用sudo权限来运行，我们也可以修改串口设备的权限，这样后续启动的时候就不需要使用sudo、还要输入密码了。<br>修改启动权限的方式1：<br>使用chmod命令。Linux下的一切设备皆文件，我们可以直接使用chmod命令修改串口设备的权限</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo chmod 666 /dev/xxx</span><br></pre></td></tr></table></figure>
+
+<p>修改启动权限的方式2：<br>配置udev规则。也是Linux上比较推荐的方式，但是在Mac上无法找到这个配置文件。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo vim /etc/udev/rules.d/70-ttyusb.rules</span><br></pre></td></tr></table></figure>
+<p>新增一行</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">KERNEL==&quot;ttyUSB[0-9]*&quot;, MODE=&quot;0666&quot;</span><br></pre></td></tr></table></figure>
+<p>修改后，需要重新插拔一下设备，以重新生成设备节点</p>
+<h2 id="暂停minicom"><a href="#暂停minicom" class="headerlink" title="暂停minicom"></a>暂停minicom</h2><p>串口的数据会一直输出，有时候我们需要查看之前打印出来的数据，而minicom不能像GUI的日志查看器一样使用直接翻页查看。这个时候可以使用Ctrl + A（Mac上是ESC + Z）键，暂停minicom的输出，选择后续需要执行的操作，例如查看之前打印的数据、开启日志记录功能、重新设置波特率等等。</p>
+<p><img src="/images/image-2023-1212-212220532.png" alt="undifined"><br>如上，就是暂停了之后的minicom菜单，常用的功能：</p>
+<ul>
+<li>Clear Screen：清空当前的屏幕</li>
+<li>cOnfigure Minicom：配置minicom</li>
+<li>Capture on&#x2F;off：开始记录日志，对于安全研究比较有用的功能，保存了日志方便进行分析，甚至结合bootloader的功能还可以dump固件</li>
+<li>Timestamp toggle：开启时间戳，在每一行日志的前面都加上时间戳</li>
+<li>scroll Back：进入浏览模式，可以翻滚查看已经输出的数据</li>
+</ul>
+<h2 id="IoT安全的一些操作"><a href="#IoT安全的一些操作" class="headerlink" title="IoT安全的一些操作"></a>IoT安全的一些操作</h2><p>记录一下在IoT安全研究中会使用到的一些场景，尽量结合自己之前遇到的案例讲解，文章后续如果遇到其他合适案例也会更新</p>
+<h3 id="案例1：结合bootloader的功能dump固件"><a href="#案例1：结合bootloader的功能dump固件" class="headerlink" title="案例1：结合bootloader的功能dump固件"></a>案例1：结合bootloader的功能dump固件</h3><p>最近遇到一个路由器设备，可以直接在板子上找到UART，获取到root权限的shell，但是内置的程序中基本上没有能够外带数据的程序，而我还没到最后一步不想把内存芯片拆下来。通过启动日志可以发现，设备的bootloader是CFE，能够在启动内核前暂停进入CFE的配置模式。同时还能看到CPU型号、flash型号</p>
+<p><img src="/images/image-2023-1213-124911602.png" alt="undifined"></p>
+<p>输入help命令可以看到CFE支持的命令，此处不多说其他的命令，主要关注能够dump内存的命令dm。dm命令语法是：<code>dm 16进制的起始地址 10进制的数据大小</code>。<br><img src="/images/image-2023-1213-125356425.png" alt="undifined"></p>
+<p>在设备正常启动的日志中，可以看到rootfs的格式是squashfs，一个嵌入式设备常用的文件系统格式，文件系统在flash中的起始地址是0xb8010100，大小是8388608个字节&#x3D;8MB。<br><img src="/images/image-2023-1213-125826490.png" alt="undifined"></p>
+<p>知道了文件系统的起始地址和大小，那么就可以使用dm命令进行dump，通过minicom的日志记录功能保存到本地，然后进行处理还原成真正的文件系统。可以先尝试使用dm命令看看起始地址是否为squash文件系统的magic，如下，的确是squash文件系统的文件头（虽然和PE文件的Magic相同但肯定不是PE）</p>
+<p><img src="/images/image-2023-1213-130309164.png" alt="undifined"></p>
+<p>开启minicom的日志记录功能，同时按下ESC + Z（Mac）暂停，选择L，设置需要保存的文件名，随后minicom的所有输出都会被保存到日志文件中，设置完毕后在CFE中执行：<code>dm 0xb8010100 8388608</code>开始dump文件系统。<br><img src="/images/image-2023-1213-130850249.png" alt="undifined"></p>
+<p>日志内容如下，可以写一个python脚本进行处理，然后还原成真正的文件系统：<br><img src="/images/image-2023-1213-131257153.png" alt="undifined"></p>
+<p>emm，原理是这样没错了，如果bootloader支持dump内存，配合minicom的日志记录功能，理论上是可以dump下来flash芯片的所有内容的。缺点是，速度特别慢，可能这个时间已经能把芯片拆下来到编程器上读取然后焊回去了。但是至少是一种思路，对吧。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/11/20/IoT%E5%B8%B8%E8%A7%81webserver%E5%88%86%E6%9E%90%E5%8F%8A%E6%BC%8F%E6%B4%9E%E6%8C%96%E6%8E%98%E6%80%9D%E8%B7%AF%E6%B5%85%E6%9E%90%EF%BC%9AGoAhead%E7%AF%87/" rel="prev" title="IoT小设备常见webserver分析及漏洞挖掘思路浅析：GoAhead篇">
+      <i class="fa fa-chevron-left"></i> IoT小设备常见webserver分析及漏洞挖掘思路浅析：GoAhead篇
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%85%8D%E7%BD%AE"><span class="nav-number">1.</span> <span class="nav-text">配置</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9F%BA%E6%9C%AC%E9%85%8D%E7%BD%AE"><span class="nav-number">1.1.</span> <span class="nav-text">基本配置</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%85%8D%E7%BD%AE%E5%90%AF%E5%8A%A8%E6%9D%83%E9%99%90"><span class="nav-number">1.2.</span> <span class="nav-text">配置启动权限</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9A%82%E5%81%9Cminicom"><span class="nav-number">2.</span> <span class="nav-text">暂停minicom</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#IoT%E5%AE%89%E5%85%A8%E7%9A%84%E4%B8%80%E4%BA%9B%E6%93%8D%E4%BD%9C"><span class="nav-number">3.</span> <span class="nav-text">IoT安全的一些操作</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%A1%88%E4%BE%8B1%EF%BC%9A%E7%BB%93%E5%90%88bootloader%E7%9A%84%E5%8A%9F%E8%83%BDdump%E5%9B%BA%E4%BB%B6"><span class="nav-number">3.1.</span> <span class="nav-text">案例1：结合bootloader的功能dump固件</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">OneShell</p>
+  <div class="site-description" itemprop="description">ToT</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">67</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">OneShell</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : 'd364449d44c374dab007',
+      clientSecret: 'bb821aa84a81e3bd904d059c6e9ec7eb0e1cab4f',
+      repo        : 'BlogComments',
+      owner       : 'NoneShell',
+      admin       : ['NoneShell'],
+      id          : 'ad2cf2e14e3fdad1c6bcd1504238160c',
+        language: 'zh-CN',
+      distractionFreeMode: true
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>

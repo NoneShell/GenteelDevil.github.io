@@ -168,6 +168,122 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/12/11/minicom%E7%9A%84%E4%BD%BF%E7%94%A8/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="ToT">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/12/11/minicom%E7%9A%84%E4%BD%BF%E7%94%A8/" class="post-title-link" itemprop="url">minicom的使用</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-12-11 02:55:39" itemprop="dateCreated datePublished" datetime="2023-12-11T02:55:39+08:00">2023-12-11</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-12-13 14:23:27" itemprop="dateModified" datetime="2023-12-13T14:23:27+08:00">2023-12-13</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>minicom是在Linux、Unix上常用的一款串口通信工具，可以通过串口连接计算机和其他的嵌入式设备，是一款开源软件。在IoT安全研究中，使用Mac或者Linux的人员可以使用minicom作为串口调试工具。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"># Mac</span><br><span class="line">brew install minicom</span><br><span class="line"># minicom</span><br><span class="line">sudo apt-get install mimicom</span><br></pre></td></tr></table></figure>
+
+<h2 id="配置"><a href="#配置" class="headerlink" title="配置"></a>配置</h2><h3 id="基本配置"><a href="#基本配置" class="headerlink" title="基本配置"></a>基本配置</h3><p>minicom在使用之前需要进行配置，使用如下的命令进入配置模式。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo minicom -s</span><br></pre></td></tr></table></figure>
+
+<p>进入minicom的配置模式之后，使用方向键选择需要配置的部分，一般来说，最基本的配置就是设置Serial port setup，对串口通信的设备、波特率等进行配置。如下是进入配置模式的主页面。配置完成后，可以回到主界面，选择将配置信息作为默认配置Save setup as dfl，或者保存为特定设备名的配置文件。我个人比较喜欢后者，设置一次保存为配置文件，后续对该设备连接直接<code>sudo minocom 配置文件名</code>即可。<br><img src="/images/image-2023-1212-213117907.png" alt="undifined"></p>
+<p>以配置Serial port setup为例，最左边的大写字母可以快速跳转到对应的配置项，例如要配置串口通信设备，直接按下A便可配置Serial Device。具体的设备可以通过<code>ls /dev/*</code>查看连接到计算机的串口通信设备。配置完设备之后，回车，然后可以选择另外的配置选项，就不多赘述，例如直接按下E配置波特率。配置完所有必要的选项后，回车保存所有的设置，回到主配置页面。</p>
+<p><img src="/images/image-2023-1212-213151243.png" alt="undifined"></p>
+<p>回到主配置界面后：</p>
+<ul>
+<li>Save setup as dfl：将当前配置作为minicom的默认配置</li>
+<li>Save setup as..：将当前配置保存成配置文件，以后使用可以从配置文件中加载相应参数</li>
+<li>Exit：以当前的配置进行串口通信</li>
+<li>Exit from Minicom：退出minicom</li>
+</ul>
+<h3 id="配置启动权限"><a href="#配置启动权限" class="headerlink" title="配置启动权限"></a>配置启动权限</h3><p>minicom需要使用到串口设备&#x2F;dev&#x2F;xxx，所以需要使用sudo权限来运行，我们也可以修改串口设备的权限，这样后续启动的时候就不需要使用sudo、还要输入密码了。<br>修改启动权限的方式1：<br>使用chmod命令。Linux下的一切设备皆文件，我们可以直接使用chmod命令修改串口设备的权限</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo chmod 666 /dev/xxx</span><br></pre></td></tr></table></figure>
+
+<p>修改启动权限的方式2：<br>配置udev规则。也是Linux上比较推荐的方式，但是在Mac上无法找到这个配置文件。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo vim /etc/udev/rules.d/70-ttyusb.rules</span><br></pre></td></tr></table></figure>
+<p>新增一行</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">KERNEL==&quot;ttyUSB[0-9]*&quot;, MODE=&quot;0666&quot;</span><br></pre></td></tr></table></figure>
+<p>修改后，需要重新插拔一下设备，以重新生成设备节点</p>
+<h2 id="暂停minicom"><a href="#暂停minicom" class="headerlink" title="暂停minicom"></a>暂停minicom</h2><p>串口的数据会一直输出，有时候我们需要查看之前打印出来的数据，而minicom不能像GUI的日志查看器一样使用直接翻页查看。这个时候可以使用Ctrl + A（Mac上是ESC + Z）键，暂停minicom的输出，选择后续需要执行的操作，例如查看之前打印的数据、开启日志记录功能、重新设置波特率等等。</p>
+<p><img src="/images/image-2023-1212-212220532.png" alt="undifined"><br>如上，就是暂停了之后的minicom菜单，常用的功能：</p>
+<ul>
+<li>Clear Screen：清空当前的屏幕</li>
+<li>cOnfigure Minicom：配置minicom</li>
+<li>Capture on&#x2F;off：开始记录日志，对于安全研究比较有用的功能，保存了日志方便进行分析，甚至结合bootloader的功能还可以dump固件</li>
+<li>Timestamp toggle：开启时间戳，在每一行日志的前面都加上时间戳</li>
+<li>scroll Back：进入浏览模式，可以翻滚查看已经输出的数据</li>
+</ul>
+<h2 id="IoT安全的一些操作"><a href="#IoT安全的一些操作" class="headerlink" title="IoT安全的一些操作"></a>IoT安全的一些操作</h2><p>记录一下在IoT安全研究中会使用到的一些场景，尽量结合自己之前遇到的案例讲解，文章后续如果遇到其他合适案例也会更新</p>
+<h3 id="案例1：结合bootloader的功能dump固件"><a href="#案例1：结合bootloader的功能dump固件" class="headerlink" title="案例1：结合bootloader的功能dump固件"></a>案例1：结合bootloader的功能dump固件</h3><p>最近遇到一个路由器设备，可以直接在板子上找到UART，获取到root权限的shell，但是内置的程序中基本上没有能够外带数据的程序，而我还没到最后一步不想把内存芯片拆下来。通过启动日志可以发现，设备的bootloader是CFE，能够在启动内核前暂停进入CFE的配置模式。同时还能看到CPU型号、flash型号</p>
+<p><img src="/images/image-2023-1213-124911602.png" alt="undifined"></p>
+<p>输入help命令可以看到CFE支持的命令，此处不多说其他的命令，主要关注能够dump内存的命令dm。dm命令语法是：<code>dm 16进制的起始地址 10进制的数据大小</code>。<br><img src="/images/image-2023-1213-125356425.png" alt="undifined"></p>
+<p>在设备正常启动的日志中，可以看到rootfs的格式是squashfs，一个嵌入式设备常用的文件系统格式，文件系统在flash中的起始地址是0xb8010100，大小是8388608个字节&#x3D;8MB。<br><img src="/images/image-2023-1213-125826490.png" alt="undifined"></p>
+<p>知道了文件系统的起始地址和大小，那么就可以使用dm命令进行dump，通过minicom的日志记录功能保存到本地，然后进行处理还原成真正的文件系统。可以先尝试使用dm命令看看起始地址是否为squash文件系统的magic，如下，的确是squash文件系统的文件头（虽然和PE文件的Magic相同但肯定不是PE）</p>
+<p><img src="/images/image-2023-1213-130309164.png" alt="undifined"></p>
+<p>开启minicom的日志记录功能，同时按下ESC + Z（Mac）暂停，选择L，设置需要保存的文件名，随后minicom的所有输出都会被保存到日志文件中，设置完毕后在CFE中执行：<code>dm 0xb8010100 8388608</code>开始dump文件系统。<br><img src="/images/image-2023-1213-130850249.png" alt="undifined"></p>
+<p>日志内容如下，可以写一个python脚本进行处理，然后还原成真正的文件系统：<br><img src="/images/image-2023-1213-131257153.png" alt="undifined"></p>
+<p>emm，原理是这样没错了，如果bootloader支持dump内存，配合minicom的日志记录功能，理论上是可以dump下来flash芯片的所有内容的。缺点是，速度特别慢，可能这个时间已经能把芯片拆下来到编程器上读取然后焊回去了。但是至少是一种思路，对吧。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/11/20/IoT%E5%B8%B8%E8%A7%81webserver%E5%88%86%E6%9E%90%E5%8F%8A%E6%BC%8F%E6%B4%9E%E6%8C%96%E6%8E%98%E6%80%9D%E8%B7%AF%E6%B5%85%E6%9E%90%EF%BC%9AGoAhead%E7%AF%87/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1211,110 +1327,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/09/13/[pwnable]%20[fd]/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="ToT">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/09/13/%5Bpwnable%5D%20%5Bfd%5D/" class="post-title-link" itemprop="url">[pwnable.kr] fd</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-09-13 10:03:00" itemprop="dateCreated datePublished" datetime="2023-09-13T10:03:00+08:00">2023-09-13</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-09-20 11:29:52" itemprop="dateModified" datetime="2023-09-20T11:29:52+08:00">2023-09-20</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/PWN/pwnable-kr/" itemprop="url" rel="index"><span itemprop="name">pwnable.kr</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ssh col@pwnable.kr -p2222 (pw:guest)</span><br></pre></td></tr></table></figure>
-
-<p>使用ssh登录上之后，查看关键文件如下：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">fd@pwnable:~$ ls -al</span><br><span class="line">-r-sr-x---   1 fd_pwn fd   7322 Jun 11  2014 fd</span><br><span class="line">-rw-r--r--   1 root   root  418 Jun 11  2014 fd.c</span><br><span class="line">-r--r-----   1 fd_pwn root   50 Jun 11  2014 flag</span><br><span class="line"></span><br><span class="line">fd@pwnable:~$ id</span><br><span class="line">uid=1002(fd) gid=1002(fd) groups=1002(fd)</span><br></pre></td></tr></table></figure>
-
-<p>可以看到我们想要读取的flag所有者是fd_pwn、所属组是root，而我们登录的用户是fd，用户组是fd，没有读取flag的权限。但是程序fd的所有者是fd_pwn，还设置了setuid，这就意味着用户fd运行程序fd时，程序会获得fd_pwn的权限，从而阅读flag内容。</p>
-<p>在Linux系统中，当文件的权限被设置成setuid（Set User ID）时，当该程序被执行，程序将获得文件所有者的权限，而不是执行程序的用户的权限。这可能会导致越权漏洞的发生。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdlib.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;string.h&gt;</span></span></span><br><span class="line"><span class="type">char</span> buf[<span class="number">32</span>];</span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span>* argv[], <span class="type">char</span>* envp[])</span>&#123;</span><br><span class="line">	<span class="keyword">if</span>(argc&lt;<span class="number">2</span>)&#123;</span><br><span class="line">		<span class="built_in">printf</span>(<span class="string">&quot;pass argv[1] a number\n&quot;</span>);</span><br><span class="line">		<span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="type">int</span> fd = atoi( argv[<span class="number">1</span>] ) - <span class="number">0x1234</span>;</span><br><span class="line">	<span class="type">int</span> len = <span class="number">0</span>;</span><br><span class="line">	len = read(fd, buf, <span class="number">32</span>);</span><br><span class="line">	<span class="keyword">if</span>(!<span class="built_in">strcmp</span>(<span class="string">&quot;LETMEWIN\n&quot;</span>, buf))&#123;</span><br><span class="line">		<span class="built_in">printf</span>(<span class="string">&quot;good job :)\n&quot;</span>);</span><br><span class="line">		system(<span class="string">&quot;/bin/cat flag&quot;</span>);</span><br><span class="line">		<span class="built_in">exit</span>(<span class="number">0</span>);</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="built_in">printf</span>(<span class="string">&quot;learn about Linux file IO\n&quot;</span>);</span><br><span class="line">	<span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>根据程序的逻辑，如果想要运行到cat flag，就需要控制buf，而buf是通过read读取fd文件描述符获取的，因此，只需要使得fd&#x3D;0，就可以从标准输入中获取内容。fd&#x3D;0的方式就是使argv[1]&#x3D;0x1234。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">fd@pwnable:~$ ./fd 4660</span><br><span class="line">LETMEWIN</span><br><span class="line">good job :)</span><br><span class="line">mommy! I think I know what a file descriptor is!!</span><br></pre></td></tr></table></figure>
-
-<h2 id="知识点小结"><a href="#知识点小结" class="headerlink" title="知识点小结"></a>知识点小结</h2><p>使用ls -al查看文件的权限：<br>文件的权限一共由10个字符组成：</p>
-<ul>
-<li>第1个字符：文件类型，常见的文件类型有-（普通文件）、d（目录）、s（套接字）、l（链接文件）、c（字符设备）、b（块设备）等等</li>
-<li>3个字符：文件所有者权限，rwx，读、写、执行，如果没有相关权限则是-</li>
-<li>3个字符：文件所属组权限，同上</li>
-<li>3个字符：其他用户权限，同上</li>
-</ul>
-<p>例如，<code>-r--r-----   1 fd_pwn root   50 Jun 11  2014 flag</code>，则是说明flag所属者是fd_pwn，拥有读权限；所属用户组是root，拥有读权限；其他用户没有任何权限。</p>
-<p>当文件的权限被设置成setuid时，文件权限的x会被替换成大写S或者小写s：</p>
-<ul>
-<li>如果文件的所有者具有执行权限，且setuid未设置，则文件执行权限是x</li>
-<li>如果文件的所有者具有执行权限，且setuid设置，则文件执行权限是S</li>
-<li>如果文件的所有者没有执行权限，且setuid设置，则文件执行权限是s</li>
-</ul>
-<p><code>-r-sr-x---   1 fd_pwn fd   7322 Jun 11  2014 fd</code>，这个表示文件所有者是fd_pwn，所有组是fd；此时fd_pwn没有执行权限，但是设置setuid；所有组fd中的账号可以运行该程序，且程序的执行权限是fd_pwn。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1384,7 +1396,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">66</span>
+          <span class="site-state-item-count">67</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>

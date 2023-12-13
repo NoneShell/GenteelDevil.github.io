@@ -168,6 +168,94 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/12/CVE-2016-1554%20Netgear%20wnap320%20AP%E4%BB%BB%E6%84%8F%E5%91%BD%E4%BB%A4%E6%89%A7%E8%A1%8C/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="ToT">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/12/CVE-2016-1554%20Netgear%20wnap320%20AP%E4%BB%BB%E6%84%8F%E5%91%BD%E4%BB%A4%E6%89%A7%E8%A1%8C/" class="post-title-link" itemprop="url">CVE-2016-1554 Netgear wnap320 AP任意命令执行</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-04-12 06:28:22 / Modified: 18:33:30" itemprop="dateCreated datePublished" datetime="2023-04-12T06:28:22+08:00">2023-04-12</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/" itemprop="url" rel="index"><span itemprop="name">漏洞复现</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/IoT/" itemprop="url" rel="index"><span itemprop="name">IoT</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="漏洞概述"><a href="#漏洞概述" class="headerlink" title="漏洞概述"></a>漏洞概述</h2><h3 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h3><p><img src="/images/image-2023-0412-182900988.png" alt="undifined"><br>Netgear wnap320 access point是一款很老的路由器设备，早已经停产了。<br>CVE-2016-1554是上述设备的一个未授权任意命令执行漏洞，通过构造字段<code>macAddress</code>可以拼接成命令让路由器执行。</p>
+<h3 id="影响版本"><a href="#影响版本" class="headerlink" title="影响版本"></a>影响版本</h3><p>Netgear wnap320 access point Firmware &#x3D;&#x3D; v2.0.3</p>
+<h3 id="漏洞危害"><a href="#漏洞危害" class="headerlink" title="漏洞危害"></a>漏洞危害</h3><p>高危</p>
+<h2 id="漏洞复现"><a href="#漏洞复现" class="headerlink" title="漏洞复现"></a>漏洞复现</h2><h3 id="复现环境"><a href="#复现环境" class="headerlink" title="复现环境"></a>复现环境</h3><p>kali、qemu5.2</p>
+<h3 id="漏洞原理"><a href="#漏洞原理" class="headerlink" title="漏洞原理"></a>漏洞原理</h3><p>漏洞产生的原因是<code>boardDataWW.php</code>页面表单中，对于数据段<code>macAddress</code>的值在后端只做了符合”12个连续整数“字符串的验证，并没有对值整体合法性进行验证</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?php</span></span><br><span class="line">	<span class="variable">$flag</span>=<span class="literal">false</span>;</span><br><span class="line">	<span class="variable">$msg</span>=<span class="string">&#x27;&#x27;</span>;</span><br><span class="line">	<span class="keyword">if</span> (!<span class="keyword">empty</span>(<span class="variable">$_REQUEST</span>[<span class="string">&#x27;writeData&#x27;</span>])) &#123;</span><br><span class="line">        <span class="comment">// maxAddress字段不为空 且 reginfo字段值正确 且 macAddress中存在满足[0-9a-fA-F]字符串</span></span><br><span class="line">		<span class="keyword">if</span> (!<span class="keyword">empty</span>(<span class="variable">$_REQUEST</span>[<span class="string">&#x27;macAddress&#x27;</span>]) &amp;&amp; <span class="title function_ invoke__">array_search</span>(<span class="variable">$_REQUEST</span>[<span class="string">&#x27;reginfo&#x27;</span>],<span class="title function_ invoke__">Array</span>(<span class="string">&#x27;WW&#x27;</span>=&gt;<span class="string">&#x27;0&#x27;</span>,<span class="string">&#x27;NA&#x27;</span>=&gt;<span class="string">&#x27;1&#x27;</span>))!==<span class="literal">false</span> &amp;&amp; <span class="title function_ invoke__">ereg</span>(<span class="string">&quot;[0-9a-fA-F]&#123;12,12&#125;&quot;</span>,<span class="variable">$_REQUEST</span>[<span class="string">&#x27;macAddress&#x27;</span>],<span class="variable">$regs</span>)!==<span class="literal">false</span>) &#123;</span><br><span class="line">			<span class="comment">//echo &quot;test &quot;.$_REQUEST[&#x27;macAddress&#x27;].&quot; &quot;.$_REQUEST[&#x27;reginfo&#x27;];</span></span><br><span class="line">			<span class="comment">//exec(&quot;wr_mfg_data &quot;.$_REQUEST[&#x27;macAddress&#x27;].&quot; &quot;.$_REQUEST[&#x27;reginfo&#x27;],$dummy,$res);</span></span><br><span class="line">            <span class="comment">// 直接将macAddress与命令进行了拼接 存在命令注入</span></span><br><span class="line"> 			<span class="title function_ invoke__">exec</span>(<span class="string">&quot;wr_mfg_data -m &quot;</span>.<span class="variable">$_REQUEST</span>[<span class="string">&#x27;macAddress&#x27;</span>].<span class="string">&quot; -c &quot;</span>.<span class="variable">$_REQUEST</span>[<span class="string">&#x27;reginfo&#x27;</span>],<span class="variable">$dummy</span>,<span class="variable">$res</span>);</span><br><span class="line">            <span class="keyword">if</span> (<span class="variable">$res</span>==<span class="number">0</span>) &#123;</span><br><span class="line">                <span class="title function_ invoke__">conf_set_buffer</span>(<span class="string">&quot;system:basicSettings:apName netgear&quot;</span>.<span class="title function_ invoke__">substr</span>(<span class="variable">$_REQUEST</span>[<span class="string">&#x27;macAddress&#x27;</span>], -<span class="number">6</span>).<span class="string">&quot;\n&quot;</span>);</span><br><span class="line">                <span class="title function_ invoke__">conf_save</span>();</span><br><span class="line">                <span class="variable">$msg</span> = <span class="string">&#x27;Update Success!&#x27;</span>;</span><br><span class="line">                <span class="variable">$flag</span> = <span class="literal">true</span>;</span><br><span class="line">            &#125;</span><br><span class="line">      	&#125;</span><br><span class="line">        <span class="keyword">else</span></span><br><span class="line">			<span class="variable">$flag</span> = <span class="literal">true</span>;</span><br><span class="line">	&#125;</span><br><span class="line"><span class="meta">?&gt;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="漏洞复现-1"><a href="#漏洞复现-1" class="headerlink" title="漏洞复现"></a>漏洞复现</h3><p>使用qemu的system模式对路由器整体进行模拟，还是比较简单的，而且漏洞也是php漏洞，分析也不复杂。<br>首先进行固件的提取，比较简单，在官网上可以下载到存在漏洞版本的<a target="_blank" rel="noopener" href="https://www.downloads.netgear.com/files/GDC/WNAP320/WNAP320%20Firmware%20Version%202.0.3.zip">固件</a>，然后使用binwalk直接就可以将固件解压，得到的是squashfs文件系统。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">binwalk -Me WNAP320_V2.0.3_firmware.tar</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/image-2023-0412-182938583.png" alt="undifined"><br>使用qemu的system模式对路由器整体进行模拟，虚拟机的搭建过程以及文件系统的挂载可以参考<a target="_blank" rel="noopener" href="https://xz.aliyun.com/t/8494">此处</a>。<br>搭建完毕后分析路由器相关进程的启动，在文件夹<code>squashfs-root/etc/init.d</code>&#x2F;中的启动脚本进行分析，可以知道路由器的整体是由脚本<code>rcS</code>进行初始化的。于是挂载文件系统后直接启动脚本，对路由器进行初始化。<br><img src="/images/image-2023-0412-183006264.png" alt="undifined"><br>初始化完毕后，查看虚拟机的网络设置，对相关页面进行访问，看是否启动成功。<br><img src="/images/image-2023-0412-183031897.png" alt="undifined"><br>说明路由器的web服务至少是正常启动了，尝试使用EXP去打，的确存在命令执行漏洞<br><img src="/images/image-2023-0412-183044069.png" alt="undifined"></p>
+<h2 id="防护方案"><a href="#防护方案" class="headerlink" title="防护方案"></a>防护方案</h2><p>这个程序员就是只对符合标准的字符串进行了正则的匹配，但是却没有对字符串整体进行合法性的验证。</p>
+<h2 id="相关链接"><a href="#相关链接" class="headerlink" title="相关链接"></a>相关链接</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://xz.aliyun.com/t/8494">华为路由器漏洞CVE-2017-17215复现</a></li>
+<li><a target="_blank" rel="noopener" href="https://nvd.nist.gov/vuln/detail/CVE-2016-1555">https://nvd.nist.gov/vuln/detail/CVE-2016-1555</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.exploit-db.com/exploits/50069">https://www.exploit-db.com/exploits/50069</a></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/12/CVE-2015-2049%20Dlink%2093XL%E4%BB%BB%E6%84%8F%E6%96%87%E4%BB%B6%E4%B8%8A%E4%BC%A0/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1135,138 +1223,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/06/IDAPython-%E5%9F%BA%E6%9C%AC%E5%9D%97%E7%B2%92%E5%BA%A6/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="ToT">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/04/06/IDAPython-%E5%9F%BA%E6%9C%AC%E5%9D%97%E7%B2%92%E5%BA%A6/" class="post-title-link" itemprop="url">IDAPython-基本块粒度</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-04-06 03:43:34" itemprop="dateCreated datePublished" datetime="2023-04-06T03:43:34+08:00">2023-04-06</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-11 13:47:11" itemprop="dateModified" datetime="2023-04-11T13:47:11+08:00">2023-04-11</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/" itemprop="url" rel="index"><span itemprop="name">工具党</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/IDAPython/" itemprop="url" rel="index"><span itemprop="name">IDAPython</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>指令粒度介绍完毕之后，该从基本块粒度进行说明了。所涉及到的API速查表格如下：</p>
-<table>
-<thead>
-<tr>
-<th>模块</th>
-<th>API</th>
-<th>功能</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>idaapi</td>
-<td>get_func(ea)</td>
-<td>获取地址ea所在函数</td>
-</tr>
-<tr>
-<td>idaapi</td>
-<td>FlowChart(f&#x3D;None, bounds&#x3D;None, flags&#x3D;0)</td>
-<td>获取函数f或者地址范围bounds的所有基本块集合</td>
-</tr>
-</tbody></table>
-<h2 id="基本块简介"><a href="#基本块简介" class="headerlink" title="基本块简介"></a>基本块简介</h2><p>先简单说一下基本块的概念，基本块（Basic Block）是一段可以被顺序执行的指令集，一般被视为程序的基本组成单元。一个程序的控制流就是由基本块组成的有向图。在一个基本块的执行过程中，它通常是由前驱基本块（predecessor）执行到当前基本块，然后当前基本块执行完毕后到后继基本块（successor）。<br>因此，大概也可以知道基本块的重要组成了：</p>
-<ol>
-<li>起始地址：基本块的第一条指令</li>
-<li>结束地址：基本块的最后一条指令</li>
-<li>指令集：基本块中所有的指令，也是要执行的指令集</li>
-<li>转移指令：用于跳转到下一个基本块</li>
-</ol>
-<p>基本块具有一个特性，那就是如果传递进行的寄存器值、使用到的内存值是一样的，那么在基本块执行完毕的寄存器集的值、内存值也是一样的。这个特性可以用于对基本块级别的仿真模拟，例如判断最后的跳转是否会被采纳。基本块在模糊测试中也被用于记录执行路径，例如AFL就是在基本块的起始地址进行了插桩，如果测试值使得基本块执行到了新的路径，那么就说明这个测试值潜力更大。<br>基本块的概念说完了，在IDA反汇编的Graph disassemble view中（空格切换，233）可以看到函数的基本块。如下就是在IDA中显示的两个基本块：<br><img src="/images/image-2023-0406-155933823.png" alt="undifined"><br>这两个基本块的作用是通过<code>strcmp</code>函数判断传入到cgibin的环境变量，选择使用哪一个接口函数来处理数据。<br>基本块1：调用phpcgi</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">.text:00402E1C</span><br><span class="line">.text:00402E1C loc_402E1C:</span><br><span class="line">.text:00402E1C la      $t9, strcmp</span><br><span class="line">.text:00402E20 move    $a0, $s0         # s1</span><br><span class="line">.text:00402E24 sw      $a2, 0x20+var_8($sp)</span><br><span class="line">.text:00402E28 jalr    $t9 ; strcmp</span><br><span class="line">.text:00402E2C li      $a1, aPhpcgi     # &quot;phpcgi&quot;</span><br><span class="line">.text:00402E30 lw      $gp, 0x20+var_10($sp)</span><br><span class="line">.text:00402E34 lw      $a2, 0x20+var_8($sp)</span><br><span class="line">.text:00402E38 bnez    $v0, loc_402E4C</span><br><span class="line">.text:00402E3C lui     $a1, 0x42  # &#x27;B&#x27;</span><br></pre></td></tr></table></figure>
-<p>基本块2：调用dlapn.cgi</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">.text:00402E4C</span><br><span class="line">.text:00402E4C loc_402E4C:</span><br><span class="line">.text:00402E4C la      $t9, strcmp</span><br><span class="line">.text:00402E50 move    $a0, $s0         # s1</span><br><span class="line">.text:00402E54 sw      $a2, 0x20+var_8($sp)</span><br><span class="line">.text:00402E58 jalr    $t9 ; strcmp</span><br><span class="line">.text:00402E5C li      $a1, aDlapnCgi   # &quot;dlapn.cgi&quot;</span><br><span class="line">.text:00402E60 lw      $gp, 0x20+var_10($sp)</span><br><span class="line">.text:00402E64 lw      $a2, 0x20+var_8($sp)</span><br><span class="line">.text:00402E68 bnez    $v0, loc_402E7C</span><br><span class="line">.text:00402E6C lui     $a1, 0x42  # &#x27;B&#x27;</span><br></pre></td></tr></table></figure>
-<h2 id="基本块操作"><a href="#基本块操作" class="headerlink" title="基本块操作"></a>基本块操作</h2><p>在IDAPython中，对基本块的操作通常是先根据一个指令地址得到指令所在的函数，然后获取到函数由基本块组成的控制流图，再遍历图中的所有基本块。如果要知道目标指令是在函数的哪一个基本块，遍历基本块然后判断。<br>如下的代码是遍历地址<code>ea</code>所在函数的所有基本块，然后判断<code>ea</code>在哪一个基本块。</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> idaapi</span><br><span class="line"><span class="keyword">import</span> ida_gdl</span><br><span class="line"></span><br><span class="line">ea = <span class="number">0x00402E4C</span></span><br><span class="line">func = idaapi.get_func(ea)</span><br><span class="line">func_control_flow = idaapi.FlowChart(func, flags=idaapi.FC_PREDS)</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> basic_block <span class="keyword">in</span> func_control_flow:</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;ID: %i, Start: 0x%x, End: 0x%x&quot;</span> % (basic_block.<span class="built_in">id</span>, basic_block.start_ea, basic_block.end_ea))</span><br><span class="line">    <span class="keyword">if</span> basic_block.start_ea &lt;= ea &lt; basic_block.end_ea:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;    ea at Here&quot;</span>)</span><br><span class="line">        <span class="keyword">break</span></span><br><span class="line">    succs_blocks = basic_block.succs()</span><br><span class="line">    <span class="keyword">for</span> addr <span class="keyword">in</span> succs_blocks:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;     Successor: 0x%x&quot;</span> % addr.start_ea)</span><br><span class="line">    pre_sblocks = basic_block.preds()</span><br><span class="line">    <span class="keyword">for</span> addr <span class="keyword">in</span> pre_sblocks:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;     Predecessor: 0x%x&quot;</span> % addr.end_ea)</span><br><span class="line">    <span class="keyword">if</span> ida_gdl.is_ret_block(basic_block.<span class="built_in">type</span>):</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;     Return Block&quot;</span>)</span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br><span class="line"><span class="string">ID: 0, Start: 0x402da0, End: 0x402e10</span></span><br><span class="line"><span class="string">     Successor: 0x402e10</span></span><br><span class="line"><span class="string">     Successor: 0x402e1c</span></span><br><span class="line"><span class="string">ID: 1, Start: 0x402e10, End: 0x402e1c</span></span><br><span class="line"><span class="string">     Successor: 0x4032e0</span></span><br><span class="line"><span class="string">     Predecessor: 0x402e10</span></span><br><span class="line"><span class="string">ID: 2, Start: 0x402e1c, End: 0x402e40</span></span><br><span class="line"><span class="string">     Successor: 0x402e40</span></span><br><span class="line"><span class="string">     Successor: 0x402e4c</span></span><br><span class="line"><span class="string">     Predecessor: 0x402e10</span></span><br><span class="line"><span class="string">ID: 3, Start: 0x402e40, End: 0x402e4c</span></span><br><span class="line"><span class="string">     Successor: 0x4032e0</span></span><br><span class="line"><span class="string">     Predecessor: 0x402e40</span></span><br><span class="line"><span class="string">ID: 4, Start: 0x402e4c, End: 0x402e70</span></span><br><span class="line"><span class="string">    ea at Here</span></span><br><span class="line"><span class="string">&#x27;&#x27;&#x27;</span></span><br></pre></td></tr></table></figure>
-<p>我之前写过一个判断MIPS命令注入的代码，大概就是，先定位对<code>system</code>代码作为<code>ea</code>，然后获取到<code>ea</code>所在的基本块，再通过广度优先搜索得到基本块的所有前驱，直到在前驱基本块中得到所有的参数（MIPS是通过<code>a0</code>、<code>a1</code>、<code>a2</code>、<code>a3</code>寄存器进行传参），后续看能不能把代码整理出来。<br>调用<code>idaapi.FlowChart()</code>实际上是调用的<code>ida_gdl.FlowChart(f=None, bounds=None, flags=0)</code>，传参如下：</p>
-<ul>
-<li><code>f</code>：通过<code>get_func(ea)</code>获取</li>
-<li><code>bounds</code>：如果<code>f</code>参数不指定则在<code>bounds</code> tuple类型<code>(start, end)</code>范围获取基本块集合</li>
-<li><code>flags</code>：<code>FC_XXX</code>标准位，具体可以在<a target="_blank" rel="noopener" href="https://hex-rays.com/products/ida/support/idapython_docs/ida_gdl.html">此处</a>查询<br>对于每一个基本块，都有如下的一些属性：</li>
-<li><code>id</code>：基本块的ID</li>
-<li><code>start_ea</code>：基本块的起始地址</li>
-<li><code>end_ea</code>：基本块的结束地址</li>
-<li><code>type</code>：基本块类型，如下依次数值从0～7<ul>
-<li><code>fcb_normal</code>：正常的基本块</li>
-<li><code>fcb_indjump</code>：基本块以间接跳转结束</li>
-<li><code>fcb_ret</code>：返回基本块，估计是函数<code>ret</code>结束时的基本块</li>
-<li><code>fcb_cndret</code>：条件返回的基本块</li>
-<li><code>fcb_noret</code>：基本块不返回</li>
-<li><code>fcb_enoret</code>：不属于函数的基本块，且不返回</li>
-<li><code>fcb_extern</code>：外部的基本块（没有理解到含义）</li>
-<li><code>fcb_error</code>：跳过不执行的基本块（不知道是否这样）</li>
-</ul>
-</li>
-<li><code>preds()</code>：获取当前基本块的所有前驱基本块集合</li>
-<li><code>succs()</code>：获取当前基本块的所有后继基本块集合</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1336,7 +1292,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">66</span>
+          <span class="site-state-item-count">67</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
