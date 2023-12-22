@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"oneshell.top","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":true,"nav":{"gitalk":{"order":-2}},"activeClass":"gitalk"},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="在IoT安全研究过程中，有时候我们出于调试或者增加设备功能的目的，需要将程序交叉编译上传到设备中，这个时候就需要构建交叉编译工具链。我曾经尝试过多种构造交叉编译工具链的方法，例如：  寻找对应架构的Debian虚拟机并使用qemu进行系统级仿真，然后像使用一个正常系统一样进行程序编译 使用buildroot编译交叉编译工具链 使用系统源安装相应的交叉编译工具链  在构造的过程中也踩过很多坑，可以列">
+<meta property="og:type" content="article">
+<meta property="og:title" content="IoT安全研究中的交叉编译环境搭建：终结篇">
+<meta property="og:url" content="https://oneshell.top/2023/12/20/IoT%E5%AE%89%E5%85%A8%E7%A0%94%E7%A9%B6%E4%B8%AD%E7%9A%84%E4%BA%A4%E5%8F%89%E7%BC%96%E8%AF%91%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%EF%BC%9A%E7%BB%88%E7%BB%93%E7%AF%87%EF%BC%88100%%E5%8F%AF%E5%A4%8D%E7%8E%B0%EF%BC%89/index.html">
+<meta property="og:site_name" content="OneShell">
+<meta property="og:description" content="在IoT安全研究过程中，有时候我们出于调试或者增加设备功能的目的，需要将程序交叉编译上传到设备中，这个时候就需要构建交叉编译工具链。我曾经尝试过多种构造交叉编译工具链的方法，例如：  寻找对应架构的Debian虚拟机并使用qemu进行系统级仿真，然后像使用一个正常系统一样进行程序编译 使用buildroot编译交叉编译工具链 使用系统源安装相应的交叉编译工具链  在构造的过程中也踩过很多坑，可以列">
+<meta property="og:locale">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-1220-180603052.png">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-1220-181122595.png">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-1220-181852438.png">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-1220-182116071.png">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-1221-100243668.png">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-1221-100555135.png">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-1221-111208699.png">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-1221-110713337.png">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-1221-111458872.png">
+<meta property="og:image" content="https://oneshell.top/images/image-2023-1221-114051381.png">
+<meta property="article:published_time" content="2023-12-19T21:23:14.000Z">
+<meta property="article:modified_time" content="2023-12-22T09:39:51.216Z">
+<meta property="article:author" content="OneShell">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://oneshell.top/images/image-2023-1220-180603052.png">
+
+<link rel="canonical" href="https://oneshell.top/2023/12/20/IoT%E5%AE%89%E5%85%A8%E7%A0%94%E7%A9%B6%E4%B8%AD%E7%9A%84%E4%BA%A4%E5%8F%89%E7%BC%96%E8%AF%91%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%EF%BC%9A%E7%BB%88%E7%BB%93%E7%AF%87%EF%BC%88100%%E5%8F%AF%E5%A4%8D%E7%8E%B0%EF%BC%89/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>IoT安全研究中的交叉编译环境搭建：终结篇 | OneShell</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">OneShell</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">I fight for a brighter tomorrow</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+        <li class="menu-item menu-item-schedule">
+
+    <a href="/schedule/" rel="section"><i class="fa fa-calendar fa-fw"></i>Schedule</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/12/20/IoT%E5%AE%89%E5%85%A8%E7%A0%94%E7%A9%B6%E4%B8%AD%E7%9A%84%E4%BA%A4%E5%8F%89%E7%BC%96%E8%AF%91%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%EF%BC%9A%E7%BB%88%E7%BB%93%E7%AF%87%EF%BC%88100%%E5%8F%AF%E5%A4%8D%E7%8E%B0%EF%BC%89/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="ToT">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          IoT安全研究中的交叉编译环境搭建：终结篇
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-12-20 05:23:14" itemprop="dateCreated datePublished" datetime="2023-12-20T05:23:14+08:00">2023-12-20</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-12-22 17:39:51" itemprop="dateModified" datetime="2023-12-22T17:39:51+08:00">2023-12-22</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Log/" itemprop="url" rel="index"><span itemprop="name">Log</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>在IoT安全研究过程中，有时候我们出于调试或者增加设备功能的目的，需要将程序交叉编译上传到设备中，这个时候就需要构建交叉编译工具链。我曾经尝试过多种构造交叉编译工具链的方法，例如：</p>
+<ul>
+<li>寻找对应架构的Debian虚拟机并使用qemu进行系统级仿真，然后像使用一个正常系统一样进行程序编译</li>
+<li>使用buildroot编译交叉编译工具链</li>
+<li>使用系统源安装相应的交叉编译工具链</li>
+</ul>
+<p>在构造的过程中也踩过很多坑，可以列举一下踩过的比较典型的：</p>
+<ul>
+<li>以mips架构有I、II、III型，网上的Debian虚拟机往往是高版本类型。高版本类型的好处是可以向下兼容，因此很多系统级的仿真可以直接chroot到设备根目录运行程序；但是对于交叉编译的坏处就是没法编译低版本架构的程序</li>
+<li>高版本的buildroot中没有对低版本架构的配置</li>
+<li>同样系统源安装的交叉编译工具链也是没有对低版本架构</li>
+<li>在不同的设备上安装buildroot可能需要解决各种包依赖问题</li>
+</ul>
+<p>这个时候就引出了我的一个需求：如何才能在一个新的工作环境中快速搭建起来一套交叉编译工具链，并且这个交叉编译工具链还能支持较老的低版本架构CPU。</p>
+<p>第一个问题：我参考了Google内核fuzz工具syzkaller中的<a target="_blank" rel="noopener" href="https://github.com/google/syzkaller/blob/master/tools/create-image.sh">create-image.sh</a>，这个脚本基于命令debootstrap，能够快速搭建指定发行版、架构、软件包的一个Debian文件系统镜像。我稍微修改此脚本，得到了一个能够支持某个指定版本的buildroot的文件系统，以后使用的时候直接chroot到根目录，就能愉快构造编译链了 + 交叉编译了。</p>
+<p>第二个问题：我是选择了buildroot-2013.02-rc1作为长期使用的版本，这个版本足够老、支持足够多、足够旧的CPU架构。目前在我的日常使用中来看，已经够用了。</p>
+<p>我在Github上创建了一个仓库，里面是创建文件系统和buildroot的脚本，以及静态编译好的适配各个架构的常用程序，后续持续更新。</p>
+<p><a target="_blank" rel="noopener" href="https://github.com/NoneShell/buildrooter">GitHub - NoneShell&#x2F;buildrooter</a></p>
+<h2 id="Debian-wheezy文件系统搭建"><a href="#Debian-wheezy文件系统搭建" class="headerlink" title="Debian wheezy文件系统搭建"></a>Debian wheezy文件系统搭建</h2><p>克隆仓库，然后直接运行create-image.sh，会创建一个Debian wheezy的文件系统：</p>
+<figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">git <span class="built_in">clone</span> https://github.com/NoneShell/buildrooter.git</span><br><span class="line"><span class="built_in">cd</span> buildrooter</span><br><span class="line">./create-image.sh</span><br></pre></td></tr></table></figure>
+
+<p>创建完成后，进入chroot目录，这个就是一个Debian wheezy的文件系统，通过这种方式就可以保证所有的Linux都能以后续相同的操作，得到一个100%能成功编译的环境。<br><img src="/images/image-2023-1220-180603052.png" alt="undifined"></p>
+<p>chroot到目录后，根据个人习惯可以做一些设置，此时已经和正常使用一个Debian系统没有区别了。我会设置好TERM和locales，因为我平常使用tmux，一些命令例如clear会报错tmux-256 colors；locales则是Busybox编译的时候会报错让至少使用一个UTF-8的locale。</p>
+<figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">export</span> TERM=xterm</span><br><span class="line">dpkg-reconfigure locales</span><br></pre></td></tr></table></figure>
+<h2 id="buildroot编译"><a href="#buildroot编译" class="headerlink" title="buildroot编译"></a>buildroot编译</h2><figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">wget https://buildroot.org/downloads/buildroot-2013.02-rc1.tar.gz --no-check-certificate</span><br><span class="line">tar -xvf ./buildroot-2013.02-rc1.tar.bz2</span><br></pre></td></tr></table></figure>
+
+<p>我使用的是tmux，例如使用命令clear的时候会报错：<code>&#39;tmux-256color&#39;: unknown terminal type.</code>，可以每次手动设置如下，我选择写入到了.bashrc中</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">export TERM=xterm</span><br></pre></td></tr></table></figure>
+
+<p>以最近在看的一个目标为例，使用file查看目标的架构如下，mipsel架构，且是version 1，SYSV。目标是编译出来能够在设备上运行的busybox、gdbserver和nc，自己编译的busybox可以使其支持更多的命令，gdbserver是调试必备，nc用来做端口转发、程序运行等。<br><img src="/images/image-2023-1220-181122595.png" alt="undifined"></p>
+<p>首先是编译符合目标架构的交叉编译工具链，进入buildroot目录中，执行<code>make menuconfig</code>，进入配置菜单。</p>
+<p><img src="/images/image-2023-1220-181852438.png" alt="undifined"></p>
+<p>如果仅仅是为了交叉编译工具链，不需要额外设置太多，选择好目标架构、架构版本、ABI是默认O32，然后在Toolchain中选择想要支持的特性即可。有一个地方一定要修改，就是Kernel Header选择Manually specified Linux version，并设置成3.7.1。默认设置是3.7.x，但是在实际make的时候下载不到相应的的Header文件。gdb和gdbserver我没有选择，因为一般是习惯将gdbserver放到设备上运行，然后在本机使用gdb连接进行调试。<br><img src="/images/image-2023-1220-182116071.png" alt="undifined"></p>
+<p>编译交叉编译工具链，只需要执行<code>make toolchain</code>即可，我之前看过很多网上的教程都是直接make，这样会同时编译出来rootfs和kernel，消耗大量时间。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">make toolchain</span><br></pre></td></tr></table></figure>
+
+<p>编译完成的交叉编译工具链路径在&#x2F;output&#x2F;host&#x2F;usr&#x2F;bin目录中，可以将目录host重命名成<code>host_arch</code>，例如<code>host_LSB_MIPS_MIPS-I_SYSV</code>，这样下次编译新的架构的工具链时，<code>make clean</code>不会删除掉已经编译好的架构的工具链。我的命名习惯是根据file查看的目标程序的信息来重命令文件夹，如下是此次演示的目标架构：<br><img src="/images/image-2023-1221-100243668.png" alt="undifined"></p>
+<p>为了使用方便，可以把工具链的路径添加到PATH环境变量中，写入到.bashrc，后续编译程序的时候，指定CC&#x2F;CXX时就不用输入完整的路径，日常使用的时候也可以在终端tab补全。</p>
+<figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">export</span> PATH=/root/buildroot-2013.02-rc1/output/host_LSB_MIPS_MIPS-I_SYSV/usr/bin:<span class="variable">$PATH</span></span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/image-2023-1221-100555135.png" alt="undifined"></p>
+<h2 id="静态编译实例"><a href="#静态编译实例" class="headerlink" title="静态编译实例"></a>静态编译实例</h2><p>当交叉编译工具链制作完成了，交叉编译自己的程序实际上和正常x86&#x2F;64下的编译没有太大的区别，可能需要踩的坑就是ulibc中的一些系统库缺少需要自己编译并链接、编译版本太新的程序可能会有符号引用报错等，总之就是遇见坑GPT、Google。</p>
+<h3 id="busybox"><a href="#busybox" class="headerlink" title="busybox"></a>busybox</h3><p>buildroot自带的package中就有busybox，编译前先将目标架构的host_target目录复制一份为host目录，这样buildroot才能正确设置编译相关的参数。<br><img src="/images/image-2023-1221-111208699.png" alt="undifined"></p>
+<p>在buildroot根目录使用命令<code>make busybox-menuconfig</code>进行配置，进入busybox的配置菜单设置静态链接：</p>
+<ul>
+<li>Busybox Settings -&gt; Build Options -&gt; Build Busybox as a static binary，选择静态编译。</li>
+<li>CFLAGS和LDFLAGS都添加上-s，编译后strip掉符号，减少存储占用。</li>
+<li>在Applets区域选择需要额外增加的功能&#x2F;命令，例如我会额外勾选上网络相关的nc、ftpd、telnetd，进程相关的pstree，总之根据个人习惯和需求添加。</li>
+</ul>
+<p><img src="/images/image-2023-1221-110713337.png" alt="undifined"></p>
+<p>然后<code>make busybox</code>即可编译出来静态链接、去除掉符号、增加了额外命令的Busybox，路径：<code>/output/target/busybox</code>。<br><img src="/images/image-2023-1221-111458872.png" alt="undifined"></p>
+<h3 id="gdbserver"><a href="#gdbserver" class="headerlink" title="gdbserver"></a>gdbserver</h3><p>没有编译gdb有两个原因，第一个是因为平常调试的时候一般是将gdbserver复制到设备上，然后本机使用gdb remote进行调试；第二个原因是，gdb交叉编译太多坑了，我各种配置都没有成功，最后选择了放弃（shame on me）。</p>
+<p>下载源码，我选择的版本是7.12，这个版本不需要额外编译termcap库而是使用了较新的ncurses库，这样可以减少额外的编译工作量。</p>
+<figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">wget https://ftp.gnu.org/gnu/gdb/gdb-7.12.tar.gz --no-check-certificate</span><br><span class="line">tar -xvf gdb-7.12.tar.gz</span><br><span class="line"><span class="built_in">cd</span> gdb-7.12/gdb/gdbserver <span class="comment"># 进入gdbserver的代码目录</span></span><br><span class="line">sed -i -e <span class="string">&#x27;s/srv_linux_thread_db=yes//&#x27;</span> configure.srv</span><br><span class="line">./configure --target=mipsel-linux --host=mipsel-linux</span><br><span class="line">make CXXFLAGS=<span class="string">&quot;-fPIC -static -lpthread -s&quot;</span></span><br></pre></td></tr></table></figure>
+<p>编译完成如下：<br><img src="/images/image-2023-1221-114051381.png" alt="undifined"></p>
+<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>通过创建Debian wheezy文件系统 + chroot的方式，可以忽略宿主机的版本问题；buildroot采用较老版本，这样可以支持更多较旧的CPU型号，尤其是MIPS。</p>
+<p>在编译复杂程序的时候，还是可能会踩坑，例如buildroot编译出来的工具链的系统库中没有程序编译依赖的库。总之，只是大概解决了交叉编译问题，实际上最好的解决方案是拿到官方的SDK（我在说什么？？？）。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/12/11/minicom%E7%9A%84%E4%BD%BF%E7%94%A8/" rel="prev" title="minicom的使用">
+      <i class="fa fa-chevron-left"></i> minicom的使用
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Debian-wheezy%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BA"><span class="nav-number">1.</span> <span class="nav-text">Debian wheezy文件系统搭建</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#buildroot%E7%BC%96%E8%AF%91"><span class="nav-number">2.</span> <span class="nav-text">buildroot编译</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%9D%99%E6%80%81%E7%BC%96%E8%AF%91%E5%AE%9E%E4%BE%8B"><span class="nav-number">3.</span> <span class="nav-text">静态编译实例</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#busybox"><span class="nav-number">3.1.</span> <span class="nav-text">busybox</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#gdbserver"><span class="nav-number">3.2.</span> <span class="nav-text">gdbserver</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B0%8F%E7%BB%93"><span class="nav-number">4.</span> <span class="nav-text">小结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">OneShell</p>
+  <div class="site-description" itemprop="description">ToT</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">68</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">OneShell</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : 'd364449d44c374dab007',
+      clientSecret: 'bb821aa84a81e3bd904d059c6e9ec7eb0e1cab4f',
+      repo        : 'BlogComments',
+      owner       : 'NoneShell',
+      admin       : ['NoneShell'],
+      id          : '27d615a9f6c23bf62edebc07a1d3f566',
+        language: 'zh-CN',
+      distractionFreeMode: true
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>
