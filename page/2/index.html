@@ -168,6 +168,200 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/09/15/[pwnable.kr]%20flag/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="ToT">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/09/15/%5Bpwnable.kr%5D%20flag/" class="post-title-link" itemprop="url">[pwnable.kr] flag</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-09-15 10:35:15" itemprop="dateCreated datePublished" datetime="2023-09-15T10:35:15+08:00">2023-09-15</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-09-20 11:29:52" itemprop="dateModified" datetime="2023-09-20T11:29:52+08:00">2023-09-20</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/pwnable-kr/" itemprop="url" rel="index"><span itemprop="name">pwnable.kr</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>根据题目描述，猜测程序可能是被压缩了或者加壳了，关键字：packed</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">Papa brought me a packed present! let&#x27;s open it.</span><br><span class="line"></span><br><span class="line">Download : http://pwnable.kr/bin/flag</span><br><span class="line"></span><br><span class="line">This is reversing task. all you need is binary</span><br></pre></td></tr></table></figure>
+
+<p>使用checksec查看一下，发现居然可以检测出来是UPX加壳：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">$ checksec flag </span><br><span class="line">[*] &#x27;/home/oneshell/PWN/pwnable.kr/flag/flag&#x27;</span><br><span class="line">    Arch:     amd64-64-little</span><br><span class="line">    RELRO:    No RELRO</span><br><span class="line">    Stack:    No canary found</span><br><span class="line">    NX:       NX disabled</span><br><span class="line">    PIE:      No PIE (0x400000)</span><br><span class="line">    RWX:      Has RWX segments</span><br><span class="line">    Packer:   Packed with UPX</span><br></pre></td></tr></table></figure>
+
+<p>使用strings查看一下，可以获取到UPX的版本是3.08，因此下载对应的源码、编译、然后unpack就可以了。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">$ strings flag | grep UPX</span><br><span class="line">UPX!</span><br><span class="line">$Info: This file is packed with the UPX executable packer http://upx.sf.net $</span><br><span class="line">$Id: UPX 3.08 Copyright (C) 1996-2011 the UPX Team. All Rights Reserved. $</span><br><span class="line">UPX!</span><br><span class="line">UPX!</span><br></pre></td></tr></table></figure>
+
+<p>我在使用Ubuntu22.04编译upx3.08的时候，总会出错，最后直接编译了最新版本，然后解壳：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">$ ./build/release/upx -d ../flag</span><br><span class="line">                       Ultimate Packer for eXecutables</span><br><span class="line">                          Copyright (C) 1996 - 2023</span><br><span class="line">UPX git-57ad6b  Markus Oberhumer, Laszlo Molnar &amp; John Reiser   Aug 25th 2023</span><br><span class="line"></span><br><span class="line">        File size         Ratio      Format      Name</span><br><span class="line">   --------------------   ------   -----------   -----------</span><br><span class="line">    887219 &lt;-    335288   37.79%   linux/amd64   flag</span><br><span class="line"></span><br><span class="line">Unpacked 1 file.</span><br><span class="line"></span><br><span class="line">WARNING: this is an unstable beta version - use for testing only! Really.</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>此时可以看到flag已经是not stripped了</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ file flag</span><br><span class="line">flag: ELF 64-bit LSB executable, x86-64, version 1 (GNU/Linux), statically linked, for GNU/Linux 2.6.24, BuildID[sha1]=96ec4cc272aeb383bd9ed26c0d4ac0eb5db41b16, not stripped</span><br></pre></td></tr></table></figure>
+
+<p>然后逆向，交叉引用，就可以看到flag的具体值：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> __cdecl <span class="title function_">main</span><span class="params">(<span class="type">int</span> argc, <span class="type">const</span> <span class="type">char</span> **argv, <span class="type">const</span> <span class="type">char</span> **envp)</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="type">char</span> *dest; <span class="comment">// [rsp+8h] [rbp-8h]</span></span><br><span class="line"></span><br><span class="line">  <span class="built_in">puts</span>(<span class="string">&quot;I will malloc() and strcpy the flag there. take it.&quot;</span>, argv, envp);</span><br><span class="line">  dest = (<span class="type">char</span> *)<span class="built_in">malloc</span>(<span class="number">100LL</span>);</span><br><span class="line">  <span class="built_in">strcpy</span>(dest, flag);</span><br><span class="line">  <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">.rodata:0000000000496628 aUpxSoundsLikeA db &#x27;UPX...? sounds like a delivery service :)&#x27;,0</span><br><span class="line">.rodata:0000000000496628                                         ; DATA XREF: .data:flag↓o</span><br><span class="line">.rodata:0000000000496652                 align 8</span><br></pre></td></tr></table></figure>
+
+<p>flag &#x3D; <code>UPX...? sounds like a delivery service :)</code></p>
+<h2 id="知识点小结"><a href="#知识点小结" class="headerlink" title="知识点小结"></a>知识点小结</h2><p>查看文件的属性，file、checksec等等，这道题目耗费时间的地方就是UPX编译，其实也可以尝试手动拖。之前在做应急响应的时候，遇到一些样本就会采用UPX加壳，主要是为了减少样本的大小。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/09/14/[pwnable]%20collision/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="OneShell">
+      <meta itemprop="description" content="ToT">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OneShell">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/09/14/%5Bpwnable%5D%20collision/" class="post-title-link" itemprop="url">[pwnable.kr] collision</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-09-14 09:47:26" itemprop="dateCreated datePublished" datetime="2023-09-14T09:47:26+08:00">2023-09-14</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-09-20 11:29:52" itemprop="dateModified" datetime="2023-09-20T11:29:52+08:00">2023-09-20</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/" itemprop="url" rel="index"><span itemprop="name">PWN</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/PWN/pwnable-kr/" itemprop="url" rel="index"><span itemprop="name">pwnable.kr</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Daddy told me about cool MD5 hash collision today.</span><br><span class="line">I wanna do something like that too!</span><br><span class="line"></span><br><span class="line">ssh col@pwnable.kr -p2222 (pw:guest)</span><br></pre></td></tr></table></figure>
+
+<p>登录上之后，查看文件：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">col@pwnable:~$ ls -al</span><br><span class="line">total 36</span><br><span class="line">drwxr-x---   5 root    col     4096 Oct 23  2016 .</span><br><span class="line">drwxr-xr-x 117 root    root    4096 Nov 10  2022 ..</span><br><span class="line">d---------   2 root    root    4096 Jun 12  2014 .bash_history</span><br><span class="line">dr-xr-xr-x   2 root    root    4096 Aug 20  2014 .irssi</span><br><span class="line">drwxr-xr-x   2 root    root    4096 Oct 23  2016 .pwntools-cache</span><br><span class="line">-r-sr-x---   1 col_pwn col     7341 Jun 11  2014 col</span><br><span class="line">-rw-r--r--   1 root    root     555 Jun 12  2014 col.c</span><br><span class="line">-r--r-----   1 col_pwn col_pwn   52 Jun 11  2014 flag</span><br></pre></td></tr></table></figure>
+
+<p>如下是col.c的内容：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;string.h&gt;</span></span></span><br><span class="line"><span class="type">unsigned</span> <span class="type">long</span> hashcode = <span class="number">0x21DD09EC</span>;</span><br><span class="line"><span class="type">unsigned</span> <span class="type">long</span> <span class="title function_">check_password</span><span class="params">(<span class="type">const</span> <span class="type">char</span>* p)</span>&#123;</span><br><span class="line">	<span class="type">int</span>* ip = (<span class="type">int</span>*)p;</span><br><span class="line">	<span class="type">int</span> i;</span><br><span class="line">	<span class="type">int</span> res=<span class="number">0</span>;</span><br><span class="line">	<span class="keyword">for</span>(i=<span class="number">0</span>; i&lt;<span class="number">5</span>; i++)&#123;</span><br><span class="line">		res += ip[i];</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> res;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span>* argv[])</span>&#123;</span><br><span class="line">	<span class="keyword">if</span>(argc&lt;<span class="number">2</span>)&#123;</span><br><span class="line">		<span class="built_in">printf</span>(<span class="string">&quot;usage : %s [passcode]\n&quot;</span>, argv[<span class="number">0</span>]);</span><br><span class="line">		<span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span>(<span class="built_in">strlen</span>(argv[<span class="number">1</span>]) != <span class="number">20</span>)&#123;</span><br><span class="line">		<span class="built_in">printf</span>(<span class="string">&quot;passcode length should be 20 bytes\n&quot;</span>);</span><br><span class="line">		<span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span>(hashcode == check_password( argv[<span class="number">1</span>] ))&#123;</span><br><span class="line">		system(<span class="string">&quot;/bin/cat flag&quot;</span>);</span><br><span class="line">		<span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">else</span></span><br><span class="line">		<span class="built_in">printf</span>(<span class="string">&quot;wrong passcode.\n&quot;</span>);</span><br><span class="line">	<span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>要求输入长度为20的字符串，然后将20个字符串划分成5组，并将5组子字符串作为整数依次相加，最后的值如果等于0x21DD09EC，则输出flag。</p>
+<p>0x21DD09EC &#x3D; 568134124；568134124 &#x2F; 5 &#x3D; 113626824 余 4；那么就相当于：</p>
+<p>0x21DD09EC &#x3D; 0x6C5CEC8 * 5 + 4 &#x3D; 0x6C5CEC8 * 4 + 0x6C5CEC8 + 4 &#x3D; 0x6C5CEC8 * 4 + 0x6C5CECC</p>
+<p>那么就可以构造出来字符串了，再考虑到大小端：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">python -c &quot;print &#x27;\xc8\xce\xc5\x06&#x27;*4+&#x27;\xcc\xce\xc5\x06&#x27;&quot;</span><br><span class="line">./col &quot;`python -c &quot;print &#x27;\xc8\xce\xc5\x06&#x27;*4+&#x27;\xcc\xce\xc5\x06&#x27;&quot;`&quot;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">col@pwnable:~$ ./col &quot;`python -c &quot;print &#x27;\xc8\xce\xc5\x06&#x27;*4+&#x27;\xcc\xce\xc5\x06&#x27;&quot;`&quot;</span><br><span class="line">daddy! I just managed to create a hash collision :)</span><br><span class="line">col@pwnable:~$</span><br></pre></td></tr></table></figure>
+
+
+
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
     <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/09/14/[pwnable]%20bof/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1133,213 +1327,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/13/[afl-training]%20quickstart/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="ToT">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/04/13/%5Bafl-training%5D%20quickstart/" class="post-title-link" itemprop="url">[afl-training] quickstart</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-              
-
-              <time title="Created: 2023-04-13 10:05:10 / Modified: 10:26:52" itemprop="dateCreated datePublished" datetime="2023-04-13T10:05:10+08:00">2023-04-13</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/" itemprop="url" rel="index"><span itemprop="name">工具党</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/AFL/" itemprop="url" rel="index"><span itemprop="name">AFL</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="afl-training-quickstart"><a href="#afl-training-quickstart" class="headerlink" title="[afl-training] quickstart"></a>[afl-training] quickstart</h1><p>afl-trainning 是之前在安全客上发现的关于 AFL 实战的学习资料，之前一直想通过 AFL 来进行实战，苦于网上的都是一些基础的使用教程，发现这个资料的时候欣喜万分。</p>
-<p>在这个 AFL workshop 中，主要包含了以下的一些内容：</p>
-<ul>
-<li>quickstart：一个简单的例子，通过 afl 编译程序然后使用 afl-fuzz 来 fuzz，新手入门必看，也就是这一篇文章</li>
-<li>harness：</li>
-<li>challenges：几个使用 fuzz 可以挖掘出来的经典漏洞<ul>
-<li>libxml2：CVE-2015-8317</li>
-<li>heartbleed：openssl 的心脏滴血漏洞 CVE-2014-0160</li>
-<li>sendmail：CVE-1999-0206, CVE-2003-0161</li>
-<li>ntpq：CVE-2009-0159</li>
-<li>date：CVE-2017-7476</li>
-<li>cyber-grand-challenge</li>
-<li>sendmail&#x2F;1305</li>
-</ul>
-</li>
-</ul>
-<p>教程是可以使用 docker 的形式创建学习环境的，我这个地方就没有使用了，直接在 git 目录中进行学习。</p>
-<h2 id="编译"><a href="#编译" class="headerlink" title="编译"></a>编译</h2><p>trainning 中使用的是 AFLplusplus，我此处使用的就是 AFL，因为之前在看 AFL 的源码。</p>
-<p>首先进入 quickstart 目录，然后使用 afl-clang 对程序源码进行编译</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">cd quickstart</span><br><span class="line">CC=afl-clang AFL_HARDEN=1 make</span><br></pre></td></tr></table></figure>
-
-<p>编译出来的程序是读取 STDIN 标准输入进行处理，可直接运行程序，如果敲下回车不输入数据会显示程序帮助信息，也可以直接从 inputs 提供的种子文件进行运行。</p>
-<p><img src="/images/image-2023-0413-100605033.png" alt="undifined"></p>
-<h2 id="Fuzzing"><a href="#Fuzzing" class="headerlink" title="Fuzzing"></a>Fuzzing</h2><p>使用如下的命令直接进行 fuzz，下图是 fuzz 出来的结果，运行了 44 分钟之后跑出了 9 个 crash</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">afl-fuzz -i inputs -o out ./vulnerable</span><br></pre></td></tr></table></figure>
-
-<p><img src="/images/image-2023-0413-100622630.png" alt="undifined"></p>
-<h2 id="问题总结"><a href="#问题总结" class="headerlink" title="问题总结"></a>问题总结</h2><ul>
-<li><p>AFL 是如何使用 afl-clang 进行插桩的？</p>
-<p>首先需要知道正常使用 gcc 进行编译和使用 alf-clang 进行编译，产生的可执行文件在二进制上的差别。安全相关，因此先使用 checksec 查看 afl-clang 编译出来的可执行文件开启了哪些防御措施，然后使用 gcc 开启对应的防御参数重新进行编译</p>
-</li>
-</ul>
-<p><img src="/images/image-2023-0413-100640530.png" alt="undifined"></p>
-<p>  那么使用 gcc 进行编译的命令如下，FORTIFY 选项没有编译出来</p>
-  <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">gcc -no-pie -fstack-protector-all -z noexecstack -O2 -D_FORTIFY_SOURCE=1 -o vulnerable_gcc vulnerable.c</span><br></pre></td></tr></table></figure>
-
-<p><img src="/images/image-2023-0413-100655331.png" alt="undifined"></p>
-<p>  然后使用 bindiff 工具进行查看，可以看到 afl-clang 编译出来的可执行文件中，在每一个基本块中，都加入了 afl_maybe_log 函数，通过在 AFL 源码目录中搜索该函数，可以定位到是在 afl-as.h 文件中，在源码中是以一串静态字符串形式存储的汇编代码，此处以 64 位为例，源码部分如下。</p>
-<p><img src="/images/image-2023-0413-100709554.png" alt="undifined"></p>
-  <figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">const</span> u8* trampoline_fmt_64 =</span><br><span class="line"></span><br><span class="line">  <span class="string">&quot;\n&quot;</span></span><br><span class="line">  <span class="string">&quot;/* --- AFL TRAMPOLINE (64-BIT) --- */\n&quot;</span></span><br><span class="line">  <span class="string">&quot;\n&quot;</span></span><br><span class="line">  <span class="string">&quot;.align 4\n&quot;</span></span><br><span class="line">  <span class="string">&quot;\n&quot;</span></span><br><span class="line">  <span class="string">&quot;leaq -(128+24)(%%rsp), %%rsp\n&quot;</span></span><br><span class="line">  <span class="string">&quot;movq %%rdx,  0(%%rsp)\n&quot;</span></span><br><span class="line">  <span class="string">&quot;movq %%rcx,  8(%%rsp)\n&quot;</span></span><br><span class="line">  <span class="string">&quot;movq %%rax, 16(%%rsp)\n&quot;</span></span><br><span class="line">  <span class="string">&quot;movq $0x%08x, %%rcx\n&quot;</span></span><br><span class="line">  <span class="string">&quot;call __afl_maybe_log\n&quot;</span></span><br><span class="line">  <span class="string">&quot;movq 16(%%rsp), %%rax\n&quot;</span></span><br><span class="line">  <span class="string">&quot;movq  8(%%rsp), %%rcx\n&quot;</span></span><br><span class="line">  <span class="string">&quot;movq  0(%%rsp), %%rdx\n&quot;</span></span><br><span class="line">  <span class="string">&quot;leaq (128+24)(%%rsp), %%rsp\n&quot;</span></span><br><span class="line">  <span class="string">&quot;\n&quot;</span></span><br><span class="line">  <span class="string">&quot;/* --- END --- */\n&quot;</span></span><br><span class="line">  <span class="string">&quot;\n&quot;</span>;</span><br></pre></td></tr></table></figure>
-
-<p>  将源代码编译成二进制文件的基本流程是：源代码 -&gt; 汇编代码 -&gt; 二进制代码，将汇编代码编译成二进制的工具就是汇编器 assembler。Linux 常用的汇编器是 as，当完成了 AFL 的编译后，在目录下也会存在一个 as 文件，并且作为符号链接指向 afl-as。因此，此处的代码插桩实现应该是使用的 afl-as，在将源代码编译成汇编代码的过程中，将如上的 afl_maybe_log 函数插入到分支处，也就是在基本块中进行插桩。如上的插桩代码就是 x64 下正常调用一个函数的流程：开辟栈空间，调用 afl_maybe_log 函数，执行完毕函数之后恢复栈平衡。afl_maybe_log 函数也就是插桩具体要执行的内容。此处不多分析 afl_maybe_log 函数的源码，函数位于 afl-as.c 中，就简单说一下函数的实现功能：通过共享内存对基本块的执行情况进行保存。</p>
-<p>  对于插桩分析得比较不错的可以参考看雪的这篇文章：<a target="_blank" rel="noopener" href="https://bbs.pediy.com/thread-265973.htm">[原创]AFL编译插桩部分源码分析</a></p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="https://oneshell.top/2023/04/13/%E4%BD%BF%E7%94%A8afl%E5%AF%B9%E6%97%A0%E6%BA%90%E7%A0%81%E7%A8%8B%E5%BA%8F%E8%BF%9B%E8%A1%8C%E6%B5%8B%E8%AF%95/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="OneShell">
-      <meta itemprop="description" content="ToT">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="OneShell">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/04/13/%E4%BD%BF%E7%94%A8afl%E5%AF%B9%E6%97%A0%E6%BA%90%E7%A0%81%E7%A8%8B%E5%BA%8F%E8%BF%9B%E8%A1%8C%E6%B5%8B%E8%AF%95/" class="post-title-link" itemprop="url">使用afl对无源码程序进行测试</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-              
-
-              <time title="Created: 2023-04-13 10:01:10 / Modified: 10:03:06" itemprop="dateCreated datePublished" datetime="2023-04-13T10:01:10+08:00">2023-04-13</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/" itemprop="url" rel="index"><span itemprop="name">工具党</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7%E5%85%9A/AFL/" itemprop="url" rel="index"><span itemprop="name">AFL</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="使用-afl-对无源码的程序进行-fuzz"><a href="#使用-afl-对无源码的程序进行-fuzz" class="headerlink" title="使用 afl 对无源码的程序进行 fuzz"></a>使用 afl 对无源码的程序进行 fuzz</h1><p>有源码的情况下，可以使用 afl 相关的编译器进行编译插桩，然后进行 fuzz；如果是无源码的情况下，就需要使用 afl 的 qemu mode 进行 fuzz。这个地方我使用的是 <a target="_blank" rel="noopener" href="https://github.com/AFLplusplus/AFLplusplus">AFLPlusPlus</a>，之前已经大概看过 afl 的源码，afl++ 源码的结构更加清晰，因此后面都是在使用 afl++ 作为 fuzz 工具。</p>
-<h2 id="待-fuzz-程序和函数劫持-so"><a href="#待-fuzz-程序和函数劫持-so" class="headerlink" title="待 fuzz 程序和函数劫持 so"></a>待 fuzz 程序和函数劫持 so</h2><p>手上有的程序是 x64 的一个简易 cgi，源码如下，是从环境变量中读取数据存放在 buffer 中，当前的目标就是对其中的一个环境变量进行模糊测试，使用 hook 对 REQUEST_METHOD 赋予给定值 GET，然后对 QUERY_STRING 环境变量从标准输入中读取。具体的 hook 实现过程可以参考<a target="_blank" rel="noopener" href="https://genteeldevil.github.io/2021/12/29/%E5%A6%82%E4%BD%95%E5%8A%AB%E6%8C%81%E4%B8%80%E4%B8%AAcgi%E7%9A%84getenv%E5%87%BD%E6%95%B0/">如何劫持一个 cgi 的 getenv 函数</a>。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// cgi_nolen.c</span></span><br><span class="line"><span class="comment">// gcc cgi_nolen.c -o cgi_nolen</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;string.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdlib.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;unistd.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span>** argv)</span> &#123;</span><br><span class="line">    <span class="type">char</span>* method = getenv(<span class="string">&quot;REQUEST_METHOD&quot;</span>);</span><br><span class="line">    <span class="type">char</span>* url;</span><br><span class="line">    <span class="type">char</span> buffer[<span class="number">256</span>];</span><br><span class="line">    <span class="built_in">memset</span>(buffer, <span class="string">&#x27;\0&#x27;</span>, <span class="keyword">sizeof</span>(buffer));</span><br><span class="line">    <span class="keyword">if</span> (!method) &#123;</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;[!] no init env!\n&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 两条路径：</span></span><br><span class="line">    <span class="comment">// GET-&gt;URL 两个环境变量导致的缓冲区溢出</span></span><br><span class="line">    <span class="comment">// POST-&gt;STDIN 一个环境变量+标准输入导致的缓冲区溢出</span></span><br><span class="line">    <span class="keyword">if</span> (!<span class="built_in">strcmp</span>(method, <span class="string">&quot;GET&quot;</span>)) &#123;</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;[+] this is get method\n&quot;</span>);</span><br><span class="line">        url = getenv(<span class="string">&quot;QUERY_STRING&quot;</span>);</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;[+] get query string %s\n&quot;</span>, url);</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;[*] copy url to buffer\n&quot;</span>);</span><br><span class="line">        <span class="built_in">strcpy</span>(buffer, url);</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;[+] buffer is %s\n&quot;</span>, buffer);</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (!<span class="built_in">strcmp</span>(method, <span class="string">&quot;POST&quot;</span>)) &#123;</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;[+] this is post method\n&quot;</span>);</span><br><span class="line">        <span class="comment">// 这个地方存在缓冲区溢出</span></span><br><span class="line">        gets(buffer);</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;[+] get stdin: %s\n&quot;</span>, buffer);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>hook 代码如下：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// hook.c</span></span><br><span class="line"><span class="comment">// gcc -D_GUN_SOURCE -shared -fPIC -o hook_getenv.so hook.c -ldl</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> _GNU_SOURCE  <span class="comment">// 使用RELD_NEXT</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;string.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;dlfcn.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="type">char</span> *(*original_getenv_func)(<span class="type">const</span> <span class="type">char</span> *) = <span class="literal">NULL</span>;</span><br><span class="line"><span class="comment">// 定义全局变量buffer来存储STDIN中读取的数据</span></span><br><span class="line"><span class="type">char</span> buffer[<span class="number">1024</span>];</span><br><span class="line"></span><br><span class="line"><span class="type">char</span> *<span class="title function_">getenv</span><span class="params">(<span class="type">const</span> <span class="type">char</span> *name)</span> &#123;</span><br><span class="line">  <span class="built_in">memset</span>(buffer, <span class="string">&#x27;\0&#x27;</span>, <span class="keyword">sizeof</span>(buffer));</span><br><span class="line">  <span class="comment">// 这个地方还需要考虑变异出来的数据的长度和大小</span></span><br><span class="line">  <span class="keyword">if</span> (!original_getenv_func) original_getenv_func = dlsym(RTLD_NEXT, <span class="string">&quot;getenv&quot;</span>);</span><br><span class="line">  <span class="comment">// 这个地方需要定义一个缓冲区才行，用来从stdin中读取数据</span></span><br><span class="line">  <span class="type">char</span> *result = original_getenv_func(name);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">&quot;[hook] hook env %s, origin = %s\n&quot;</span>, name, result);</span><br><span class="line">  <span class="keyword">if</span> (!<span class="built_in">strncmp</span>(name, <span class="string">&quot;REQUEST_METHOD&quot;</span>, <span class="number">14</span>)) &#123;</span><br><span class="line">    <span class="built_in">strncpy</span>(buffer, <span class="string">&quot;GET\0&quot;</span>, <span class="built_in">strlen</span>(<span class="string">&quot;GET\0&quot;</span>));</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;[hook] changing to %s\n&quot;</span>, buffer);</span><br><span class="line">    <span class="keyword">return</span> buffer;</span><br><span class="line">  &#125; <span class="keyword">else</span> <span class="keyword">if</span> (!<span class="built_in">strncmp</span>(name, <span class="string">&quot;QUERY_STRING&quot;</span>, <span class="number">12</span>)) &#123;</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;[hook] hook env URL,change to STDIN\n&quot;</span>);</span><br><span class="line">    gets(buffer);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;[hook] from STDIN %s\n&quot;</span>, buffer);</span><br><span class="line">    <span class="keyword">return</span> buffer;</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h2 id="编译-qemu-mode"><a href="#编译-qemu-mode" class="headerlink" title="编译 qemu-mode"></a>编译 qemu-mode</h2><p>要使用 qemu-mode，首先要编译和待 fuzz 程序架构一致的 afl-qemu-trace。打开 qemu-mode 文件夹，准备编译。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">CPU_TARGET=x86_64 ./build_qemu_support.sh</span><br><span class="line">cd ..</span><br><span class="line">sudo make install</span><br></pre></td></tr></table></figure>
-
-<p>如果要 fuzz 其他架构的程序，那么对应把 CPU_TARGET 进行设定即可，例如 arm、i386 等等。</p>
-<h2 id="设置-QEMU-的-so-劫持"><a href="#设置-QEMU-的-so-劫持" class="headerlink" title="设置 QEMU 的 so 劫持"></a>设置 QEMU 的 so 劫持</h2><p>正常情况下如果要劫持一个程序的某些函数，使用环境变量 LD_PRELOAD 即可。afl 的 qemu mode 本质上也是使用的 qemu，如果要劫持待 fuzz 程序的函数，需要在启动 afl 的时候使用环境变量 QEMU_SET_ENV 设置程序在 QEMU 运行下的环境变量。那么 fuzz 的启动命令如下：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">QEMU_SET_ENV=LD_PRELOAD=&quot;./hook_getenv.so&quot; REQUEST_METHOD=GET afl-fuzz -i input -o output -m none -Q ./cgi_nolen </span><br></pre></td></tr></table></figure>
-
-<p>可以对上面的启动命令做解释：</p>
-<ul>
-<li><code>QEMU_SET_ENV=LD_PRELOAD=&quot;./hook_getenv.so&quot;</code> 设置待 fuuz 程序的环境变量，设置劫持</li>
-<li><code>REQUEST_METHOD=GET</code> 相当于是将 afl-fuzz 和待 fuzz 程序的 REQUEST_METHOD 值都设置成了 POST，因为在 fuzz 的时候使用 fork 创建的子进程继承了 afl-fuzz 的环境变量。</li>
-<li><code>afl-fuzz -i input -o output -m none -Q ./cgi_nolen</code> 从 input 文件夹读取种子，fuzz 结果存放在 output 文件夹，无内存限制，使用 QEMU 模式。</li>
-</ul>
-<p>跑了 11 分钟，出来了 5000 多个 crash，其中的两个是 unique crash。</p>
-<p><img src="/images/image-2023-0413-100152606.png" alt="undifined"></p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1409,7 +1396,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">68</span>
+          <span class="site-state-item-count">70</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -1449,7 +1436,7 @@
 <div class="copyright">
   
   &copy; 
-  <span itemprop="copyrightYear">2023</span>
+  <span itemprop="copyrightYear">2024</span>
   <span class="with-love">
     <i class="fa fa-heart"></i>
   </span>
